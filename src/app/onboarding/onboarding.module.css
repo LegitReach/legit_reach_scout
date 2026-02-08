@@ -84,6 +84,7 @@
     border-radius: var(--radius-lg);
     color: var(--color-text-primary);
     font-size: var(--font-size-base);
+    width: 100%;
 }
 
 .input:focus {
