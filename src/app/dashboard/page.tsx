@@ -41,7 +41,7 @@ const [activeSubreddit, setActiveSubreddit] = useState(
     }, []);
 
     // Get keywords from onboarding
-    const keywords = onboarding.neverSay || [];
+    const keywords = onboarding.keywords || [];
     const subreddits = [...(onboarding.selectedCommunities || [])];
 
     // Fetch posts from API with keywords

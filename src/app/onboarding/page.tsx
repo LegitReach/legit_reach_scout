@@ -11,7 +11,7 @@ export default function OnboardingPage() {
         const [step, setStep] = useState(1);
 
         // Form state
-        const [keywords, setKeywords] = useState<string[]>(onboarding.neverSay || []);
+        const [keywords, setKeywords] = useState<string[]>(onboarding.keywords || []);
         const [keywordInput, setKeywordInput] = useState("");
         const [subreddits, setSubreddits] = useState<string[]>(onboarding.selectedCommunities || []);
         const [businessDesc, setBusinessDesc] = useState<string>(onboarding.oneMinuteBusinessPitch || "");
@@ -62,7 +62,7 @@ export default function OnboardingPage() {
         const handleComplete = () => {
             updateOnboarding({
                 selectedCommunities: subreddits,
-                neverSay: keywords, // repurposed as search keywords
+                keywords: keywords, // repurposed as search keywords
                 oneMinuteBusinessPitch: businessDesc,
                 completed: true,
             });
@@ -154,9 +154,16 @@ export default function OnboardingPage() {
                                 <button
                                     onClick={goToStep3}
                                     className={styles.completeBtn}
-                                    disabled={!businessDesc.trim()}
+                                    disabled={!businessDesc.trim() || loadingSuggestions}
                                 >
-                                    Find Communities →
+                                    {loadingSuggestions ? (
+                                        <>
+                                            <span className={styles.spinner} style={{width:18,height:18,borderWidth:2,marginRight:8}}></span>
+                                            Finding communities...
+                                        </>
+                                    ) : (
+                                        'Find Communities →'
+                                    )}
                                 </button>
                             </div>
                         </div>
