@@ -7,6 +7,7 @@ import styles from "./Sidebar.module.css";
 
 const navItems = [
     { href: "/dashboard", icon: "🔍", label: "Opportunities" },
+    { href: "/morning", icon: "☀️", label: "Morning Brief" },
     { href: "/onboarding", icon: "⚙️", label: "Settings" },
 ];
 

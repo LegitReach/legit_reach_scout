@@ -35,29 +35,29 @@ export async function GET(request: NextRequest) {
         const keywordList = keywords ? keywords.split(",").map(k => k.trim()) : ["your product", "this topic"];
         const searchQuery = keywordList.join(' OR ');
 
-        const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
+        // const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
 
-        const options = {
-            method: 'GET',
-            headers: {
-                "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
-            }
-        };
+        // const options = {
+        //     method: 'GET',
+        //     headers: {
+        //         "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
+        //     }
+        // };
 
-        try {
-            const response = await fetch(url, options);
-            const relevantRedditResponse = await response.json();
-            if(relevantRedditResponse['posts']){
-                resultPosts = relevantRedditResponse['posts'];
-                resultPosts = resultPosts.map((post, idx) => ({
-                    ...post,
-                    permalink: `https://reddit.com${post.permalink}`,
-                }));
-            } 
-        }
-        catch (error) {
-            console.error(error);
-        }
+        // try {
+        //     const response = await fetch(url, options);
+        //     const relevantRedditResponse = await response.json();
+        //     if(relevantRedditResponse['posts']){
+        //         resultPosts = relevantRedditResponse['posts'];
+        //         resultPosts = resultPosts.map((post, idx) => ({
+        //             ...post,
+        //             permalink: `https://reddit.com${post.permalink}`,
+        //         }));
+        //     } 
+        // }
+        // catch (error) {
+        //     console.error(error);
+        // }
 
         /**
          *      id: `post_${subreddit}_${idx}_${Date.now()}`,
