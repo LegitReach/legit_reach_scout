@@ -29,58 +29,33 @@ export async function GET(request: NextRequest) {
         // Simulate MCP browse_subreddit + search_reddit results
         // This will be replaced with real MCP calls
 
-        const now = Date.now() / 1000;
 
         // Generate contextual posts based on subreddit and keywords
         const keywordList = keywords ? keywords.split(",").map(k => k.trim()) : ["your product", "this topic"];
-        const searchQuery = keywordList.join(' OR ');
 
-        // const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
+        const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
 
-        // const options = {
-        //     method: 'GET',
-        //     headers: {
-        //         "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
-        //     }
-        // };
+        const options = {
+            method: 'GET',
+            headers: {
+                "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
+            }
+        };
 
-        // try {
-        //     const response = await fetch(url, options);
-        //     const relevantRedditResponse = await response.json();
-        //     if(relevantRedditResponse['posts']){
-        //         resultPosts = relevantRedditResponse['posts'];
-        //         resultPosts = resultPosts.map((post, idx) => ({
-        //             ...post,
-        //             permalink: `https://reddit.com${post.permalink}`,
-        //         }));
-        //     } 
-        // }
-        // catch (error) {
-        //     console.error(error);
-        // }
-
-        /**
-         *      id: `post_${subreddit}_${idx}_${Date.now()}`,
-                title: template.titleTemplate
-                    .replace("[KEYWORD]", keyword)
-                    .replace("[CONTEXT]", context),
-                selftext: template.textTemplate
-                    .replace(/\[KEYWORD\]/g, keyword)
-                    .replace("[generic]", "a basic tool"),
-                subreddit: `r/${subreddit}`,
-                author: `user_${Math.random().toString(36).substring(7)}`,
-                score: Math.floor(Math.random() * 200) + 10,
-                num_comments: Math.floor(Math.random() * 50) + 5,
-                created_utc: now - (idx * 3600 * 2), // Stagger by 2 hours
-                permalink: `/r/${subreddit}/comments/example_${idx}`,
-                url: `https://reddit.com/r/${subreddit}/comments/example_${idx}`,
-                opportunity_type: template.opportunity,
-                relevance_score: 95 - (idx * 3), // Decreasing relevance
-         * 
-         * 
-         * 
-         */
-
+        try {
+            const response = await fetch(url, options);
+            const relevantRedditResponse = await response.json();
+            if(relevantRedditResponse['posts']){
+                resultPosts = relevantRedditResponse['posts'];
+                resultPosts = resultPosts.map((post, idx) => ({
+                    ...post,
+                    permalink: `https://reddit.com${post.permalink}`,
+                }));
+            } 
+        }
+        catch (error) {
+            console.error(error);
+        }
 
         // Generate posts
         return NextResponse.json({
