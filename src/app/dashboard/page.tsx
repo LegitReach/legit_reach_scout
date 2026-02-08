@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import styles from "./dashboard.module.css";
+import RedditList from "@/components/RedditList";
 
 interface RedditPost {
     id: string;
@@ -155,63 +156,13 @@ const [activeSubreddit, setActiveSubreddit] = useState(
                         <p className={styles.emptyHint}>Try adding more keywords or communities.</p>
                     </div>
                 ) : (
-                    visiblePosts.map(post => (
-                        <div
-                            key={post.id}
-                            className={styles.postCard}
-                        >
-                            <div className={styles.postHeader}>
-                                <span className={styles.subreddit}>{post.subreddit}</span>
-                                <span className={styles.meta}>
-                                    u/{post.author} • {formatTime(post.created_utc)}
-                                </span>
-                                {post.relevance_score && (
-                                    <span className={styles.relevance}>{post.relevance_score}% match</span>
-                                )}
-                            </div>
-
-                            <h3 className={styles.postTitle}>{post.title}</h3>
-
-                            {post.selftext && (
-                                <p className={styles.postContent}>
-                                    {post.selftext.substring(0, 200)}
-                                    {post.selftext.length > 200 ? "..." : ""}
-                                </p>
-                            )}
-
-                            {post.opportunity_type && (
-                                <div className={styles.opportunityBadge}>
-                                    💡 {post.opportunity_type}
-                                </div>
-                            )}
-
-                            <div className={styles.postStats}>
-                                <span>⬆️ {post.score}</span>
-                                <span>💬 {post.num_comments} comments</span>
-                            </div>
-
-                            <div className={styles.postActions}>
-                                <button
-                                    onClick={() => savePost(post.id)}
-                                    className={`${styles.actionBtn} ${savedPosts.includes(post.id) ? styles.saved : ""}`}
-                                >
-                                    {savedPosts.includes(post.id) ? "★ Saved" : "☆ Save"}
-                                </button>
-                                <Link
-                                    href={`/dashboard/post?post=${encodeURIComponent(JSON.stringify(post))}`}
-                                    className={styles.viewBtn}
-                                >
-                                    View & Draft Reply →
-                                </Link>
-                                <button
-                                    onClick={() => markResponded(post.id)}
-                                    className={styles.doneBtn}
-                                >
-                                    ✓ Done
-                                </button>
-                            </div>
-                        </div>
-                    ))
+                    <RedditList
+                        posts={visiblePosts}
+                        savedPosts={savedPosts}
+                        respondedPosts={respondedPosts}
+                        onSave={savePost}
+                        onDone={markResponded}
+                    />
                 )}
             </div>
         </div>
