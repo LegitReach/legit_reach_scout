@@ -5,11 +5,6 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import styles from "./onboarding.module.css";
 
-interface SubredditSuggestion {
-    name: string;
-    display: string;
-    relevance: number;
-}
 
 export default function OnboardingPage() {
     const router = useRouter();
@@ -22,7 +17,7 @@ export default function OnboardingPage() {
     const [subreddits, setSubreddits] = useState<string[]>(onboarding.selectedCommunities || []);
 
     // Dynamic suggestions
-    const [suggestedSubreddits, setSuggestedSubreddits] = useState<SubredditSuggestion[]>([]);
+    const [suggestedSubreddits, setSuggestedSubreddits] = useState<string[]>([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
     const addKeyword = () => {
@@ -56,13 +51,6 @@ export default function OnboardingPage() {
         } catch (error) {
             console.error("Failed to fetch suggestions:", error);
             // Fallback to defaults
-            setSuggestedSubreddits([
-                { name: "startups", display: "r/startups", relevance: 90 },
-                { name: "Entrepreneur", display: "r/Entrepreneur", relevance: 85 },
-                { name: "SaaS", display: "r/SaaS", relevance: 80 },
-                { name: "smallbusiness", display: "r/smallbusiness", relevance: 75 },
-                { name: "indiehackers", display: "r/indiehackers", relevance: 70 },
-            ]);
         }
 
         setLoadingSuggestions(false);
@@ -151,12 +139,11 @@ export default function OnboardingPage() {
                                 <div className={styles.subredditGrid}>
                                     {suggestedSubreddits.map(sub => (
                                         <button
-                                            key={sub.name}
-                                            onClick={() => toggleSubreddit(sub.name)}
-                                            className={`${styles.subredditBtn} ${subreddits.includes(sub.name) ? styles.selected : ""}`}
+                                            key={sub}
+                                            onClick={() => toggleSubreddit(sub)}
+                                            className={`${styles.subredditBtn} ${subreddits.includes(sub) ? styles.selected : ""}`}
                                         >
-                                            <span className={styles.subName}>{sub.display}</span>
-                                            <span className={styles.subRelevance}>{sub.relevance}%</span>
+                                            <span className={styles.subName}>{sub}</span>
                                         </button>
                                     ))}
                                 </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import styles from "./dashboard.module.css";
@@ -27,7 +27,8 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
 const [activeSubreddit, setActiveSubreddit] = useState(
     onboarding.selectedCommunities?.[0] || "all"
-);    const [savedPosts, setSavedPosts] = useState<string[]>([]);
+);
+    const [savedPosts, setSavedPosts] = useState<string[]>([]);
     const [respondedPosts, setRespondedPosts] = useState<string[]>([]);
 
 
@@ -44,24 +45,34 @@ const [activeSubreddit, setActiveSubreddit] = useState(
     const subreddits = [...(onboarding.selectedCommunities || [])];
 
     // Fetch posts from API with keywords
+    // Memoize the keywords param string so deps are stable
+    const keywordsParam = useMemo(() => keywords.join(","), [keywords.join(",")]);
+
     useEffect(() => {
+        // don't try to fetch until we have a valid subreddit
+        if (!activeSubreddit) return;
+
+        const controller = new AbortController();
+
         async function fetchPosts() {
             setLoading(true);
             try {
-                const keywordsParam = keywords.join(",");
                 const res = await fetch(
-                    `/api/reddit/browse?subreddit=${activeSubreddit}&keywords=${encodeURIComponent(keywordsParam)}&limit=5`
+                    `/api/reddit/browse?subreddit=${activeSubreddit}&keywords=${encodeURIComponent(keywordsParam)}&limit=5`,
+                    { signal: controller.signal }
                 );
                 const data = await res.json();
-                console.log(data)
                 setPosts(data.posts || []);
             } catch (error) {
+                if ((error as any).name === 'AbortError') return;
                 console.error("Failed to fetch posts:", error);
             }
             setLoading(false);
         }
         fetchPosts();
-    }, [activeSubreddit, keywords.join(",")]);
+
+        return () => controller.abort();
+    }, [activeSubreddit, keywordsParam]);
 
     const savePost = (postId: string) => {
         const updated = savedPosts.includes(postId)
@@ -126,7 +137,7 @@ const [activeSubreddit, setActiveSubreddit] = useState(
                         onClick={() => setActiveSubreddit(sub)}
                         className={`${styles.tab} ${activeSubreddit === sub ? styles.active : ""}`}
                     >
-                        r/{sub}
+                        {sub}
                     </button>
                 ))}
             </div>
