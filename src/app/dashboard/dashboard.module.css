@@ -1,0 +1,304 @@
+.page {
+    animation: fadeIn 0.4s ease;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.header h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.header>div>p {
+    color: var(--color-text-secondary);
+}
+
+.keywords {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.keyword {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(255, 69, 0, 0.1);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+}
+
+/* Stats */
+.stats {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--gradient-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+}
+
+.statNumber {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.statLabel {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-sm);
+}
+
+.tab {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.tab:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text-primary);
+}
+
+.tab.active {
+    background: var(--gradient-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+/* Feed */
+.feed {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--color-text-secondary);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--glass-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.empty {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.empty p:first-child {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.emptyHint {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* Post Card */
+.postCard {
+    background: var(--gradient-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    transition: all var(--transition-base);
+}
+
+.postCard:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.postHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.subreddit {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.relevance {
+    margin-left: auto;
+    padding: 2px 8px;
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--color-success);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border-radius: var(--radius-full);
+}
+
+.postTitle {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.4;
+}
+
+.postContent {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+}
+
+.opportunityBadge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid var(--color-accent-purple);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    color: var(--color-accent-purple);
+    margin-bottom: var(--spacing-md);
+}
+
+.postStats {
+    display: flex;
+    gap: var(--spacing-lg);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+}
+
+.postActions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.actionBtn,
+.viewBtn,
+.doneBtn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.actionBtn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--color-text-secondary);
+}
+
+.actionBtn:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text-primary);
+}
+
+.actionBtn.saved {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: var(--color-warning);
+    color: var(--color-warning);
+}
+
+.viewBtn {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: 0 2px 10px var(--color-primary-glow);
+}
+
+.viewBtn:hover {
+    transform: translateY(-1px);
+}
+
+.doneBtn {
+    background: transparent;
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+}
+
+.doneBtn:hover {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .header {
+        flex-direction: column;
+    }
+
+    .stats {
+        flex-direction: column;
+    }
+
+    .postActions {
+        flex-direction: column;
+    }
+
+    .postActions>* {
+        width: 100%;
+        text-align: center;
+    }
+}
