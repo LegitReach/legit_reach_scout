@@ -7,6 +7,7 @@ interface OnboardingState {
     selectedCommunities: string[];
     neverSay: string[]; // repurposed as search keywords
     completed: boolean;
+    oneMinuteBusinessPitch:string;
 }
 
 const initialOnboardingState: OnboardingState = {
@@ -14,6 +15,7 @@ const initialOnboardingState: OnboardingState = {
     selectedCommunities: [],
     neverSay: [],
     completed: false,
+    oneMinuteBusinessPitch: ''
 };
 
 interface AppContextValue {
