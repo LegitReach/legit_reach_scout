@@ -23,7 +23,7 @@ interface RedditPost {
 
 
 export default function DashboardPage() {
-    const { onboarding } = useApp();
+    const { onboarding, cachedDashboardPosts, cachedDashboardMeta, setDashboardCache } = useApp();
     const [posts, setPosts] = useState<RedditPost[]>([]);
     const [loading, setLoading] = useState(true);
 const [activeSubreddit, setActiveSubreddit] = useState(
@@ -49,11 +49,21 @@ const [activeSubreddit, setActiveSubreddit] = useState(
     // Memoize the keywords param string so deps are stable
     const keywordsParam = useMemo(() => keywords.join(","), [keywords.join(",")]);
 
+    const DASHBOARD_CACHE_TTL = 1000 * 60 * 60; // 1 hour
+    const signature = JSON.stringify([activeSubreddit, keywordsParam]);
+
     useEffect(() => {
         // don't try to fetch until we have a valid subreddit
         if (!activeSubreddit) return;
 
         const controller = new AbortController();
+
+        // If valid cache exists, reuse it
+        if (cachedDashboardMeta && cachedDashboardMeta.signature === signature && (Date.now() - cachedDashboardMeta.ts) < DASHBOARD_CACHE_TTL) {
+            setPosts(cachedDashboardPosts as RedditPost[]);
+            setLoading(false);
+            return () => controller.abort();
+        }
 
         async function fetchPosts() {
             setLoading(true);
@@ -64,6 +74,7 @@ const [activeSubreddit, setActiveSubreddit] = useState(
                 );
                 const data = await res.json();
                 setPosts(data.posts || []);
+                try { setDashboardCache(data.posts || [], signature); } catch (e) { /* ignore */ }
             } catch (error) {
                 if ((error as any).name === 'AbortError') return;
                 console.error("Failed to fetch posts:", error);
@@ -73,7 +84,7 @@ const [activeSubreddit, setActiveSubreddit] = useState(
         fetchPosts();
 
         return () => controller.abort();
-    }, [activeSubreddit, keywordsParam]);
+    }, [activeSubreddit, keywordsParam, cachedDashboardMeta?.ts]);
 
     const savePost = (postId: string) => {
         const updated = savedPosts.includes(postId)

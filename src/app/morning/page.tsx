@@ -25,18 +25,27 @@ interface RedditPostQuery {
 }
 
 export default function MorningPage() {
-    const { onboarding } = useApp();
+    const { onboarding, cachedMorningPosts, cachedMorningMeta, setMorningCache } = useApp();
     const {keywords, oneMinuteBusinessPitch} = onboarding;
 
     const [redditPosts , setRedditPosts] = useState<RedditPost[]>([]);
     const [loading, setLoading] = useState(false);
-    const startedRef = useRef(false);
+    const fetchRef = useRef(false);
+
+    const signature = JSON.stringify([keywords, oneMinuteBusinessPitch, onboarding.selectedCommunities]);
+    const MORNING_CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
 
     useEffect(() => {
-        if (startedRef.current) return; // guard against Strict Mode double-run
-        startedRef.current = true;
-
         const controller = new AbortController();
+
+        // valid cache check
+        if (cachedMorningMeta && cachedMorningMeta.signature === signature && (Date.now() - cachedMorningMeta.ts) < MORNING_CACHE_TTL) {
+            setRedditPosts(cachedMorningPosts as RedditPost[]);
+            return () => { controller.abort(); };
+        }
+
+        if (fetchRef.current) return () => { controller.abort(); };
+        fetchRef.current = true;
 
 
         async function load() {
@@ -55,7 +64,6 @@ export default function MorningPage() {
         const result = await getGeminiModel('gemini-3-flash-preview').generateContent(prompt);
         const text = result.response.text();
         
-        console.log('suggestions by gemini: ', text);
 
         const postQuery:RedditPostQuery = JSON.parse(text);
 
@@ -80,7 +88,6 @@ export default function MorningPage() {
             } 
         }
 
-        console.log(allRedditPosts)
 
 
         const selectionPrompt  = `
@@ -123,18 +130,21 @@ export default function MorningPage() {
                 
 
                 setRedditPosts(posts || []);
+                // persist to cache with signature
+                try { setMorningCache(posts || [], signature); } catch (e) { /* ignore */ }
             } catch (err: any) {
                 if (err.name === 'AbortError') return;
                 console.error('Failed to load morning posts', err);
                 setRedditPosts([]);
             } finally {
                 setLoading(false);
+                fetchRef.current = false;
             }
         }
 
         load();
         return () => { controller.abort(); };
-    }, []);
+    }, [signature, cachedMorningMeta?.ts]);
     return (
         <div className={styles.page}>
             <main className={styles.content}>
