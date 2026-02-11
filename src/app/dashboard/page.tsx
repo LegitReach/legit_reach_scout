@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import styles from "./dashboard.module.css";
+import RedditList from "@/components/RedditList";
 
 interface RedditPost {
     id: string;
@@ -22,12 +23,13 @@ interface RedditPost {
 
 
 export default function DashboardPage() {
-    const { onboarding } = useApp();
+    const { onboarding, cachedDashboardPosts, cachedDashboardMeta, setDashboardCache } = useApp();
     const [posts, setPosts] = useState<RedditPost[]>([]);
     const [loading, setLoading] = useState(true);
 const [activeSubreddit, setActiveSubreddit] = useState(
     onboarding.selectedCommunities?.[0] || "all"
-);    const [savedPosts, setSavedPosts] = useState<string[]>([]);
+);
+    const [savedPosts, setSavedPosts] = useState<string[]>([]);
     const [respondedPosts, setRespondedPosts] = useState<string[]>([]);
 
 
@@ -40,28 +42,49 @@ const [activeSubreddit, setActiveSubreddit] = useState(
     }, []);
 
     // Get keywords from onboarding
-    const keywords = onboarding.neverSay || [];
+    const keywords = onboarding.keywords || [];
     const subreddits = [...(onboarding.selectedCommunities || [])];
 
     // Fetch posts from API with keywords
+    // Memoize the keywords param string so deps are stable
+    const keywordsParam = useMemo(() => keywords.join(","), [keywords.join(",")]);
+
+    const DASHBOARD_CACHE_TTL = 1000 * 60 * 60; // 1 hour
+    const signature = JSON.stringify([activeSubreddit, keywordsParam]);
+
     useEffect(() => {
+        // don't try to fetch until we have a valid subreddit
+        if (!activeSubreddit) return;
+
+        const controller = new AbortController();
+
+        // If valid cache exists, reuse it
+        if (cachedDashboardMeta && cachedDashboardMeta.signature === signature && (Date.now() - cachedDashboardMeta.ts) < DASHBOARD_CACHE_TTL) {
+            setPosts(cachedDashboardPosts as RedditPost[]);
+            setLoading(false);
+            return () => controller.abort();
+        }
+
         async function fetchPosts() {
             setLoading(true);
             try {
-                const keywordsParam = keywords.join(",");
                 const res = await fetch(
-                    `/api/reddit/browse?subreddit=${activeSubreddit}&keywords=${encodeURIComponent(keywordsParam)}&limit=5`
+                    `/api/reddit/browse?subreddit=${activeSubreddit}&keywords=${encodeURIComponent(keywordsParam)}&limit=5`,
+                    { signal: controller.signal }
                 );
                 const data = await res.json();
-                console.log(data)
                 setPosts(data.posts || []);
+                try { setDashboardCache(data.posts || [], signature); } catch (e) { /* ignore */ }
             } catch (error) {
+                if ((error as any).name === 'AbortError') return;
                 console.error("Failed to fetch posts:", error);
             }
             setLoading(false);
         }
         fetchPosts();
-    }, [activeSubreddit, keywords.join(",")]);
+
+        return () => controller.abort();
+    }, [activeSubreddit, keywordsParam, cachedDashboardMeta?.ts]);
 
     const savePost = (postId: string) => {
         const updated = savedPosts.includes(postId)
@@ -126,7 +149,7 @@ const [activeSubreddit, setActiveSubreddit] = useState(
                         onClick={() => setActiveSubreddit(sub)}
                         className={`${styles.tab} ${activeSubreddit === sub ? styles.active : ""}`}
                     >
-                        r/{sub}
+                        {sub}
                     </button>
                 ))}
             </div>
@@ -144,63 +167,13 @@ const [activeSubreddit, setActiveSubreddit] = useState(
                         <p className={styles.emptyHint}>Try adding more keywords or communities.</p>
                     </div>
                 ) : (
-                    visiblePosts.map(post => (
-                        <div
-                            key={post.id}
-                            className={styles.postCard}
-                        >
-                            <div className={styles.postHeader}>
-                                <span className={styles.subreddit}>{post.subreddit}</span>
-                                <span className={styles.meta}>
-                                    u/{post.author} • {formatTime(post.created_utc)}
-                                </span>
-                                {post.relevance_score && (
-                                    <span className={styles.relevance}>{post.relevance_score}% match</span>
-                                )}
-                            </div>
-
-                            <h3 className={styles.postTitle}>{post.title}</h3>
-
-                            {post.selftext && (
-                                <p className={styles.postContent}>
-                                    {post.selftext.substring(0, 200)}
-                                    {post.selftext.length > 200 ? "..." : ""}
-                                </p>
-                            )}
-
-                            {post.opportunity_type && (
-                                <div className={styles.opportunityBadge}>
-                                    💡 {post.opportunity_type}
-                                </div>
-                            )}
-
-                            <div className={styles.postStats}>
-                                <span>⬆️ {post.score}</span>
-                                <span>💬 {post.num_comments} comments</span>
-                            </div>
-
-                            <div className={styles.postActions}>
-                                <button
-                                    onClick={() => savePost(post.id)}
-                                    className={`${styles.actionBtn} ${savedPosts.includes(post.id) ? styles.saved : ""}`}
-                                >
-                                    {savedPosts.includes(post.id) ? "★ Saved" : "☆ Save"}
-                                </button>
-                                <Link
-                                    href={`/dashboard/post?post=${encodeURIComponent(JSON.stringify(post))}`}
-                                    className={styles.viewBtn}
-                                >
-                                    View & Draft Reply →
-                                </Link>
-                                <button
-                                    onClick={() => markResponded(post.id)}
-                                    className={styles.doneBtn}
-                                >
-                                    ✓ Done
-                                </button>
-                            </div>
-                        </div>
-                    ))
+                    <RedditList
+                        posts={visiblePosts}
+                        savedPosts={savedPosts}
+                        respondedPosts={respondedPosts}
+                        onSave={savePost}
+                        onDone={markResponded}
+                    />
                 )}
             </div>
         </div>
