@@ -35,10 +35,15 @@ export async function GET(request: NextRequest) {
 
         const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
 
+        const apiKey = process.env.NEXT_PUBLIC_REDDIT_SCRAPE_API_KEY;
+
+        if(!apiKey) throw new Error('SCRAPE REDDIT API KEY is not set');
+
+
         const options = {
             method: 'GET',
             headers: {
-                "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
+                "x-api-key": apiKey
             }
         };
 

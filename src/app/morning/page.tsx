@@ -70,10 +70,14 @@ export default function MorningPage() {
         const keywordList = postQuery.keywords ? postQuery.keywords.split(",").map(k => k.trim())  : [];
 
         const allRedditPosts: RedditPost[] =  [];
+        const apiKey = process.env.NEXT_PUBLIC_REDDIT_SCRAPE_API_KEY;
+
+        if(!apiKey) throw new Error('SCRAPE REDDIT API KEY is not set');
+
         const options = {
             method: 'GET',
             headers: {
-                "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
+                "x-api-key": apiKey
             }
         };
 
