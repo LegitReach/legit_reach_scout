@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-
 // This API route searches Reddit for opportunities matching keywords and subreddits
 // When MCP is connected, this will use real search_reddit and browse_subreddit
 interface RedditPost {
@@ -30,19 +29,21 @@ export async function GET(request: NextRequest) {
         // Simulate MCP browse_subreddit + search_reddit results
         // This will be replaced with real MCP calls
 
-        const now = Date.now() / 1000;
 
         // Generate contextual posts based on subreddit and keywords
         const keywordList = keywords ? keywords.split(",").map(k => k.trim()) : ["your product", "this topic"];
-        const searchQuery = keywordList.join(' OR ');
 
-        const url = `https://reddapi.p.rapidapi.com/api/v2/search/subreddit?subreddit=${subreddit}&query=${searchQuery}&sort=new&time_filter=week&limit=${limit}`;
+        const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
+
+        const apiKey = process.env.NEXT_PUBLIC_REDDIT_SCRAPE_API_KEY;
+
+        if(!apiKey) throw new Error('SCRAPE REDDIT API KEY is not set');
+
 
         const options = {
             method: 'GET',
             headers: {
-                'x-rapidapi-key': '7ca6f694c3mshb75b5cdefb5cf4ep1bdf38jsn2310d6cbee70',
-                'x-rapidapi-host': 'reddapi.p.rapidapi.com'
+                "x-api-key": apiKey
             }
         };
 
@@ -50,9 +51,7 @@ export async function GET(request: NextRequest) {
             const response = await fetch(url, options);
             const relevantRedditResponse = await response.json();
             if(relevantRedditResponse['posts']){
-                
                 resultPosts = relevantRedditResponse['posts'];
-
                 resultPosts = resultPosts.map((post, idx) => ({
                     ...post,
                     permalink: `https://reddit.com${post.permalink}`,
@@ -62,29 +61,6 @@ export async function GET(request: NextRequest) {
         catch (error) {
             console.error(error);
         }
-
-        /**
-         *      id: `post_${subreddit}_${idx}_${Date.now()}`,
-                title: template.titleTemplate
-                    .replace("[KEYWORD]", keyword)
-                    .replace("[CONTEXT]", context),
-                selftext: template.textTemplate
-                    .replace(/\[KEYWORD\]/g, keyword)
-                    .replace("[generic]", "a basic tool"),
-                subreddit: `r/${subreddit}`,
-                author: `user_${Math.random().toString(36).substring(7)}`,
-                score: Math.floor(Math.random() * 200) + 10,
-                num_comments: Math.floor(Math.random() * 50) + 5,
-                created_utc: now - (idx * 3600 * 2), // Stagger by 2 hours
-                permalink: `/r/${subreddit}/comments/example_${idx}`,
-                url: `https://reddit.com/r/${subreddit}/comments/example_${idx}`,
-                opportunity_type: template.opportunity,
-                relevance_score: 95 - (idx * 3), // Decreasing relevance
-         * 
-         * 
-         * 
-         */
-
 
         // Generate posts
         return NextResponse.json({

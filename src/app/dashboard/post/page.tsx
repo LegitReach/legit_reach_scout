@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import styles from "./post.module.css";
+import { getGeminiModel } from "@/ai/gemini.model";
+import { useApp } from "@/context/AppContext";
 
 interface PostDetails {
         id: string;
@@ -19,6 +21,10 @@ interface PostDetails {
         comments?: Array<any>;
 }
 
+interface AIGeneratedResponse{
+    reply: string
+}
+
 function PostContent() {
     const searchParams = useSearchParams();
     const postParam = searchParams.get("post");
@@ -28,6 +34,9 @@ function PostContent() {
     const [loading, setLoading] = useState(true);
     const [draft, setDraft] = useState("");
     const [copied, setCopied] = useState(false);
+    const [generatingAI, setGeneratingAI] = useState(false);
+    const {onboarding} = useApp();
+    const {oneMinuteBusinessPitch} = onboarding;
 
     useEffect(() => {
         // If a post was passed via query params, use it (avoid another API call).
@@ -62,6 +71,49 @@ function PostContent() {
         navigator.clipboard.writeText(draft);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const generateAIResponse = async () => {
+        if (!data) return;
+        
+        setGeneratingAI(true);
+        try {
+            const prompt = `
+
+            You are a marketing genius and helping a business with their reddit outreach. Do not sound like a bot, considering 
+            the context mentioned below be empathetic and 
+            at the same time think about the business too. Do not sound tooo promotional. 
+            First i would like to understand the business's one minute pitch: ${oneMinuteBusinessPitch}
+            then understand what the post is about:
+
+            Post Title: ${data.title}
+            Post Content: ${data.selftext}
+            Subreddit: ${data.subreddit}
+
+            Create a concise reply that is human and at the same time improves the business' outreach
+            
+            response format should be:
+            interface AIGeneratedResponse{
+                reply: string
+            }
+            `;
+
+            const model = getGeminiModel();
+            const result = await model.generateContent(prompt);
+
+            const text = result.response.text();
+            const aiGenRes: AIGeneratedResponse = JSON.parse(text);
+            const reply = aiGenRes.reply
+
+            // Clean up the response (remove quotes if present)
+            const cleanedText = reply.replace(/^["']|["']$/g, '').trim();
+            setDraft(cleanedText);
+        } catch (error) {
+            console.error("Failed to generate AI response:", error);
+            setDraft("Failed to generate response. Please try again.");
+        } finally {
+            setGeneratingAI(false);
+        }
     };
 
     const formatTime = (timestamp: number) => {
@@ -139,6 +191,13 @@ function PostContent() {
                 />
 
                 <div className={styles.draftActions}>
+                    <button
+                        onClick={generateAIResponse}
+                        className={styles.copyBtn}
+                        disabled={generatingAI}
+                    >
+                        {generatingAI ? "✨ Generating..." : "✨ Generate with AI"}
+                    </button>
                     <button
                         onClick={copyDraft}
                         className={styles.copyBtn}

@@ -1,0 +1,28 @@
+.page {
+    padding: var(--spacing-xl);
+}
+
+.header {
+    text-align: left;
+    margin-bottom: var(--spacing-md);
+}
+
+.header h1 {
+    font-size: var(--font-size-2xl);
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.hint {
+    color: var(--color-text-secondary);
+}
+
+.content {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.empty {
+    color: var(--color-text-muted);
+}
