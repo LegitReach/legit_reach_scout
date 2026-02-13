@@ -14,9 +14,6 @@ export default function Home() {
           <span className={styles.logoIcon}>🚀</span>
           <span className={styles.logoText}>LegitReach</span>
         </div>
-        <Link href="/demo" className={styles.demoLink}>
-          See Full Vision →
-        </Link>
       </header>
 
       {/* Hero */}

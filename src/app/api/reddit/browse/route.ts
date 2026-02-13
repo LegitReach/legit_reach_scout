@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// This API route searches Reddit for opportunities matching keywords and subreddits
-// When MCP is connected, this will use real search_reddit and browse_subreddit
+
 interface RedditPost {
     id: string;
     title: string;
@@ -16,58 +15,113 @@ interface RedditPost {
     opportunity_type?: string;
 }
 
+const SCRAPECREATORS_API_KEY = "5bZUSjmkQMRZO7pLoB9jJBUjLwf1";
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
-    const subreddit = searchParams.get("subreddit");
+    const subreddit = searchParams.get("subreddit") || "all";
     const keywords = searchParams.get("keywords") || "";
     const sort = searchParams.get("sort") || "hot";
-    const limit = parseInt(searchParams.get("limit") || "4");
-    let resultPosts:RedditPost[] = [];
+    const limit = parseInt(searchParams.get("limit") || "10");
+
+    const keywordList = keywords
+        ? keywords.split(",").map(k => k.trim().toLowerCase())
+        : [];
+
+    let resultPosts: RedditPost[] = [];
 
     try {
-        // Simulate MCP browse_subreddit + search_reddit results
-        // This will be replaced with real MCP calls
+        // Primary: ScrapeCreators API
+        const scUrl = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
+        const scResponse = await fetch(scUrl, {
+            method: "GET",
+            headers: { "x-api-key": SCRAPECREATORS_API_KEY },
+        });
 
-
-        // Generate contextual posts based on subreddit and keywords
-        const keywordList = keywords ? keywords.split(",").map(k => k.trim()) : ["your product", "this topic"];
-
-        const url = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
-
-        const options = {
-            method: 'GET',
-            headers: {
-                "x-api-key": "oAbSyVotIvV15azse6gwt40A2lu1"
-            }
-        };
-
-        try {
-            const response = await fetch(url, options);
-            const relevantRedditResponse = await response.json();
-            if(relevantRedditResponse['posts']){
-                resultPosts = relevantRedditResponse['posts'];
-                resultPosts = resultPosts.map((post, idx) => ({
+        if (scResponse.ok) {
+            const scData = await scResponse.json();
+            if (scData.posts && scData.posts.length > 0) {
+                resultPosts = scData.posts.map((post: any) => ({
                     ...post,
-                    permalink: `https://reddit.com${post.permalink}`,
+                    permalink: post.permalink?.startsWith("http")
+                        ? post.permalink
+                        : `https://reddit.com${post.permalink}`,
                 }));
-            } 
-        }
-        catch (error) {
-            console.error(error);
+            }
+        } else {
+            console.warn(`ScrapeCreators returned ${scResponse.status}, falling back to Reddit public API`);
         }
 
-        // Generate posts
+        // Fallback: Reddit's own public JSON API (no key needed)
+        if (resultPosts.length === 0) {
+            const redditUrl = `https://www.reddit.com/r/${subreddit}/${sort}.json?limit=${limit}&raw_json=1`;
+            const redditResponse = await fetch(redditUrl, {
+                headers: { "User-Agent": "LegitReach/1.0" },
+            });
+
+            if (redditResponse.ok) {
+                const redditData = await redditResponse.json();
+                const children = redditData?.data?.children || [];
+                resultPosts = children
+                    .filter((child: any) => child.kind === "t3")
+                    .map((child: any) => {
+                        const p = child.data;
+                        return {
+                            id: p.id,
+                            title: p.title,
+                            subreddit: `r/${p.subreddit}`,
+                            author: p.author,
+                            score: p.score,
+                            num_comments: p.num_comments,
+                            created_utc: p.created_utc,
+                            selftext: p.selftext || "",
+                            permalink: `https://reddit.com${p.permalink}`,
+                            url: p.url,
+                        };
+                    });
+            }
+        }
+
+        // If keywords are provided, score relevance and sort
+        if (keywordList.length > 0 && resultPosts.length > 0) {
+            resultPosts = resultPosts.map(post => {
+                const text = `${post.title} ${post.selftext}`.toLowerCase();
+                const matchCount = keywordList.filter(kw => text.includes(kw)).length;
+                const relevance = Math.round((matchCount / keywordList.length) * 100);
+                return {
+                    ...post,
+                    relevance_score: relevance > 0 ? relevance : undefined,
+                    opportunity_type:
+                        relevance > 50 ? "High relevance"
+                            : relevance > 0 ? "Potential match"
+                                : undefined,
+                };
+            });
+
+            // Sort: keyword matches first, then by score
+            resultPosts.sort((a, b) => {
+                const aRel = a.relevance_score || 0;
+                const bRel = b.relevance_score || 0;
+                if (aRel !== bRel) return bRel - aRel;
+                return b.score - a.score;
+            });
+        }
+
         return NextResponse.json({
             subreddit,
             keywords: keywordList,
             sort,
             posts: resultPosts,
-            source: "mcp_simulation", // Will be "mcp" when real
-            message: "Showing simulated opportunities. Connect MCP for real data.",
+            source: resultPosts.length > 0 ? "scrapecreators" : "none",
+            message: resultPosts.length > 0
+                ? "Showing live Reddit posts."
+                : "No posts found for this subreddit.",
         });
     } catch (error) {
         console.error("Opportunity search error:", error);
-        return NextResponse.json({ error: "Failed to find opportunities" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to find opportunities", posts: [] },
+            { status: 500 }
+        );
     }
 }
