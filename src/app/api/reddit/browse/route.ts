@@ -15,7 +15,6 @@ interface RedditPost {
     opportunity_type?: string;
 }
 
-const SCRAPECREATORS_API_KEY = "5bZUSjmkQMRZO7pLoB9jJBUjLwf1";
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -30,12 +29,18 @@ export async function GET(request: NextRequest) {
 
     let resultPosts: RedditPost[] = [];
 
+    const apiKey = process.env.NEXT_PUBLIC_REDDIT_SCRAPE_API_KEY;
+    if (!apiKey) {
+        throw new Error('Reddit Scrape API KEY  is not set');
+    }
+
+
     try {
         // Primary: ScrapeCreators API
         const scUrl = `https://api.scrapecreators.com/v1/reddit/subreddit?subreddit=${subreddit}&timeframe=day&sort=top`;
         const scResponse = await fetch(scUrl, {
             method: "GET",
-            headers: { "x-api-key": SCRAPECREATORS_API_KEY },
+            headers: { "x-api-key": apiKey },
         });
 
         if (scResponse.ok) {
