@@ -27,7 +27,6 @@ interface AIGeneratedResponse{
 
 function PostContent() {
     const searchParams = useSearchParams();
-    const postParam = searchParams.get("post");
     const postId = searchParams.get("id");
 
     const [data, setData] = useState<PostDetails | null>(null);
@@ -39,19 +38,22 @@ function PostContent() {
     const {oneMinuteBusinessPitch} = onboarding;
 
     useEffect(() => {
-        // If a post was passed via query params, use it (avoid another API call).
-        if (postParam) {
-            try {
-                const parsed = JSON.parse(decodeURIComponent(postParam));
-                setData(parsed as PostDetails);
-            } catch (err) {
-                console.error("Failed to parse post from query param:", err);
+        // Try to get post from sessionStorage first
+        if (postId) {
+            const cachedPost = sessionStorage.getItem(`reddit_post_${postId}`);
+            if (cachedPost) {
+                try {
+                    const parsed = JSON.parse(cachedPost);
+                    setData(parsed as PostDetails);
+                    setLoading(false);
+                    return;
+                } catch (err) {
+                    console.error("Failed to parse post from sessionStorage:", err);
+                }
             }
-            setLoading(false);
-            return;
         }
 
-        // Fallback: if no post param is present, fetch by id (only then)
+        // Fallback: if no post param or sessionStorage, fetch by id (only then)
         async function fetchPost() {
             if (!postId) return;
             setLoading(true);
@@ -65,7 +67,7 @@ function PostContent() {
             setLoading(false);
         }
         fetchPost();
-    }, [postParam, postId]);
+    }, [postId]);
 
     const copyDraft = () => {
         navigator.clipboard.writeText(draft);
