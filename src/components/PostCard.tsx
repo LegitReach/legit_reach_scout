@@ -70,7 +70,11 @@ export default function PostCard({ post, saved, onSave, onDone, viewHref }: Prop
                 </button>
 
                 <Link
-                    href={viewHref || `/dashboard/post?post=${encodeURIComponent(JSON.stringify(post))}`}
+                    href={viewHref || `/dashboard/post?id=${post.id}`}
+                    onClick={() => {
+                        // Store post in sessionStorage to avoid long URLs
+                        sessionStorage.setItem(`reddit_post_${post.id}`, JSON.stringify(post));
+                    }}
                     className={styles.viewBtn}
                 >
                     View & Draft Reply →
