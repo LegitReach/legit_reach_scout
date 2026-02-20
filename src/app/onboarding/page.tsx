@@ -50,6 +50,12 @@ export default function OnboardingPage() {
             setLoadingSuggestions(true);
             try {
                 const res = await fetch(`/api/reddit/subreddits?keywords=${encodeURIComponent(keywords.join(","))}`);
+                if (res.redirected) {
+                    // server is redirecting to auth page
+                    window.location.href = res.url;
+                    return;
+                }
+
                 const data = await res.json();
                 setSuggestedSubreddits(data.suggestions || []);
             } catch (error) {

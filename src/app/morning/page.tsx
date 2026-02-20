@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import styles from "./morning.module.css";
 import { useApp } from "@/context/AppContext";
 import RedditList from "@/components/RedditList";
-import { getGeminiModel } from "@/ai/gemini.model";
 interface RedditPost {
     id: string;
     title: string;
@@ -61,11 +60,18 @@ export default function MorningPage() {
             `;
 
     try {
-        const result = await getGeminiModel('gemini-3-flash-preview').generateContent(prompt);
-        const text = result.response.text();
-        
-
-        const postQuery:RedditPostQuery = JSON.parse(text);
+        // send prompt to rate‑limited server endpoint
+        const response1 = await fetch("/api/ai/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+        });
+        if (response1.redirected) {
+            window.location.href = response1.url;
+            return;
+        }
+        const data1 = await response1.json();
+        const postQuery: RedditPostQuery = JSON.parse(data1.text);
 
         const keywordList = postQuery.keywords ? postQuery.keywords.split(",").map(k => k.trim())  : [];
 
@@ -117,8 +123,17 @@ export default function MorningPage() {
 
              `
 
-        const aiResponse = await getGeminiModel('gemini-3-flash-preview').generateContent(selectionPrompt);
-        const textRedditResponse = aiResponse.response.text()    
+        const response2 = await fetch("/api/ai/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: selectionPrompt }),
+        });
+        if (response2.redirected) {
+            window.location.href = response2.url;
+            return;
+        }
+        const data2 = await response2.json();
+        const textRedditResponse = data2.text;
 
         // 2. IGNORE the text for links. Use the Metadata instead.
                 if (!textRedditResponse) {
