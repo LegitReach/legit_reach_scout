@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "./rate-limit";
+import { getAuth } from "@clerk/nextjs/server";
 
 // wrap a handler so that rate limiting runs first.
 // handler should be a function expecting a NextRequest and returning a Response/NextResponse.
@@ -8,24 +9,33 @@ export function withRateLimit(
   maxRequests: number = 5
 ) {
   return async function (req: NextRequest) {
-  
+    // try to determine if caller is authenticated by Clerk; if middleware isn't active this will throw
+    let userId: string | null | undefined;
+    try {
+      userId = getAuth(req).userId;
+    } catch (err) {
+      // middleware not present or not matched; we'll treat as anonymous
+      userId = null;
+    }
+    if (userId) {
+      return handler(req);
+    }
+
     const ip = getClientIp(req);
     try {
       const { allowed, remaining, resetIn } = await checkRateLimit(`${ip}:${req.headers.get("user-agent")}`, maxRequests);
 
       if (!allowed) {
-
         const redirectUrl = new URL("/auth", req.url);
+        // after login we just send users back to home page
+        redirectUrl.searchParams.set("returnUrl", "/");
         const accept = req.headers.get("accept") || "";
         if (accept.includes("text/html") || accept === '*/*') {
           return NextResponse.redirect(redirectUrl);
         }
-
         return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
       }
-      // optionally could attach rate info to request via symbol or custom field
     } catch (err) {
-      // log but do not block traffic if redis fails
       console.warn("rate limit check failed", err);
     }
 

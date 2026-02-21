@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AppProvider } from "@/context/AppContext";
-import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";import AuthHeader from "@/components/AuthHeader";import "./globals.css";
 
 export const metadata: Metadata = {
   title: "LegitReach - Reddit Opportunity Finder",
@@ -15,9 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppProvider>
-          {children}
-        </AppProvider>
+        <ClerkProvider>
+          <AppProvider>
+            <AuthHeader />
+            {children}
+          </AppProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
