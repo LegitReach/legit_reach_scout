@@ -284,21 +284,60 @@
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .header {
         flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-md);
+    }
+
+    .header h1 {
+        font-size: var(--font-size-xl);
     }
 
     .stats {
         flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .stat {
+        padding: var(--spacing-sm);
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .statNumber {
+        font-size: var(--font-size-xl);
+    }
+
+    .tabs {
+        margin-left: calc(-1 * var(--spacing-md));
+        margin-right: calc(-1 * var(--spacing-md));
+        padding-left: var(--spacing-md);
+        padding-right: var(--spacing-md);
+    }
+
+    .postCard {
+        padding: var(--spacing-md);
+    }
+
+    .postTitle {
+        font-size: var(--font-size-base);
     }
 
     .postActions {
         flex-direction: column;
+        gap: var(--spacing-xs);
     }
 
     .postActions>* {
         width: 100%;
         text-align: center;
+    }
+
+    .postStats {
+        gap: var(--spacing-md);
+        justify-content: space-between;
     }
 }
