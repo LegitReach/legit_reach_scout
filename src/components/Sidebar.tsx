@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
 import styles from "./Sidebar.module.css";
 
 const Icons = {
@@ -65,11 +66,23 @@ export default function Sidebar() {
             </nav>
 
             <div className={styles.footer}>
-                <div className={styles.info}>
-                    <span className={styles.badge}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4 }}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></svg>
-                        Professional
-                    </span>
+                <div className={styles.authSection}>
+                    <SignedIn>
+                        <div className={styles.userContainer}>
+                            <UserButton />
+                            <div className={styles.userDetails}>
+                                <span className={styles.userLabel}>Account</span>
+                            </div>
+                        </div>
+                    </SignedIn>
+                    <SignedOut>
+                        <SignInButton mode="modal">
+                            <button className={styles.loginBtn}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+                                <span>Login</span>
+                            </button>
+                        </SignInButton>
+                    </SignedOut>
                 </div>
                 <button onClick={handleReset} className={styles.resetBtn}>
                     <span><Icons.Reset /></span>
@@ -79,3 +92,4 @@ export default function Sidebar() {
         </aside>
     );
 }
+

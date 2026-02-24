@@ -116,10 +116,59 @@
     padding: var(--spacing-lg);
     background: rgba(0, 0, 0, 0.2);
     border-top: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.authSection {
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.userContainer {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.userDetails {
+    display: flex;
+    flex-direction: column;
+}
+
+.userLabel {
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.loginBtn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: var(--radius-lg);
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.loginBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--color-primary-glow);
 }
 
 .info {
-    margin-bottom: var(--spacing-lg);
+    display: flex;
+    justify-content: center;
 }
 
 .badge {
@@ -233,8 +282,34 @@
         background: none;
         border-top: none;
         display: flex;
+        flex-direction: row;
         align-items: center;
+        gap: var(--spacing-sm);
         margin: 0;
+    }
+
+    .authSection {
+        padding: 0;
+        border-bottom: none;
+    }
+
+    .userDetails {
+        display: none;
+    }
+
+    .loginBtn {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        flex-direction: column;
+        gap: 2px;
+        min-width: 60px;
+        background: none;
+    }
+
+    .loginBtn span {
+        font-size: 9px;
+        text-transform: uppercase;
+        font-weight: 600;
+        opacity: 0.8;
     }
 
     .info {
