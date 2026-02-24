@@ -271,3 +271,54 @@
         transform: translateY(0);
     }
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .container {
+        padding: var(--spacing-md);
+        align-items: flex-start;
+        padding-top: var(--spacing-3xl);
+    }
+
+    .card {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-xl);
+    }
+
+    .progressLine {
+        width: 30px;
+    }
+
+    .stepContent h1 {
+        font-size: var(--font-size-xl);
+    }
+
+    .stepContent>p {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .inputGroup {
+        flex-direction: column;
+    }
+
+    .addBtn {
+        width: 100%;
+    }
+
+    .subredditGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .actions {
+        flex-direction: column-reverse;
+        width: 100%;
+        gap: var(--spacing-sm);
+    }
+
+    .backBtn,
+    .nextBtn,
+    .completeBtn {
+        width: 100%;
+        padding: var(--spacing-md);
+    }
+}

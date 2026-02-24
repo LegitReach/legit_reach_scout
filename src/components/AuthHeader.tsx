@@ -7,10 +7,11 @@ import {
   SignedIn,
   SignedOut,
 } from "@clerk/nextjs";
+import styles from "./AuthHeader.module.css";
 
 export default function AuthHeader() {
   return (
-    <div style={{ position: "absolute", top: 10, right: 10 }}>
+    <div className={styles.header}>
       <SignedIn>
         <UserButton />
         <SignOutButton />
