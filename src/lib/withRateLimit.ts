@@ -17,13 +17,35 @@ export function withRateLimit(
       // middleware not present or not matched; we'll treat as anonymous
       userId = null;
     }
+
     if (userId) {
+      try {
+        // Logged in user limit is 5
+        const { allowed } = await checkRateLimit(`user:${userId}`, 5);
+
+        if (!allowed) {
+          const redirectUrl = new URL("/subscribe", req.url);
+          const accept = req.headers.get("accept") || "";
+
+          // If it's a browser request, redirect to subscription page
+          if (accept.includes("text/html") || accept === '*/*') {
+            return NextResponse.redirect(redirectUrl);
+          }
+          // For API calls, return 429
+          return NextResponse.json(
+            { error: "Rate limit exceeded. Please subscribe for more.", redirectTo: "/subscribe" },
+            { status: 429 }
+          );
+        }
+      } catch (err) {
+        console.warn("User rate limit check failed", err);
+      }
       return handler(req);
     }
 
     const ip = getClientIp(req);
     try {
-      const { allowed, remaining, resetIn } = await checkRateLimit(`${ip}:${req.headers.get("user-agent")}`, maxRequests);
+      const { allowed } = await checkRateLimit(`${ip}:${req.headers.get("user-agent")}`, maxRequests);
 
       if (!allowed) {
         const redirectUrl = new URL("/auth", req.url);
@@ -33,7 +55,7 @@ export function withRateLimit(
         if (accept.includes("text/html") || accept === '*/*') {
           return NextResponse.redirect(redirectUrl);
         }
-        return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+        return NextResponse.json({ error: "Rate limit reached. Please login to continue.", redirectTo: "/auth" }, { status: 429 });
       }
     } catch (err) {
       console.warn("rate limit check failed", err);
