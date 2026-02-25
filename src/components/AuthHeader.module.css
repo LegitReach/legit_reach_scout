@@ -1,0 +1,16 @@
+.header {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    z-index: 100;
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .header {
+        top: var(--spacing-sm);
+        right: var(--spacing-sm);
+    }
+}
