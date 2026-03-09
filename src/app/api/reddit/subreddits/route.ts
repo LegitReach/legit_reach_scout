@@ -1,43 +1,68 @@
 import { getGeminiModel } from "@/ai/gemini.model";
 import { NextRequest, NextResponse } from "next/server";
 import { withRateLimit } from "@/lib/withRateLimit";
-// This API route uses Reddit MCP to search for relevant subreddits based on keywords
 
 async function handler(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams;
-    const keywords = searchParams.get("keywords") || "";
+  const searchParams = request.nextUrl.searchParams;
+  const keywords = searchParams.get("keywords") || "";
 
-    if (!keywords) {
-        return NextResponse.json({ error: "Keywords parameter is required" }, { status: 400 });
-    }
+  if (!keywords) {
+    return NextResponse.json(
+      { error: "Keywords parameter is required" },
+      { status: 400 },
+    );
+  }
 
-    try {
-        const keywordList = keywords.toLowerCase().split(",").map(k => k.trim());
+  const keywordList = keywords
+    .toLowerCase()
+    .split(",")
+    .map((k) => k.trim());
 
-        // const result = await getGeminiModel().generateContent(`
-        //     Give me reddit subreddit names relevant to the following keywords: ${keywords}. The format of the output should be a string array of subreddits
-        //     . Suggest me only the top 10 relevant subreddits. Make it a good diverse combination.
-        //     `);
+  try {
+    const prompt = `You are a Reddit expert. Given these business keywords: "${keywords}", suggest the 10 most relevant Reddit subreddits where potential customers or users would discuss these topics.
 
-        // const aiResponse = result.response.text();
-        // console.log(aiResponse)
-        // const subreddits: string[] = JSON.parse(aiResponse);
-    const subreddits = [
-      "r/todayilearned",
-      "r/SipsTea",
-      "r/InternetIsBeautiful",
-      "r/DataIsBeautiful",
-        "r/CasualConversation"
-    ]
-        return NextResponse.json({
-            keywords: keywordList,
-            suggestions: subreddits,
-            source: "gemini_api",
-        });
-    } catch (error) {
-        console.error("Subreddit suggestion error:", error);
-        return NextResponse.json({ error: "Failed to find subreddits" }, { status: 500 });
-    }
+Return ONLY a valid JSON array of strings. Each string must be a subreddit name prefixed with "r/". Example: ["r/startups","r/SaaS"]
+
+Rules:
+- Include a mix of niche and broader subreddits
+- Prioritise communities where people ask for product/tool recommendations
+- No duplicates
+- Only real, active subreddits
+
+interface Response { suggestions: string[] }`;
+
+    const result = await getGeminiModel().generateContent(prompt);
+    const aiResponse = result.response.text();
+
+    // The model returns application/json — parse safely
+    let parsed: { suggestions?: string[] } | string[] = JSON.parse(aiResponse);
+
+    // Handle both { suggestions: [...] } and plain array responses
+    const suggestions: string[] = Array.isArray(parsed)
+      ? parsed
+      : ((parsed as { suggestions?: string[] }).suggestions ?? []);
+
+    return NextResponse.json({
+      keywords: keywordList,
+      suggestions: suggestions.slice(0, 10),
+      source: "gemini_api",
+    });
+  } catch (error) {
+    console.error("Subreddit suggestion error:", error);
+    // Graceful fallback to generic subreddits so onboarding never breaks
+    const fallback = [
+      "r/startups",
+      "r/entrepreneur",
+      "r/SaaS",
+      "r/smallbusiness",
+      "r/marketing",
+    ];
+    return NextResponse.json({
+      keywords: keywordList,
+      suggestions: fallback,
+      source: "fallback",
+    });
+  }
 }
 
 export const GET = withRateLimit(handler, 5);
