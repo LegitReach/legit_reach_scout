@@ -57,6 +57,10 @@ export default function OnboardingPage() {
                         businessDescription: businessDesc,
                     }),
                 });
+                if (res.redirected) {
+                    window.location.href = res.url;
+                    return;
+                }
 
                 const data = await res.json();
                 setSuggestedSubreddits(data.suggestions || []);

@@ -1,8 +1,9 @@
 import { getGeminiModel } from "@/ai/gemini.model";
 import { NextRequest, NextResponse } from "next/server";
+import { withRateLimit } from "@/lib/withRateLimit";
 
 // POST handler: accepts keywords and business description for personalized subreddit suggestions
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
     try {
         const body = await request.json();
         const { keywords, businessDescription } = body as {
@@ -64,3 +65,5 @@ Rules:
 
     return prompt;
 }
+
+export const POST = withRateLimit(handler, 5);
