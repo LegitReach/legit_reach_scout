@@ -4,9 +4,9 @@ import { Tool } from '@google/generative-ai/server';
 
 
 export function getGeminiModel(model_name:string = 'gemini-2.5-flash', ):GenerativeModel{
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        throw new Error('GEMINI API KEY  is not set');
+        throw new Error('GEMINI_API_KEY environment variable is not set. Add it to your .env.local file.');
     }
     const ai = new GoogleGenerativeAI(apiKey);
 

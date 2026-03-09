@@ -49,12 +49,14 @@ export default function OnboardingPage() {
         const goToStep3 = async () => {
             setLoadingSuggestions(true);
             try {
-                const res = await fetch(`/api/reddit/subreddits?keywords=${encodeURIComponent(keywords.join(","))}`);
-                if (res.redirected) {
-                    // server is redirecting to auth page
-                    window.location.href = res.url;
-                    return;
-                }
+                const res = await fetch(`/api/reddit/subreddits`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        keywords: keywords.join(","),
+                        businessDescription: businessDesc,
+                    }),
+                });
 
                 const data = await res.json();
                 setSuggestedSubreddits(data.suggestions || []);
