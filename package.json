@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "jest",
     "test:coverage": "jest --coverage"
+    "test": "jest --verbose"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.38.1",

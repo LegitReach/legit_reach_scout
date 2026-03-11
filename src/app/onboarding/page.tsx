@@ -58,7 +58,6 @@ export default function OnboardingPage() {
                     }),
                 });
                 if (res.redirected) {
-                    // server is redirecting to auth page
                     window.location.href = res.url;
                     return;
                 }
