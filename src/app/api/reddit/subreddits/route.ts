@@ -2,49 +2,41 @@ import { getGeminiModel } from "@/ai/gemini.model";
 import { NextRequest, NextResponse } from "next/server";
 import { withRateLimit } from "@/lib/withRateLimit";
 
+// POST handler: accepts keywords and business description for personalized subreddit suggestions
 async function handler(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const keywords = searchParams.get("keywords") || "";
-
-  if (!keywords) {
-    return NextResponse.json(
-      { error: "Keywords parameter is required" },
-      { status: 400 },
-    );
-  }
-
-  const keywordList = keywords
-    .toLowerCase()
-    .split(",")
-    .map((k) => k.trim());
-
   try {
-    const prompt = `You are a Reddit expert. Given these business keywords: "${keywords}", suggest the 10 most relevant Reddit subreddits where potential customers or users would discuss these topics.
+    const body = await request.json();
+    const { keywords, businessDescription } = body as {
+      keywords?: string;
+      businessDescription?: string;
+    };
 
-Return ONLY a valid JSON array of strings. Each string must be a subreddit name prefixed with "r/". Example: ["r/startups","r/SaaS"]
+    if (!keywords) {
+      return NextResponse.json(
+        { error: "Keywords parameter is required" },
+        { status: 400 },
+      );
+    }
 
-Rules:
-- Include a mix of niche and broader subreddits
-- Prioritise communities where people ask for product/tool recommendations
-- No duplicates
-- Only real, active subreddits
+    const keywordList = keywords
+      .toLowerCase()
+      .split(",")
+      .map((k: string) => k.trim());
 
-interface Response { suggestions: string[] }`;
-
+    const prompt = buildSubredditPrompt(keywordList, businessDescription);
     const result = await getGeminiModel().generateContent(prompt);
+
     const aiResponse = result.response.text();
+    const subreddits: string[] = JSON.parse(aiResponse);
 
-    // The model returns application/json — parse safely
-    let parsed: { suggestions?: string[] } | string[] = JSON.parse(aiResponse);
-
-    // Handle both { suggestions: [...] } and plain array responses
-    const suggestions: string[] = Array.isArray(parsed)
-      ? parsed
-      : ((parsed as { suggestions?: string[] }).suggestions ?? []);
+    // Ensure we always return exactly 10, prefixed with r/
+    const normalized = subreddits
+      .map((s: string) => (s.startsWith("r/") ? s : `r/${s}`))
+      .slice(0, 10);
 
     return NextResponse.json({
       keywords: keywordList,
-      suggestions: suggestions.slice(0, 10),
+      suggestions: normalized,
       source: "gemini_api",
     });
   } catch (error) {
@@ -58,11 +50,40 @@ interface Response { suggestions: string[] }`;
       "r/marketing",
     ];
     return NextResponse.json({
-      keywords: keywordList,
       suggestions: fallback,
       source: "fallback",
     });
   }
 }
 
-export const GET = withRateLimit(handler, 5);
+/**
+ * Builds a detailed prompt for Gemini to suggest subreddits based on
+ * user keywords and their business description.
+ */
+export function buildSubredditPrompt(
+  keywords: string[],
+  businessDescription?: string,
+): string {
+  let prompt = `You are a Reddit expert. Suggest exactly 10 subreddit names that would be most relevant for someone with the following interests and business context.
+
+Keywords: ${keywords.join(", ")}
+`;
+
+  if (businessDescription && businessDescription.trim()) {
+    prompt += `\nBusiness Description: ${businessDescription.trim()}\n`;
+    prompt += `\nConsider the business's target audience, industry, price positioning, and unique value proposition when selecting subreddits.`;
+  }
+
+  prompt += `
+
+Rules:
+- Return ONLY a JSON array of exactly 10 subreddit name strings (e.g. ["r/startups", "r/SaaS", ...]).
+- Each name must start with "r/".
+- Provide a diverse mix: include niche communities, industry-specific subreddits, and broader topic subreddits.
+- Only suggest real, active subreddits.
+- Do NOT include any explanation, markdown, or extra text — just the JSON array.`;
+
+  return prompt;
+}
+
+export const POST = withRateLimit(handler, 5);
