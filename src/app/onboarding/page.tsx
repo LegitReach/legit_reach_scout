@@ -49,7 +49,7 @@ export default function OnboardingPage() {
         const goToStep3 = async () => {
             setLoadingSuggestions(true);
             try {
-                const res = await fetch(`/api/reddit/subreddits`, {
+                const res = await fetch("/api/reddit/subreddits", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
