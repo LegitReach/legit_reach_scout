@@ -200,4 +200,4 @@ interface CurateResponse {
   }
 }
 
-export const POST = withRateLimit(handler, 3);
+export const POST = withRateLimit(handler);
