@@ -49,9 +49,15 @@ export default function OnboardingPage() {
         const goToStep3 = async () => {
             setLoadingSuggestions(true);
             try {
-                const res = await fetch(`/api/reddit/subreddits?keywords=${encodeURIComponent(keywords.join(","))}`);
+                const res = await fetch("/api/reddit/subreddits", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        keywords: keywords.join(","),
+                        businessDescription: businessDesc,
+                    }),
+                });
                 if (res.redirected) {
-                    // server is redirecting to auth page
                     window.location.href = res.url;
                     return;
                 }

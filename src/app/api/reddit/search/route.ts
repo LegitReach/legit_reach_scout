@@ -1,49 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// This API route calls the Reddit MCP server to search Reddit
-// The MCP server must be running for this to work
+import type { RedditPost } from "@/types";
 
 export async function GET(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get("q") || "";
-    const subreddit = searchParams.get("subreddit") || "";
-    const sort = searchParams.get("sort") || "relevance";
-    const time = searchParams.get("time") || "week";
-    const limit = parseInt(searchParams.get("limit") || "10");
+  const searchParams = request.nextUrl.searchParams;
+  const query = searchParams.get("q") || "";
+  const sort = searchParams.get("sort") || "top";
+  const timeframe = searchParams.get("time") || "day";
+  const limit = parseInt(searchParams.get("limit") || "10");
 
-    if (!query) {
-        return NextResponse.json({ error: "Query parameter 'q' is required" }, { status: 400 });
+  if (!query) {
+    return NextResponse.json(
+      { error: "Query parameter 'q' is required" },
+      { status: 400 },
+    );
+  }
+
+  const apiKey = process.env.REDDIT_SCRAPE_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "REDDIT_SCRAPE_API_KEY is not configured" },
+      { status: 500 },
+    );
+  }
+
+  try {
+    const url = `https://api.scrapecreators.com/v1/reddit/search?query=${encodeURIComponent(query)}&sort=${sort}&timeframe=${timeframe}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+    });
+
+    if (!res.ok) {
+      console.warn(`ScrapeCreators search returned ${res.status}`);
+      return NextResponse.json(
+        { error: "Failed to fetch search results", posts: [] },
+        { status: res.status },
+      );
     }
 
-    try {
-        // For now, return mock data structure
-        // In production, this would call the MCP server
-        const mockResults = {
-            query,
-            subreddit,
-            sort,
-            time,
-            posts: [
-                {
-                    id: "1",
-                    title: `Results for "${query}" in ${subreddit || "all subreddits"}`,
-                    subreddit: subreddit || "r/startups",
-                    author: "example_user",
-                    score: 42,
-                    num_comments: 15,
-                    created_utc: Date.now() / 1000 - 3600,
-                    url: "https://reddit.com/r/startups/comments/example",
-                    selftext: "This is a sample post matching your search...",
-                    permalink: "/r/startups/comments/example",
-                },
-            ],
-            mcp_status: "mock_data",
-            message: "MCP integration pending - showing mock data",
-        };
+    const data = await res.json();
+    const posts: RedditPost[] = (data.posts || [])
+      .slice(0, limit)
+      .map((post: RedditPost) => ({
+        ...post,
+        permalink: post.permalink?.startsWith("http")
+          ? post.permalink
+          : `https://reddit.com${post.permalink}`,
+      }));
 
-        return NextResponse.json(mockResults);
-    } catch (error) {
-        console.error("Reddit search error:", error);
-        return NextResponse.json({ error: "Failed to search Reddit" }, { status: 500 });
-    }
+    return NextResponse.json({ query, sort, timeframe, posts });
+  } catch (error) {
+    console.error("Reddit search error:", error);
+    return NextResponse.json(
+      { error: "Failed to search Reddit", posts: [] },
+      { status: 500 },
+    );
+  }
 }
