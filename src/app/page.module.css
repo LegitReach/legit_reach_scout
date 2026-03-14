@@ -110,7 +110,6 @@
   color: var(--text);
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .logo span {
@@ -141,6 +140,26 @@
 
 .navLink:hover {
   color: var(--text);
+}
+
+.tryFreeBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 20px;
+  background: var(--green);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--green-glow);
+}
+
+.tryFreeBtn:hover {
+  background: var(--green-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--green-glow-strong);
 }
 
 /* Dropdown */

@@ -7,16 +7,12 @@ export type { RedditPost };
 
 interface Props {
   post: RedditPost;
-  saved?: boolean;
-  onSave?: (id: string) => void;
   onDone?: (id: string) => void;
   viewHref?: string;
 }
 
 export default function PostCard({
   post,
-  saved,
-  onSave,
   onDone,
   viewHref,
 }: Props) {
@@ -62,17 +58,9 @@ export default function PostCard({
       </div>
 
       <div className={styles.postActions}>
-        <button
-          onClick={() => onSave && onSave(post.id)}
-          className={`${styles.actionBtn} ${saved ? styles.saved : ""}`}
-        >
-          {saved ? "★ Saved" : "☆ Save"}
-        </button>
-
         <Link
           href={viewHref || `/dashboard/post?id=${post.id}`}
           onClick={() => {
-            // Store post in sessionStorage to avoid long URLs
             sessionStorage.setItem(
               `reddit_post_${post.id}`,
               JSON.stringify(post),

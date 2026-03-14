@@ -50,7 +50,7 @@ export function withRateLimit(
       if (!allowed) {
         const redirectUrl = new URL("/auth", req.url);
         // after login we just send users back to home page
-        redirectUrl.searchParams.set("returnUrl", "/");
+        redirectUrl.searchParams.set("returnUrl", "/dashboard");
         const accept = req.headers.get("accept") || "";
         if (accept.includes("text/html") || accept === '*/*') {
           return NextResponse.redirect(redirectUrl);

@@ -18,7 +18,7 @@ export default function Home() {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [honeypot, setHoneypot] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isProductsOpen, setIsProductsOpen] = useState(false);
+
 
   // Theme Logic
   useEffect(() => {
@@ -91,48 +91,12 @@ export default function Home() {
         <div className={styles.innerContainer}>
           <div className={styles.navLeft}>
             <Link href="/" className={styles.logo}>
-              <span>Legit</span>Reach
+              LegitReach
             </Link>
 
             <div className={`${styles.navLinks} ${isMenuOpen ? styles.navLinksMobile : ""}`}>
-              <div
-                className={`${styles.dropdown} ${isProductsOpen ? styles.dropdownActive : ""}`}
-                onMouseEnter={() => setIsProductsOpen(true)}
-                onMouseLeave={() => setIsProductsOpen(false)}
-                onClick={() => setIsProductsOpen(!isProductsOpen)}
-              >
-                <button className={styles.navLink}>
-                  Products
-                  <svg
-                    className={`${styles.chevron} ${isProductsOpen ? styles.chevronRotated : ""}`}
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
-                <div className={styles.dropdownMenu}>
-                  <Link href="/onboarding" className={styles.dropdownItem}>
-                    <div className={styles.itemIcon}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2v20M2 12h20" />
-                        <path d="M12 2l4 4-4 4" />
-                      </svg>
-                    </div>
-                    <div className={styles.itemDetails}>
-                      <span className={styles.itemName}>Pulse</span>
-                      <p className={styles.itemDesc}>Automated AI prospect research</p>
-                    </div>
-                  </Link>
-                </div>
-              </div>
               <a href="#how-it-works" className={styles.navLink} onClick={() => setIsMenuOpen(false)}>How it works</a>
+              <Link href="/onboarding" className={styles.tryFreeBtn}>Try for Free</Link>
 
               <div className={styles.mobileOnly}>
                 <div className={styles.mobileDivider}></div>

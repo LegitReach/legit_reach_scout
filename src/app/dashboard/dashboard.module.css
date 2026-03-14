@@ -254,6 +254,24 @@
   color: var(--color-warning);
 }
 
+/* Community tags (combined view) */
+.communityInfo {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.communityTag {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(255, 69, 0, 0.08);
+  border: 1px solid rgba(255, 69, 0, 0.2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .viewBtn {
   background: var(--gradient-primary);
   color: white;

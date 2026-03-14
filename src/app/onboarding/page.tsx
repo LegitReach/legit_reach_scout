@@ -156,7 +156,7 @@ export default function OnboardingPage() {
                             />
 
                             <p className={styles.hint}>
-                                Tip: short, 1–2 sentence description works best.
+                                💡 Tip: Be as descriptive as possible — include what your product or service does, who your ideal customer is, your price point (budget vs. premium), geographic focus (local vs. global), and what makes you unique (e.g., sustainability, speed, ease of use). The more detail you provide, the better we can match you with the right Reddit conversations.
                             </p>
 
                             <div className={styles.actions}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./post.module.css";
 import { useApp } from "@/context/AppContext";
@@ -32,6 +32,7 @@ function PostContent() {
     const [generatingAI, setGeneratingAI] = useState(false);
     const {onboarding} = useApp();
     const {oneMinuteBusinessPitch} = onboarding;
+    const router = useRouter();
 
     useEffect(() => {
         // Try to get post from sessionStorage first
@@ -218,6 +219,20 @@ function PostContent() {
                     >
                         Reply on Reddit →
                     </a>
+                    <button
+                        onClick={() => {
+                            // Mark as responded in localStorage
+                            const responded = JSON.parse(localStorage.getItem("legitreach_responded") || "[]");
+                            if (!responded.includes(data.id)) {
+                                responded.push(data.id);
+                                localStorage.setItem("legitreach_responded", JSON.stringify(responded));
+                            }
+                            router.push("/dashboard");
+                        }}
+                        className={styles.doneBtn}
+                    >
+                        ✓ Done
+                    </button>
                 </div>
             </section>
 

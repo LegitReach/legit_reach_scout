@@ -10,6 +10,9 @@
 !.yarn/releases
 !.yarn/versions
 
+# claudecode
+.claude
+
 # testing
 /coverage
 

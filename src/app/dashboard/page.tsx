@@ -6,6 +6,8 @@ import styles from "./dashboard.module.css";
 import RedditList from "@/components/RedditList";
 import type { RedditPost, CuratedResult, CurateResponse } from "@/types";
 
+const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
+
 export default function DashboardPage() {
   const {
     onboarding,
@@ -15,10 +17,6 @@ export default function DashboardPage() {
   } = useApp();
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSubreddit, setActiveSubreddit] = useState(
-    onboarding.selectedCommunities?.[0] || "all",
-  );
-  const [savedPosts, setSavedPosts] = useState<string[]>([]);
   const [respondedPosts, setRespondedPosts] = useState<string[]>([]);
 
   // AI curation state
@@ -27,11 +25,9 @@ export default function DashboardPage() {
   const [curating, setCurating] = useState(false);
   const [curateMode, setCurateMode] = useState(false);
 
-  // Load saved/responded from localStorage
+  // Load responded from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("legitreach_saved");
     const responded = localStorage.getItem("legitreach_responded");
-    if (saved) setSavedPosts(JSON.parse(saved));
     if (responded) setRespondedPosts(JSON.parse(responded));
   }, []);
 
@@ -43,20 +39,19 @@ export default function DashboardPage() {
     [keywords.join(",")],
   );
 
-  const DASHBOARD_CACHE_TTL = 1000 * 60 * 60; // 1 hour
-  const signature = JSON.stringify([activeSubreddit, keywordsParam]);
+  // Build a stable signature for all communities combined
+  const signature = JSON.stringify([subreddits.sort().join(","), keywordsParam]);
 
-  // Fetch raw posts whenever the active subreddit changes
+  // Fetch posts for ALL communities on first load; cache for 24 hours
   useEffect(() => {
-    if (!activeSubreddit) return;
-
-    // Reset curation when switching subreddits
-    setCurateMode(false);
-    setCuratedResults([]);
-    setCurateSummary("");
+    if (subreddits.length === 0) {
+      setLoading(false);
+      return;
+    }
 
     const controller = new AbortController();
 
+    // Use cache if it exists and is still fresh
     if (
       cachedDashboardMeta &&
       cachedDashboardMeta.signature === signature &&
@@ -67,18 +62,37 @@ export default function DashboardPage() {
       return () => controller.abort();
     }
 
-    async function fetchPosts() {
+    async function fetchAllPosts() {
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/reddit/browse?subreddit=${activeSubreddit}&keywords=${encodeURIComponent(keywordsParam)}&limit=15`,
-          { signal: controller.signal },
+        // Fetch from all communities in parallel
+        const requests = subreddits.map((sub) =>
+          fetch(
+            `/api/reddit/browse?subreddit=${sub}&keywords=${encodeURIComponent(keywordsParam)}&limit=15`,
+            { signal: controller.signal },
+          ).then((res) => res.json()),
         );
-        const data = await res.json();
-        const fetched: RedditPost[] = data.posts || [];
-        setPosts(fetched);
+
+        const results = await Promise.all(requests);
+
+        // Combine and deduplicate by post ID
+        const seenIds = new Set<string>();
+        const combined: RedditPost[] = [];
+        for (const data of results) {
+          for (const post of data.posts || []) {
+            if (!seenIds.has(post.id)) {
+              seenIds.add(post.id);
+              combined.push(post);
+            }
+          }
+        }
+
+        // Sort by most recent first
+        combined.sort((a, b) => b.created_utc - a.created_utc);
+
+        setPosts(combined);
         try {
-          setDashboardCache(fetched, signature);
+          setDashboardCache(combined, signature);
         } catch {
           /* ignore */
         }
@@ -89,18 +103,10 @@ export default function DashboardPage() {
       setLoading(false);
     }
 
-    fetchPosts();
+    fetchAllPosts();
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSubreddit, keywordsParam, cachedDashboardMeta?.ts]);
-
-  const savePost = (postId: string) => {
-    const updated = savedPosts.includes(postId)
-      ? savedPosts.filter((id) => id !== postId)
-      : [...savedPosts, postId];
-    setSavedPosts(updated);
-    localStorage.setItem("legitreach_saved", JSON.stringify(updated));
-  };
+  }, [signature]);
 
   const markResponded = (postId: string) => {
     const updated = [...respondedPosts, postId];
@@ -169,7 +175,7 @@ export default function DashboardPage() {
       <header className={styles.header}>
         <div>
           <h1>🔍 Opportunities</h1>
-          <p>Discussions matching your keywords</p>
+          <p>Discussions matching your keywords across all communities</p>
         </div>
         <div className={styles.keywords}>
           {keywords.map((kw) => (
@@ -187,26 +193,18 @@ export default function DashboardPage() {
           <span className={styles.statLabel}>Opportunities</span>
         </div>
         <div className={styles.stat}>
-          <span className={styles.statNumber}>{savedPosts.length}</span>
-          <span className={styles.statLabel}>Saved</span>
-        </div>
-        <div className={styles.stat}>
           <span className={styles.statNumber}>{respondedPosts.length}</span>
           <span className={styles.statLabel}>Responded</span>
         </div>
       </div>
 
-      {/* Subreddit Tabs + AI Curate button */}
+      {/* AI Curate button (no subreddit tabs) */}
       <div className={styles.tabsRow}>
-        <div className={styles.tabs}>
+        <div className={styles.communityInfo}>
           {subreddits.map((sub) => (
-            <button
-              key={sub}
-              onClick={() => setActiveSubreddit(sub)}
-              className={`${styles.tab} ${activeSubreddit === sub ? styles.active : ""}`}
-            >
+            <span key={sub} className={styles.communityTag}>
               {sub}
-            </button>
+            </span>
           ))}
         </div>
 
@@ -271,9 +269,7 @@ export default function DashboardPage() {
         ) : (
           <RedditList
             posts={visiblePosts}
-            savedPosts={savedPosts}
             respondedPosts={respondedPosts}
-            onSave={savePost}
             onDone={markResponded}
           />
         )}
