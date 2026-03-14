@@ -110,7 +110,7 @@ Rules:
           // One keyword failing is non-fatal — log and continue
           console.warn(`Failed to fetch posts for keyword "${keyword}":`, err);
         }
-      }),
+      })
     );
 
     if (allPosts.length === 0) {

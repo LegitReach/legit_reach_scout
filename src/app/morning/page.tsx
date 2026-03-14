@@ -87,9 +87,6 @@ export default function MorningPage() {
     }
 
     load();
-    return () => {
-      controller.abort();
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, cachedMorningMeta?.ts]);
 
