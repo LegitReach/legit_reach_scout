@@ -19,7 +19,7 @@ export default function AuthPage() {
           "marginBottom": "5rem"
         }
       }>You've reached your free usage limit. Please sign in or create an account to continue.</p>
-        <SignIn routing="hash" />
+        <SignIn routing="hash" forceRedirectUrl="/dashboard" />
     </div>
   );
 }

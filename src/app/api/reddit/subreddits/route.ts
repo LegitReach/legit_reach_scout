@@ -1,43 +1,89 @@
 import { getGeminiModel } from "@/ai/gemini.model";
 import { NextRequest, NextResponse } from "next/server";
 import { withRateLimit } from "@/lib/withRateLimit";
-// This API route uses Reddit MCP to search for relevant subreddits based on keywords
 
+// POST handler: accepts keywords and business description for personalized subreddit suggestions
 async function handler(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams;
-    const keywords = searchParams.get("keywords") || "";
+  try {
+    const body = await request.json();
+    const { keywords, businessDescription } = body as {
+      keywords?: string;
+      businessDescription?: string;
+    };
 
     if (!keywords) {
-        return NextResponse.json({ error: "Keywords parameter is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Keywords parameter is required" },
+        { status: 400 },
+      );
     }
 
-    try {
-        const keywordList = keywords.toLowerCase().split(",").map(k => k.trim());
+    const keywordList = keywords
+      .toLowerCase()
+      .split(",")
+      .map((k: string) => k.trim());
 
-        // const result = await getGeminiModel().generateContent(`
-        //     Give me reddit subreddit names relevant to the following keywords: ${keywords}. The format of the output should be a string array of subreddits
-        //     . Suggest me only the top 10 relevant subreddits. Make it a good diverse combination.
-        //     `);
+    const prompt = buildSubredditPrompt(keywordList, businessDescription);
+    const result = await getGeminiModel().generateContent(prompt);
 
-        // const aiResponse = result.response.text();
-        // console.log(aiResponse)
-        // const subreddits: string[] = JSON.parse(aiResponse);
-    const subreddits = [
-      "r/todayilearned",
-      "r/SipsTea",
-      "r/InternetIsBeautiful",
-      "r/DataIsBeautiful",
-        "r/CasualConversation"
-    ]
-        return NextResponse.json({
-            keywords: keywordList,
-            suggestions: subreddits,
-            source: "gemini_api",
-        });
-    } catch (error) {
-        console.error("Subreddit suggestion error:", error);
-        return NextResponse.json({ error: "Failed to find subreddits" }, { status: 500 });
-    }
+    const aiResponse = result.response.text();
+    const subreddits: string[] = JSON.parse(aiResponse);
+
+    // Ensure we always return exactly 10, prefixed with r/
+    const normalized = subreddits
+      .map((s: string) => (s.startsWith("r/") ? s : `r/${s}`))
+      .slice(0, 10);
+
+    return NextResponse.json({
+      keywords: keywordList,
+      suggestions: normalized,
+      source: "gemini_api",
+    });
+  } catch (error) {
+    console.error("Subreddit suggestion error:", error);
+    // Graceful fallback to generic subreddits so onboarding never breaks
+    const fallback = [
+      "r/startups",
+      "r/entrepreneur",
+      "r/SaaS",
+      "r/smallbusiness",
+      "r/marketing",
+    ];
+    return NextResponse.json({
+      suggestions: fallback,
+      source: "fallback",
+    });
+  }
 }
 
-export const GET = withRateLimit(handler, 5);
+/**
+ * Builds a detailed prompt for Gemini to suggest subreddits based on
+ * user keywords and their business description.
+ */
+export function buildSubredditPrompt(
+  keywords: string[],
+  businessDescription?: string,
+): string {
+  let prompt = `You are a Reddit expert. Suggest exactly 10 subreddit names that would be most relevant for someone with the following interests and business context.
+
+Keywords: ${keywords.join(", ")}
+`;
+
+  if (businessDescription && businessDescription.trim()) {
+    prompt += `\nBusiness Description: ${businessDescription.trim()}\n`;
+    prompt += `\nConsider the business's target audience, industry, price positioning, and unique value proposition when selecting subreddits.`;
+  }
+
+  prompt += `
+
+Rules:
+- Return ONLY a JSON array of exactly 10 subreddit name strings (e.g. ["r/startups", "r/SaaS", ...]).
+- Each name must start with "r/".
+- Provide a diverse mix: include niche communities, industry-specific subreddits, and broader topic subreddits.
+- Only suggest real, active subreddits.
+- Do NOT include any explanation, markdown, or extra text — just the JSON array.`;
+
+  return prompt;
+}
+
+export const POST = withRateLimit(handler, 5);
