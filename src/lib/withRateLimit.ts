@@ -24,6 +24,16 @@ export function withRateLimit(
         const { allowed } = await checkRateLimit(`user:${userId}`, 5);
 
         if (!allowed) {
+          // Check if user has purchased credits
+          const { redis } = await import("./redis");
+          const credits = await redis.get<number>(`credits:user:${userId}`) || 0;
+
+          if (credits > 0) {
+            // Use one credit
+            await redis.decr(`credits:user:${userId}`);
+            return handler(req);
+          }
+
           const redirectUrl = new URL("/subscribe", req.url);
           const accept = req.headers.get("accept") || "";
 

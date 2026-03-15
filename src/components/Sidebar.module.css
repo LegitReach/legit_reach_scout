@@ -145,6 +145,17 @@
     letter-spacing: 0.05em;
 }
 
+.creditsLabel {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-primary);
+    background: rgba(255, 69, 0, 0.1);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+    margin-top: 2px;
+}
+
 .loginBtn {
     display: flex;
     align-items: center;

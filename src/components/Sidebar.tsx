@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
@@ -28,6 +29,28 @@ const navItems = [
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { resetOnboarding } = useApp();
+    const [creditsInfo, setCreditsInfo] = useState<{ credits: number, freeRequestsLeft: number } | null>(null);
+
+    useEffect(() => {
+        const fetchCredits = async () => {
+            try {
+                const response = await fetch('/api/user/credits');
+                const data = await response.json();
+                setCreditsInfo(data);
+            } catch (err) {
+                console.error("Failed to fetch credits", err);
+            }
+        };
+
+        fetchCredits();
+    }, [pathname]);
+
+    const handleReset = () => {
+        resetOnboarding();
+        router.push("/onboarding");
+    };
 
     return (
         <aside className={styles.sidebar}>
@@ -61,6 +84,13 @@ export default function Sidebar() {
                             <UserButton />
                             <div className={styles.userDetails}>
                                 <span className={styles.userLabel}>Account</span>
+                                {creditsInfo && (
+                                    <span className={styles.creditsLabel}>
+                                        {creditsInfo.freeRequestsLeft > 0
+                                            ? `${creditsInfo.freeRequestsLeft} free left`
+                                            : `${creditsInfo.credits} credits left`}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </SignedIn>
