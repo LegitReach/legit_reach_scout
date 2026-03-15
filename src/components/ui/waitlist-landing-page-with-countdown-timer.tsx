@@ -16,6 +16,7 @@ import {
 } from "three"
 import type { ReactElement } from "react"
 import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
 
 // Simple Accordion components for the FAQ since Shadcn is requested but we need something lightweight without complex install
 const Accordion = ({ children }: { children: React.ReactNode }) => {
@@ -26,7 +27,7 @@ const AccordionItem = ({ title, content }: { title: string, content: string }) =
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div className="border border-white/20 bg-black/60 backdrop-blur-md rounded-xl overflow-hidden">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex justify-between items-center p-4 text-left text-white/90 hover:bg-white/5 transition-colors font-medium"
       >
@@ -94,9 +95,9 @@ export function WaitlistExperience(): ReactElement {
 
     // Create curved light geometry
     const curve = new QuadraticBezierCurve3(
-        new Vector3(-15, -4, 0), 
-        new Vector3(2, 3, 0), 
-        new Vector3(18, 0.8, 0)
+      new Vector3(-15, -4, 0),
+      new Vector3(2, 3, 0),
+      new Vector3(18, 0.8, 0)
     )
 
     // Create tube geometry for the light streak
@@ -254,10 +255,10 @@ export function WaitlistExperience(): ReactElement {
     setShowForm(true);
     // Smooth scroll to form section, aligning the bottom of the container to the bottom of the viewport
     setTimeout(() => {
-        const formEl = document.getElementById("signup-form");
-        if (formEl) {
-          formEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
+      const formEl = document.getElementById("signup-form");
+      if (formEl) {
+        formEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
     }, 150);
   }
 
@@ -281,26 +282,32 @@ export function WaitlistExperience(): ReactElement {
 
       {/* Content Layer */}
       <div className="relative z-10 w-full flex flex-col items-center">
-        
+
         {/* HERO SECTION */}
         <div className="flex flex-col flex-1 items-center justify-center min-h-screen px-4 w-full text-center max-w-4xl mx-auto pt-20">
           <p className="text-white/60 tracking-[0.2em] uppercase text-xs md:text-sm mb-6 font-medium">
             NEWSLETTERS ARE DEAD. INSTEAD, GET LEGITREACH
           </p>
-          
+
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
             AI-POWERED NEWSLETTER THAT GETS YOU <span className="text-green-500">LEGIT</span>REACH
           </h1>
-          
-          <div className="mt-4 mb-4">
+
+          <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-sm sm:max-w-none mx-auto">
+            <Link
+              href="/onboarding"
+              className="w-full sm:w-auto h-12 px-8 bg-green-500 hover:bg-green-600 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg uppercase tracking-wide flex items-center justify-center whitespace-nowrap"
+            >
+              Try for free
+            </Link>
             <Button
               onClick={handleGetAccess}
-              className="h-12 px-8 bg-green-500 hover:bg-green-600 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg uppercase tracking-wide border-none"
+              className="w-full sm:w-auto h-12 px-8 bg-white/5 hover:bg-white/10 text-white/90 font-medium rounded-lg transition-all duration-300 text-lg uppercase tracking-wide border border-white/20 backdrop-blur-sm whitespace-nowrap"
             >
               Get Early Access
             </Button>
           </div>
-          
+
           <p className="text-white/70 text-sm md:text-base max-w-2xl mx-auto mt-6">
             Stop juggling newsletters. Single information digest with frictionless actions daily.
           </p>
@@ -311,22 +318,22 @@ export function WaitlistExperience(): ReactElement {
           <h2 className="text-4xl font-bold text-green-500 text-center mb-12 uppercase tracking-widest">
             FAQ
           </h2>
-          
+
           <Accordion>
-            <AccordionItem 
-              title="What is LegitReach?" 
+            <AccordionItem
+              title="What is LegitReach?"
               content="LegitReach is an AI-powered platform that transforms standard information digests into actionable opportunities. We curate the best conversations across Reddit so you can jump in and engage with your target audience frictionlessly."
             />
-            <AccordionItem 
-              title="How is this different from just subscribing to newsletters?" 
+            <AccordionItem
+              title="How is this different from just subscribing to newsletters?"
               content="Newsletters are passive reading. LegitReach curates real, live conversations happening right now that are highly relevant to your business, and provides AI-drafted responses so you can instantly take action instead of just reading."
             />
-            <AccordionItem 
-              title="What does 'frictionless actions' mean?" 
+            <AccordionItem
+              title="What does 'frictionless actions' mean?"
               content="Instead of spending hours searching for relevant discussions and drafting replies, LegitReach delivers the opportunities to your dashboard and prepares tailored AI drafts. You just review, click, and post."
             />
-            <AccordionItem 
-              title="Is early access free?" 
+            <AccordionItem
+              title="Is early access free?"
               content="Yes, our early access program is entirely free while we gather feedback and refine our features. Join the waitlist today to secure your spot."
             />
           </Accordion>
@@ -334,44 +341,44 @@ export function WaitlistExperience(): ReactElement {
 
         {/* FORM SECTION */}
         {showForm && (
-            <div id="signup-form" className="w-full max-w-xl mx-auto px-4 pb-32 pt-12 z-10 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
-                <div className="rounded-2xl overflow-hidden border border-white/20 bg-white shadow-2xl relative">
-                    {/* Top Image Cover */}
-                    <div className="relative h-64 w-full">
-                        <img 
-                            src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1200" 
-                            alt="Typing on a retro typewriter" 
-                            className="absolute inset-0 w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-6 text-center">
-                            <h3 className="text-white font-bold text-3xl md:text-4xl tracking-tight leading-snug drop-shadow-lg">
-                                LET'S MAKE WORDS<br />WORK FOR YOU
-                            </h3>
-                        </div>
-                    </div>
-                    
-                    {/* Embedded Form Content */}
-                    <div className="bg-white p-2">
-                        <iframe
-                            src="https://links.legitreach.com/widget/form/ffY9J3zMF6VRmZs2ZKEs"
-                            style={{ width: '100%', height: '100%', border: 'none', borderRadius: '0px', minHeight: '665px' }}
-                            id="inline-ffY9J3zMF6VRmZs2ZKEs" 
-                            data-layout="{'id':'INLINE'}"
-                            data-trigger-type="alwaysShow"
-                            data-trigger-value=""
-                            data-activation-type="alwaysActivated"
-                            data-activation-value=""
-                            data-deactivation-type="neverDeactivate"
-                            data-deactivation-value=""
-                            data-form-name="LegitReach Signup"
-                            data-height="665"
-                            data-layout-iframe-id="inline-ffY9J3zMF6VRmZs2ZKEs"
-                            data-form-id="ffY9J3zMF6VRmZs2ZKEs"
-                            title="LegitReach Signup"
-                        />
-                    </div>
+          <div id="signup-form" className="w-full max-w-xl mx-auto px-4 pb-32 pt-12 z-10 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
+            <div className="rounded-2xl overflow-hidden border border-white/20 bg-white shadow-2xl relative">
+              {/* Top Image Cover */}
+              <div className="relative h-64 w-full">
+                <img
+                  src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1200"
+                  alt="Typing on a retro typewriter"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-6 text-center">
+                  <h3 className="text-white font-bold text-3xl md:text-4xl tracking-tight leading-snug drop-shadow-lg">
+                    LET'S MAKE WORDS<br />WORK FOR YOU
+                  </h3>
                 </div>
+              </div>
+
+              {/* Embedded Form Content */}
+              <div className="bg-white p-2">
+                <iframe
+                  src="https://links.legitreach.com/widget/form/ffY9J3zMF6VRmZs2ZKEs"
+                  style={{ width: '100%', height: '100%', border: 'none', borderRadius: '0px', minHeight: '665px' }}
+                  id="inline-ffY9J3zMF6VRmZs2ZKEs"
+                  data-layout="{'id':'INLINE'}"
+                  data-trigger-type="alwaysShow"
+                  data-trigger-value=""
+                  data-activation-type="alwaysActivated"
+                  data-activation-value=""
+                  data-deactivation-type="neverDeactivate"
+                  data-deactivation-value=""
+                  data-form-name="LegitReach Signup"
+                  data-height="665"
+                  data-layout-iframe-id="inline-ffY9J3zMF6VRmZs2ZKEs"
+                  data-form-id="ffY9J3zMF6VRmZs2ZKEs"
+                  title="LegitReach Signup"
+                />
+              </div>
             </div>
+          </div>
         )}
 
       </div>
