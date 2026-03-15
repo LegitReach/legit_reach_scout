@@ -1,6 +1,25 @@
 /* LegitReach Design System */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --primary: 142 71% 45%; /* LegitReach green approx, e.g. #22c55e */
+    --primary-foreground: 0 0% 100%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142 71% 45%;
+    --radius: 0.5rem;
+  }
+}
+
 :root {
   /* Color Palette - Dark Mode Primary */
   --color-bg-primary: #0a0a0f;
