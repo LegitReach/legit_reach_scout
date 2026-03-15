@@ -3,178 +3,161 @@
 import { useEffect, useState, useRef } from "react";
 import styles from "./morning.module.css";
 import { useApp } from "@/context/AppContext";
-import RedditList from "@/components/RedditList";
-import { getGeminiModel } from "@/ai/gemini.model";
-interface RedditPost {
-    id: string;
-    title: string;
-    subreddit: string;
-    author: string;
-    score: number;
-    num_comments: number;
-    created_utc: number;
-    selftext: string;
-    permalink: string;
-    url: string;
-    relevance_score?: number;
-    opportunity_type?: string;
-}
-
-interface RedditPostQuery {
-    keywords: string;
-}
+import NewsletterCard from "@/components/NewsletterCard";
+import type { RedditPost } from "@/types";
+import { useUser } from "@clerk/nextjs";
 
 export default function MorningPage() {
-    const { onboarding, cachedMorningPosts, cachedMorningMeta, setMorningCache } = useApp();
-    const {keywords, oneMinuteBusinessPitch} = onboarding;
+  const { user } = useUser();
+  const { onboarding, cachedMorningPosts, cachedMorningMeta, setMorningCache } =
+    useApp();
+  const { keywords, oneMinuteBusinessPitch, selectedCommunities } = onboarding;
 
-    const [redditPosts , setRedditPosts] = useState<RedditPost[]>([]);
-    const [loading, setLoading] = useState(false);
-    const fetchRef = useRef(false);
+  const [posts, setPosts] = useState<RedditPost[]>([]);
+  const [summary, setSummary] = useState("");
+  const [loading, setLoading] = useState(false);
+  const fetchRef = useRef(false);
 
-    const signature = JSON.stringify([keywords, oneMinuteBusinessPitch, onboarding.selectedCommunities]);
-    const MORNING_CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
+  const signature = JSON.stringify([
+    keywords,
+    oneMinuteBusinessPitch,
+    selectedCommunities,
+  ]);
+  const MORNING_CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
 
-    useEffect(() => {
-        const controller = new AbortController();
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
-        // valid cache check
-        if (cachedMorningMeta && cachedMorningMeta.signature === signature && (Date.now() - cachedMorningMeta.ts) < MORNING_CACHE_TTL) {
-            setRedditPosts(cachedMorningPosts as RedditPost[]);
-            return () => { controller.abort(); };
+  useEffect(() => {
+    const controller = new AbortController();
+
+    // Serve from cache when still fresh
+    if (
+      cachedMorningMeta &&
+      cachedMorningMeta.signature === signature &&
+      Date.now() - cachedMorningMeta.ts < MORNING_CACHE_TTL
+    ) {
+      setPosts(cachedMorningPosts as RedditPost[]);
+      return () => {
+        controller.abort();
+      };
+    }
+
+    if (fetchRef.current)
+      return () => {
+        controller.abort();
+      };
+    fetchRef.current = true;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/morning/brief", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessDescription: oneMinuteBusinessPitch,
+            keywords,
+            subreddits: selectedCommunities,
+          }),
+          signal: controller.signal,
+        });
+
+        if (res.redirected) {
+          window.location.href = res.url;
+          return;
+        }
+        if (!res.ok) {
+          setPosts([]);
+          return;
         }
 
-        if (fetchRef.current) return () => { controller.abort(); };
-        fetchRef.current = true;
-
-
-        async function load() {
-            setLoading(true);
-        const prompt = `
-            I am using https://app.scrapecreators.com/playground. which allows to scrape reddit data. To search reddit posts there is a required parameter: 'query'. Based on the pitch: ${oneMinuteBusinessPitch} and keywords: ${keywords.join(', ')}.
-            I want you to formulate a relevant query using no more than 140 characters.
-            the query should be comma separated values. Only mention 3 most relevant keywords
-            the response should be in the below format:
-            interface QueryGen {
-                keywords: string
-            } 
-            `;
-
-    try {
-        const result = await getGeminiModel('gemini-3-flash-preview').generateContent(prompt);
-        const text = result.response.text();
-        
-
-        const postQuery:RedditPostQuery = JSON.parse(text);
-
-        const keywordList = postQuery.keywords ? postQuery.keywords.split(",").map(k => k.trim())  : [];
-
-        const allRedditPosts: RedditPost[] =  [];
-        const apiKey = process.env.NEXT_PUBLIC_REDDIT_SCRAPE_API_KEY;
-
-        if(!apiKey) throw new Error('SCRAPE REDDIT API KEY is not set');
-
-        const options = {
-            method: 'GET',
-            headers: {
-                "x-api-key": apiKey
-            }
-        };
-
-
-        for (const keyword of keywordList){
-            const url = `https://api.scrapecreators.com/v1/reddit/search?query=${keyword}&sort=top&timeframe=day`;
-            const response = await fetch(url, options);
-            const relevantRedditResponse = await response.json();
-            if(relevantRedditResponse['posts']){
-                const tempRedditPost: RedditPost[] = relevantRedditResponse['posts'];
-                allRedditPosts.push(...tempRedditPost);
-            } 
+        const data = await res.json();
+        const fetched: RedditPost[] = data.posts || [];
+        setPosts(fetched);
+        setSummary(data.summary || "");
+        try {
+          setMorningCache(fetched, signature);
+        } catch {
+          /* ignore */
         }
+      } catch (err: unknown) {
+        if ((err as { name?: string }).name === "AbortError") return;
+        console.error("Failed to load morning posts:", err);
+        setPosts([]);
+      } finally {
+        setLoading(false);
+        fetchRef.current = false;
+      }
+    }
 
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature, cachedMorningMeta?.ts]);
 
-
-        const selectionPrompt  = `
-             You are a marketing genius,  based on the client's Pitch: ${oneMinuteBusinessPitch} select the top 5 most relevant reddit posts from the list: ${JSON.stringify(allRedditPosts)}
-             such that the posts could potentially bring the client some valuable business or interaction with potential customers
-
-             CRITICAL: ONLY SELECT FROM THE MENTIONED RedditPosts. you do not have to do ANYTHING ELSE
-            the response should be an array of the below objects: 
-                interface RedditPost {
-                        id: string;
-                        title: string;
-                        subreddit: string;
-                        author: string;
-                        score: number;
-                        num_comments: number;
-                        created_utc: number;
-                        selftext: string;
-                        permalink: string;
-                        url: string;
-                        relevance_score?: number;
-                        opportunity_type?: string;
-                }
-
-             `
-
-        const aiResponse = await getGeminiModel('gemini-3-flash-preview').generateContent(selectionPrompt);
-        const textRedditResponse = aiResponse.response.text()    
-
-        // 2. IGNORE the text for links. Use the Metadata instead.
-                if (!textRedditResponse) {
-                    setRedditPosts([]);
-                    return;
-                }
-
-                let posts: RedditPost[] = JSON.parse(textRedditResponse);
-                posts = posts.map((post, idx) => ({
-                    ...post,
-                    permalink: `https://reddit.com${post.permalink}`,
-                }));
-                
-
-                setRedditPosts(posts || []);
-                // persist to cache with signature
-                try { setMorningCache(posts || [], signature); } catch (e) { /* ignore */ }
-            } catch (err: any) {
-                if (err.name === 'AbortError') return;
-                console.error('Failed to load morning posts', err);
-                setRedditPosts([]);
-            } finally {
-                setLoading(false);
-                fetchRef.current = false;
-            }
-        }
-
-        load();
-        return () => { controller.abort(); };
-    }, [signature, cachedMorningMeta?.ts]);
-    return (
-        <div className={styles.page}>
-            <main className={styles.content}>
-                {(!onboarding.selectedCommunities || onboarding.selectedCommunities.length === 0) ? (
-                    <div className={styles.empty}>
-                        <p>No communities selected yet — complete onboarding to see personalized content.</p>
-                    </div>
-                ) : loading ? (
-                    <div className={styles.loading}>
-                        <div className={styles.spinner}></div>
-                        <p>Fetching top opportunities...</p>
-                    </div>
-                ) : (
-                    <section>
-
-                        {/* Render any posts fetched by the page's logic */}
-                        {redditPosts && redditPosts.length > 0 && (
-                            <div style={{ marginTop: 20 }}>
-                                <h3>Top Matches</h3>
-                                <RedditList posts={redditPosts} />
-                            </div>
-                        )}
-
-                    </section>
-                )}
-            </main>
+  return (
+    <div className={styles.page}>
+      <header className={styles.newsletterHeader}>
+        <h1>LegitReach</h1>
+        <div className={styles.newsletterMeta}>
+          <span>{today}</span>
+          <span className={styles.divider}></span>
+          <span>Vol. 1, Issue {new Date().getDate()}</span>
         </div>
-    );
+      </header>
+
+      <main className={styles.content}>
+        {!selectedCommunities || selectedCommunities.length === 0 ? (
+          <div className={styles.empty}>
+            <p>
+              No communities selected yet — complete onboarding to see
+              personalised content.
+            </p>
+          </div>
+        ) : loading ? (
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Curating your personalized briefing...</p>
+          </div>
+        ) : (
+          <div className="animate-fade-in">
+            <section className={styles.editorial}>
+              <h2 className={styles.editorialTitle}>
+                Good Morning, {user?.firstName || "Scout"}!
+              </h2>
+              <p className={styles.summary}>
+                {summary || "We've scanned your selected subreddits for the most relevant opportunities that match your profile. Here's what needs your attention today."}
+              </p>
+            </section>
+
+            <div className={styles.sectionHeader}>
+              <h2>Top Opportunities</h2>
+              <div className={styles.sectionLine}></div>
+            </div>
+
+            {posts.length > 0 ? (
+              <div className={styles.postsList}>
+                {posts.map((post) => (
+                  <NewsletterCard key={post.id} post={post} />
+                ))}
+              </div>
+            ) : (
+              <div className={styles.empty}>
+                <p>No relevant posts found for today.</p>
+                <p>Try updating your keywords or check back later.</p>
+              </div>
+            )}
+
+            <footer style={{ marginTop: 60, textAlign: 'center', opacity: 0.5, fontSize: '0.8rem' }}>
+              <p>© {new Date().getFullYear()} LegitReach. Curated for your business success.</p>
+            </footer>
+          </div>
+        )}
+      </main>
+    </div>
+  );
 }

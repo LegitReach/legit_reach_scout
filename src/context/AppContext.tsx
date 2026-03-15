@@ -149,7 +149,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const resetOnboarding = () => {
         setOnboarding(initialOnboardingState);
         localStorage.removeItem("legitreach_onboarding");
-        localStorage.removeItem("legitreach_saved");
         localStorage.removeItem("legitreach_responded");
     };
 

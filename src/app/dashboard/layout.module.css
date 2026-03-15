@@ -40,9 +40,13 @@
 }
 
 @media (max-width: 768px) {
+    .layout {
+        flex-direction: column;
+    }
+
     .main {
         margin-left: 0;
-        padding-top: 60px;
+        padding-top: 80px;
     }
 
     .content {

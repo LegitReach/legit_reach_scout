@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./post.module.css";
-import { getGeminiModel } from "@/ai/gemini.model";
 import { useApp } from "@/context/AppContext";
 
 interface PostDetails {
@@ -21,9 +20,6 @@ interface PostDetails {
         comments?: Array<any>;
 }
 
-interface AIGeneratedResponse{
-    reply: string
-}
 
 function PostContent() {
     const searchParams = useSearchParams();
@@ -36,6 +32,7 @@ function PostContent() {
     const [generatingAI, setGeneratingAI] = useState(false);
     const {onboarding} = useApp();
     const {oneMinuteBusinessPitch} = onboarding;
+    const router = useRouter();
 
     useEffect(() => {
         // Try to get post from sessionStorage first
@@ -100,15 +97,22 @@ function PostContent() {
             }
             `;
 
-            const model = getGeminiModel();
-            const result = await model.generateContent(prompt);
-
-            const text = result.response.text();
-            const aiGenRes: AIGeneratedResponse = JSON.parse(text);
-            const reply = aiGenRes.reply
+            // hit our own rate‑limited API instead of calling Gemini client directly
+            const res = await fetch("/api/ai/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt }),
+            });
+            if (res.redirected) {
+                // server is redirecting to auth page
+                window.location.href = res.url;
+                return;
+            }
+            const body = await res.json();
+            const reply = (body.text as string) || "";
 
             // Clean up the response (remove quotes if present)
-            const cleanedText = reply.replace(/^["']|["']$/g, '').trim();
+            const cleanedText = reply.replace(/^['"]|['"]$/g, "").trim();
             setDraft(cleanedText);
         } catch (error) {
             console.error("Failed to generate AI response:", error);
@@ -215,6 +219,20 @@ function PostContent() {
                     >
                         Reply on Reddit →
                     </a>
+                    <button
+                        onClick={() => {
+                            // Mark as responded in localStorage
+                            const responded = JSON.parse(localStorage.getItem("legitreach_responded") || "[]");
+                            if (!responded.includes(data.id)) {
+                                responded.push(data.id);
+                                localStorage.setItem("legitreach_responded", JSON.stringify(responded));
+                            }
+                            router.push("/dashboard");
+                        }}
+                        className={styles.doneBtn}
+                    >
+                        ✓ Done
+                    </button>
                 </div>
             </section>
 

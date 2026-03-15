@@ -1,62 +1,40 @@
+"use client";
+
+import { WaitlistExperience } from "@/components/ui/waitlist-landing-page-with-countdown-timer";
+import {
+  SignInButton,
+  UserButton,
+  SignedIn,
+  SignedOut,
+} from "@clerk/nextjs";
 import Link from "next/link";
-import styles from "./page.module.css";
+import React from "react";
 
 export default function Home() {
   return (
-    <div className={styles.container}>
-      {/* Background Glow */}
-      <div className={styles.glow}></div>
-      <div className={styles.glowSecondary}></div>
-
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.logo}>
-          <span className={styles.logoIcon}>🚀</span>
-          <span className={styles.logoText}>LegitReach</span>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className={styles.hero}>
-        <div className={styles.badge}>No login required • Works instantly</div>
-        <h1 className={styles.title}>
-          Find Reddit Opportunities<br />
-          <span className={styles.gradient}>Where Your Customers Hang Out</span>
-        </h1>
-        <p className={styles.subtitle}>
-          Enter your keywords → Get relevant subreddits →
-          Find discussions to engage with → Draft authentic replies.
-        </p>
-        <div className={styles.cta}>
-          <Link href="/onboarding" className={styles.primaryBtn}>
-            Start Finding Opportunities →
+    <div className="relative min-h-screen">
+      {/* Absolute Header for Login/Dashboard Access */}
+      <div className="absolute top-4 right-4 md:top-8 md:right-8 z-50 flex items-center gap-4">
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="text-sm font-medium text-white/70 hover:text-white px-4 py-2 rounded-full border border-white/10 hover:border-white/30 bg-black/40 backdrop-blur-md transition-all">
+              Sign In
+            </button>
+          </SignInButton>
+        </SignedOut>
+        <SignedIn>
+          <Link 
+            href="/dashboard"
+            className="text-sm font-medium text-white/90 hover:text-white px-4 py-2 rounded-full border border-green-500/30 hover:border-green-500 bg-green-500/10 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(34,197,94,0.1)] hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] mr-2"
+          >
+            Go to Dashboard
           </Link>
-        </div>
-      </section>
+          <UserButton />
+        </SignedIn>
+      </div>
 
-      {/* Value Props */}
-      <section className={styles.features}>
-        <div className={styles.featureCard}>
-          <span className={styles.featureIcon}>🎯</span>
-          <h3>Keyword-Based Discovery</h3>
-          <p>Enter what you're looking for, we find relevant communities automatically</p>
-        </div>
-        <div className={styles.featureCard}>
-          <span className={styles.featureIcon}>💡</span>
-          <h3>Opportunity Scoring</h3>
-          <p>Each post shows why it's an opportunity and how to engage</p>
-        </div>
-        <div className={styles.featureCard}>
-          <span className={styles.featureIcon}>📋</span>
-          <h3>Draft & Track</h3>
-          <p>Save opportunities, draft replies, and track what you've responded to</p>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className={styles.footer}>
-        <p>Powered by Reddit MCP • No Reddit account needed</p>
-      </footer>
+      {/* Main Waitlist Experience Component */}
+      <WaitlistExperience />
     </div>
   );
 }
