@@ -3,10 +3,12 @@
 import { useEffect, useState, useRef } from "react";
 import styles from "./morning.module.css";
 import { useApp } from "@/context/AppContext";
-import RedditList from "@/components/RedditList";
+import NewsletterCard from "@/components/NewsletterCard";
 import type { RedditPost } from "@/types";
+import { useUser } from "@clerk/nextjs";
 
 export default function MorningPage() {
+  const { user } = useUser();
   const { onboarding, cachedMorningPosts, cachedMorningMeta, setMorningCache } =
     useApp();
   const { keywords, oneMinuteBusinessPitch, selectedCommunities } = onboarding;
@@ -22,6 +24,13 @@ export default function MorningPage() {
     selectedCommunities,
   ]);
   const MORNING_CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,6 +101,15 @@ export default function MorningPage() {
 
   return (
     <div className={styles.page}>
+      <header className={styles.newsletterHeader}>
+        <h1>LegitReach</h1>
+        <div className={styles.newsletterMeta}>
+          <span>{today}</span>
+          <span className={styles.divider}></span>
+          <span>Vol. 1, Issue {new Date().getDate()}</span>
+        </div>
+      </header>
+
       <main className={styles.content}>
         {!selectedCommunities || selectedCommunities.length === 0 ? (
           <div className={styles.empty}>
@@ -103,15 +121,29 @@ export default function MorningPage() {
         ) : loading ? (
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
-            <p>Fetching top opportunities…</p>
+            <p>Curating your personalized briefing...</p>
           </div>
         ) : (
-          <section>
-            {summary && <p className={styles.summary}>{summary}</p>}
+          <div className="animate-fade-in">
+            <section className={styles.editorial}>
+              <h2 className={styles.editorialTitle}>
+                Good Morning, {user?.firstName || "Scout"}!
+              </h2>
+              <p className={styles.summary}>
+                {summary || "We've scanned your selected subreddits for the most relevant opportunities that match your profile. Here's what needs your attention today."}
+              </p>
+            </section>
+
+            <div className={styles.sectionHeader}>
+              <h2>Top Opportunities</h2>
+              <div className={styles.sectionLine}></div>
+            </div>
+
             {posts.length > 0 ? (
-              <div style={{ marginTop: 20 }}>
-                <h3>Top Matches</h3>
-                <RedditList posts={posts} />
+              <div className={styles.postsList}>
+                {posts.map((post) => (
+                  <NewsletterCard key={post.id} post={post} />
+                ))}
               </div>
             ) : (
               <div className={styles.empty}>
@@ -119,7 +151,11 @@ export default function MorningPage() {
                 <p>Try updating your keywords or check back later.</p>
               </div>
             )}
-          </section>
+
+            <footer style={{ marginTop: 60, textAlign: 'center', opacity: 0.5, fontSize: '0.8rem' }}>
+              <p>© {new Date().getFullYear()} LegitReach. Curated for your business success.</p>
+            </footer>
+          </div>
         )}
       </main>
     </div>
