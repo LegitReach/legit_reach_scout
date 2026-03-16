@@ -3,6 +3,11 @@ import { getGeminiModel } from "@/ai/gemini.model";
 import { withRateLimit } from "@/lib/withRateLimit";
 import { parseCurateResponse, GeminiParseError } from "@/lib/gemini-parsers";
 import type { CurateRequest, RedditPost } from "@/types";
+import { getPostHogClient } from "@/lib/posthog-server";
+import { getAuth } from "@clerk/nextjs/server";
+import { randomUUID } from "crypto";
+
+const MODEL_NAME = "gemini-2.5-flash";
 
 // ──────────────────────────────────────────────────────────
 // POST /api/ai/curate
@@ -54,9 +59,32 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     slimPosts,
   );
 
+  const { userId } = getAuth(request);
+  const traceId = randomUUID();
+  const startTime = Date.now();
+
   try {
-    const result = await getGeminiModel().generateContent(prompt);
+    const result = await getGeminiModel(MODEL_NAME).generateContent(prompt);
+    const latency = (Date.now() - startTime) / 1000;
     const rawText = result.response.text();
+    const usage = result.response.usageMetadata;
+
+    getPostHogClient().capture({
+      distinctId: userId ?? "anonymous",
+      event: "$ai_generation",
+      properties: {
+        $ai_trace_id: traceId,
+        $ai_span_name: "post_curation",
+        $ai_model: MODEL_NAME,
+        $ai_provider: "google",
+        $ai_input: [{ role: "user", content: prompt }],
+        $ai_input_tokens: usage?.promptTokenCount,
+        $ai_output_tokens: usage?.candidatesTokenCount,
+        $ai_output_choices: [{ role: "assistant", content: rawText }],
+        $ai_latency: latency,
+        posts_analyzed: slimPosts.length,
+      },
+    });
 
     const curated = parseCurateResponse(rawText);
 
@@ -67,6 +95,23 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(curated);
   } catch (err) {
+    const latency = (Date.now() - startTime) / 1000;
+    getPostHogClient().capture({
+      distinctId: userId ?? "anonymous",
+      event: "$ai_generation",
+      properties: {
+        $ai_trace_id: traceId,
+        $ai_span_name: "post_curation",
+        $ai_model: MODEL_NAME,
+        $ai_provider: "google",
+        $ai_input: [{ role: "user", content: prompt }],
+        $ai_latency: latency,
+        $ai_is_error: true,
+        $ai_error: err instanceof Error ? err.message : String(err),
+        posts_analyzed: slimPosts.length,
+      },
+    });
+
     if (err instanceof GeminiParseError) {
       console.error("Gemini curate response shape mismatch:", err.message);
       return NextResponse.json(

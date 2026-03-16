@@ -3,6 +3,7 @@
 import Link from "next/link";
 import styles from "@/app/dashboard/dashboard.module.css";
 import type { RedditPost } from "@/types";
+import posthog from "posthog-js";
 export type { RedditPost };
 
 interface Props {
@@ -61,6 +62,7 @@ export default function PostCard({
         <Link
           href={viewHref || `/dashboard/post?id=${post.id}`}
           onClick={() => {
+            posthog.capture("post_viewed", { post_id: post.id, subreddit: post.subreddit });
             sessionStorage.setItem(
               `reddit_post_${post.id}`,
               JSON.stringify(post),
@@ -72,7 +74,10 @@ export default function PostCard({
         </Link>
 
         <button
-          onClick={() => onDone && onDone(post.id)}
+          onClick={() => {
+            posthog.capture("post_marked_done", { post_id: post.id, subreddit: post.subreddit });
+            if (onDone) onDone(post.id);
+          }}
           className={styles.doneBtn}
         >
           ✓ Done

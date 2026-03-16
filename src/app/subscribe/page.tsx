@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Check, Zap, Shield, Star, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import styles from './subscribe.module.css';
+import posthog from 'posthog-js';
 
 function SubscribeContent() {
     const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +14,7 @@ function SubscribeContent() {
     const success = searchParams.get('success');
 
     const handleSubscribe = async () => {
+        posthog.capture("checkout_initiated", { plan: "credits_topup", amount_usd: 1, credits: 5 });
         setIsLoading(true);
         try {
             const response = await fetch('/api/checkout', {
@@ -27,6 +29,7 @@ function SubscribeContent() {
             }
         } catch (error) {
             console.error('Checkout error:', error);
+            posthog.captureException(error);
             alert('Something went wrong. Please try again.');
         } finally {
             setIsLoading(false);

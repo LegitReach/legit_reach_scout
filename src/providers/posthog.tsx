@@ -7,10 +7,14 @@ import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 
 if (typeof window !== 'undefined') {
-  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY || 'phc_placeholder', {
-    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+    api_host: '/ingest',
+    ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+    defaults: '2026-01-30',
     person_profiles: 'identified_only',
-    capture_pageview: false // Manual tracking for Next.js App Router
+    capture_pageview: false, // Manual tracking for Next.js App Router
+    capture_exceptions: true,
+    debug: process.env.NODE_ENV === 'development',
   })
   ;(window as any).posthog = posthog
 }

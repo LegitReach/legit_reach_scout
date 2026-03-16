@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./post.module.css";
 import { useApp } from "@/context/AppContext";
+import posthog from "posthog-js";
 
 interface PostDetails {
         id: string;
@@ -68,6 +69,7 @@ function PostContent() {
 
     const copyDraft = () => {
         navigator.clipboard.writeText(draft);
+        posthog.capture("reply_copied", { post_id: data?.id, subreddit: data?.subreddit });
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -113,9 +115,11 @@ function PostContent() {
 
             // Clean up the response (remove quotes if present)
             const cleanedText = reply.replace(/^['"]|['"]$/g, "").trim();
+            posthog.capture("ai_reply_generated", { post_id: data.id, subreddit: data.subreddit });
             setDraft(cleanedText);
         } catch (error) {
             console.error("Failed to generate AI response:", error);
+            posthog.captureException(error);
             setDraft("Failed to generate response. Please try again.");
         } finally {
             setGeneratingAI(false);
@@ -216,6 +220,7 @@ function PostContent() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className={styles.replyOnRedditBtn}
+                        onClick={() => posthog.capture("reply_on_reddit_clicked", { post_id: data.id, subreddit: data.subreddit })}
                     >
                         Reply on Reddit →
                     </a>

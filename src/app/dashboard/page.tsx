@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import styles from "./dashboard.module.css";
 import RedditList from "@/components/RedditList";
 import type { RedditPost, CuratedResult, CurateResponse } from "@/types";
+import posthog from "posthog-js";
 
 const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
@@ -138,6 +139,7 @@ export default function DashboardPage() {
 
   const handleCurateWithAI = async () => {
     if (posts.length === 0) return;
+    posthog.capture("curate_with_ai_clicked", { post_count: posts.length });
     setCurating(true);
     try {
       const res = await fetch("/api/ai/curate", {
@@ -159,11 +161,13 @@ export default function DashboardPage() {
         return;
       }
       const data: CurateResponse = await res.json();
+      posthog.capture("ai_curation_completed", { curated_post_count: data.curated_posts.length });
       setCuratedResults(data.curated_posts);
       setCurateSummary(data.summary);
       setCurateMode(true);
     } catch (err) {
       console.error("Failed to curate posts:", err);
+      posthog.captureException(err);
     } finally {
       setCurating(false);
     }

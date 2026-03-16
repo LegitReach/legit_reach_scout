@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import styles from "./onboarding.module.css";
+import posthog from "posthog-js";
 
 export default function OnboardingPage() {
     
@@ -42,6 +43,7 @@ export default function OnboardingPage() {
 
         // Navigate to business description step
         const goToBusinessStep = () => {
+            posthog.capture("onboarding_step_completed", { step: 1, keywords_count: keywords.length });
             setStep(2);
         };
 
@@ -66,12 +68,18 @@ export default function OnboardingPage() {
                 setSuggestedSubreddits(data.suggestions || []);
             } catch (error) {
                 console.error("Failed to fetch suggestions:", error);
+                posthog.captureException(error);
             }
+            posthog.capture("onboarding_step_completed", { step: 2, business_desc_length: businessDesc.length });
             setLoadingSuggestions(false);
             setStep(3);
         };
 
         const handleComplete = () => {
+            posthog.capture("onboarding_completed", {
+                keywords_count: keywords.length,
+                communities_count: subreddits.length,
+            });
             updateOnboarding({
                 selectedCommunities: subreddits,
                 keywords: keywords, // repurposed as search keywords
