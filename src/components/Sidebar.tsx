@@ -24,7 +24,7 @@ const Icons = {
 
 const navItems = [
     { href: "/dashboard", icon: Icons.Search, label: "Opportunities" },
-    { href: "/morning", icon: Icons.Morning, label: "Morning Brief" },
+    { href: "/morning", icon: Icons.Morning, label: "Daily Insights" },
     { href: "/dashboard/settings", icon: Icons.Settings, label: "Settings" },
 ];
 
