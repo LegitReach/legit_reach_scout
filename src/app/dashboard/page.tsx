@@ -254,7 +254,7 @@ export default function DashboardPage() {
         {loading ? (
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
-            <p>Finding opportunities…</p>
+            <p>Your AI agent is scanning Reddit right now. First insights usually show up within a few hours. We will notify you when they are ready.</p>
           </div>
         ) : visiblePosts.length === 0 && curateMode ? (
           <div className={styles.empty}>

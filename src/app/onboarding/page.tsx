@@ -110,8 +110,9 @@ export default function OnboardingPage() {
 
                     {step === 1 && (
                         <div className={styles.stepContent}>
-                            <h1>🔍 What are you looking for?</h1>
-                            <p>Add keywords related to your product or the problems you solve.</p>
+                            <p className={styles.stepLabel}>1: Your Brand &gt; 2: Subreddits &gt; 3: Your Insights</p>
+                            <h1>🔍 What does your brand sell?</h1>
+                            <p>Describe your product in a few words. Our AI uses this to find Reddit conversations where people need exactly what you sell.</p>
 
                             <div className={styles.inputGroup}>
                                 <input
@@ -119,7 +120,7 @@ export default function OnboardingPage() {
                                     value={keywordInput}
                                     onChange={(e) => setKeywordInput(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addKeyword())}
-                                    placeholder="e.g., 'customer feedback', 'productivity tools'"
+                                    placeholder="Example: 'organic dog treats', 'minimalist phone cases', 'postpartum skincare'"
                                     className={styles.input}
                                 />
                                 <button onClick={addKeyword} className={styles.addBtn}>Add</button>
@@ -135,7 +136,7 @@ export default function OnboardingPage() {
                             </div>
 
                             <p className={styles.hint}>
-                                💡 These keywords help us find relevant Reddit discussions
+                                💡 Not sure what to type? Describe your brand in a sentence.
                             </p>
 
                             <div className={styles.actions}>
@@ -152,6 +153,7 @@ export default function OnboardingPage() {
 
                     {step === 2 && (
                         <div className={styles.stepContent}>
+                            <p className={styles.stepLabel}>1: Your Brand &gt; 2: Subreddits &gt; 3: Your Insights</p>
                             <h1>🏷️ Describe your business</h1>
                             <p>Help us surface better opportunities by describing your business.</p>
 
@@ -191,6 +193,7 @@ export default function OnboardingPage() {
 
                     {step === 3 && (
                         <div className={styles.stepContent}>
+                            <p className={styles.stepLabel}>1: Your Brand &gt; 2: Subreddits &gt; 3: Your Insights</p>
                             <h1>📍 Recommended Communities</h1>
                             <p>Based on your keywords, here are relevant subreddits:</p>
 
