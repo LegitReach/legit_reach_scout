@@ -17,53 +17,62 @@ const MODEL_NAME = "gemini-2.5-flash";
 // ──────────────────────────────────────────────────────────
 
 async function handler(request: NextRequest): Promise<NextResponse> {
-  if (request.method !== "POST") {
-    return NextResponse.json({ error: "Only POST allowed" }, { status: 405 });
-  }
-
-  let body: Partial<CurateRequest> = {};
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const { posts, keywords, businessDescription } = body;
-
-  if (!Array.isArray(posts) || posts.length === 0) {
-    return NextResponse.json(
-      { error: "`posts` must be a non-empty array" },
-      { status: 400 },
-    );
-  }
-  if (!businessDescription || typeof businessDescription !== "string") {
-    return NextResponse.json(
-      { error: "`businessDescription` is required" },
-      { status: 400 },
-    );
-  }
-
-  // Trim posts to the fields Gemini needs (keep payload small)
-  const slimPosts = (posts as RedditPost[]).slice(0, 20).map((p) => ({
-    id: p.id,
-    title: p.title,
-    subreddit: p.subreddit,
-    selftext: p.selftext?.substring(0, 300) ?? "",
-    score: p.score,
-    num_comments: p.num_comments,
-  }));
-
-  const prompt = buildCuratePrompt(
-    businessDescription,
-    (keywords ?? []).join(", "),
-    slimPosts,
-  );
-
-  const { userId } = getAuth(request);
   const traceId = randomUUID();
   const startTime = Date.now();
+  let userId: string | null = null;
+  let slimPostsCount = 0;
+  let prompt = "";
 
   try {
+    if (request.method !== "POST") {
+      return NextResponse.json({ error: "Only POST allowed" }, { status: 405 });
+    }
+
+    let body: Partial<CurateRequest> = {};
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { posts, keywords, businessDescription } = body;
+
+    if (!Array.isArray(posts) || posts.length === 0) {
+      return NextResponse.json(
+        { error: "`posts` must be a non-empty array" },
+        { status: 400 },
+      );
+    }
+    if (!businessDescription || typeof businessDescription !== "string") {
+      return NextResponse.json(
+        { error: "`businessDescription` is required" },
+        { status: 400 },
+      );
+    }
+
+    // Trim posts to the fields Gemini needs (keep payload small)
+    const slimPosts = (posts as RedditPost[]).slice(0, 20).map((p) => ({
+      id: p.id,
+      title: p.title,
+      subreddit: p.subreddit,
+      selftext: p.selftext?.substring(0, 300) ?? "",
+      score: p.score,
+      num_comments: p.num_comments,
+    }));
+    slimPostsCount = slimPosts.length;
+
+    prompt = buildCuratePrompt(
+      businessDescription,
+      (keywords ?? []).join(", "),
+      slimPosts,
+    );
+
+    try {
+      userId = getAuth(request).userId;
+    } catch {
+      userId = null;
+    }
+
     const result = await getGeminiModel(MODEL_NAME).generateContent(prompt);
     const latency = (Date.now() - startTime) / 1000;
     const rawText = result.response.text();
@@ -82,7 +91,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
         $ai_output_tokens: usage?.candidatesTokenCount,
         $ai_output_choices: [{ role: "assistant", content: rawText }],
         $ai_latency: latency,
-        posts_analyzed: slimPosts.length,
+        posts_analyzed: slimPostsCount,
       },
     });
 
@@ -96,21 +105,27 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(curated);
   } catch (err) {
     const latency = (Date.now() - startTime) / 1000;
-    getPostHogClient().capture({
-      distinctId: userId ?? "anonymous",
-      event: "$ai_generation",
-      properties: {
-        $ai_trace_id: traceId,
-        $ai_span_name: "post_curation",
-        $ai_model: MODEL_NAME,
-        $ai_provider: "google",
-        $ai_input: [{ role: "user", content: prompt }],
-        $ai_latency: latency,
-        $ai_is_error: true,
-        $ai_error: err instanceof Error ? err.message : String(err),
-        posts_analyzed: slimPosts.length,
-      },
-    });
+
+    // Log error properties safely
+    try {
+      getPostHogClient().capture({
+        distinctId: userId ?? "anonymous",
+        event: "$ai_generation",
+        properties: {
+          $ai_trace_id: traceId,
+          $ai_span_name: "post_curation",
+          $ai_model: MODEL_NAME,
+          $ai_provider: "google",
+          $ai_input: prompt ? [{ role: "user", content: prompt }] : undefined,
+          $ai_latency: latency,
+          $ai_is_error: true,
+          $ai_error: err instanceof Error ? err.message : String(err),
+          posts_analyzed: slimPostsCount,
+        },
+      });
+    } catch (phErr) {
+      console.warn("PostHog error logging failed", phErr);
+    }
 
     if (err instanceof GeminiParseError) {
       console.error("Gemini curate response shape mismatch:", err.message);
@@ -121,14 +136,13 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     }
     console.error("Curate API error:", err);
     return NextResponse.json(
-      { error: "Failed to curate posts" },
+      { error: "Failed to curate posts: " + (err instanceof Error ? err.message : String(err)) },
       { status: 500 },
     );
   }
 }
 
 export const POST = withRateLimit(handler, 5);
-
 // ──────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────
