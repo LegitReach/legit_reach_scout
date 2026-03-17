@@ -1,13 +1,14 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useAuth } from "@clerk/nextjs";
 
 interface OnboardingState {
     keywords: string[];
     selectedCommunities: string[];
     neverSay: string[]; // repurposed as search keywords
     completed: boolean;
-    oneMinuteBusinessPitch:string;
+    oneMinuteBusinessPitch: string;
 }
 
 const initialOnboardingState: OnboardingState = {
@@ -28,8 +29,10 @@ interface AppContextValue {
     setMorningCache: (posts: any[], signature: string) => void;
     clearMorningCache: () => void;
     cachedDashboardPosts: any[];
+    cachedDashboardCurated: any[];
+    cachedDashboardSummary: string;
     cachedDashboardMeta: { ts: number; signature: string } | null;
-    setDashboardCache: (posts: any[], signature: string) => void;
+    setDashboardCache: (posts: any[], signature: string, curated?: any[], summary?: string) => void;
     clearDashboardCache: () => void;
 }
 
@@ -41,7 +44,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [cachedMorningPosts, setCachedMorningPosts] = useState<any[]>([]);
     const [cachedMorningMeta, setCachedMorningMeta] = useState<{ ts: number; signature: string } | null>(null);
     const [cachedDashboardPosts, setCachedDashboardPosts] = useState<any[]>([]);
+    const [cachedDashboardCurated, setCachedDashboardCurated] = useState<any[]>([]);
+    const [cachedDashboardSummary, setCachedDashboardSummary] = useState<string>("");
     const [cachedDashboardMeta, setCachedDashboardMeta] = useState<{ ts: number; signature: string } | null>(null);
+    const { isLoaded, isSignedIn } = useAuth();
+
+    // Reset everything when user signs out
+    useEffect(() => {
+        if (isLoaded && !isSignedIn && mounted) {
+            resetOnboarding();
+        }
+    }, [isLoaded, isSignedIn, mounted]);
 
     // Load from localStorage on mount
     useEffect(() => {
@@ -73,6 +86,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 const parsed = JSON.parse(dashboard);
                 if (parsed && Array.isArray(parsed.posts) && parsed.ts && parsed.signature) {
                     setCachedDashboardPosts(parsed.posts || []);
+                    setCachedDashboardCurated(parsed.curated || []);
+                    setCachedDashboardSummary(parsed.summary || "");
                     setCachedDashboardMeta({ ts: parsed.ts, signature: parsed.signature });
                 }
             } catch (e) {
@@ -113,9 +128,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const setDashboardCache = (posts: any[], signature: string) => {
-        const payload = { posts: posts || [], ts: Date.now(), signature };
+    const setDashboardCache = (posts: any[], signature: string, curated?: any[], summary?: string) => {
+        const payload = {
+            posts: posts || [],
+            curated: curated || [],
+            summary: summary || "",
+            ts: Date.now(),
+            signature
+        };
         setCachedDashboardPosts(posts || []);
+        setCachedDashboardCurated(curated || []);
+        setCachedDashboardSummary(summary || "");
         setCachedDashboardMeta({ ts: payload.ts, signature });
         try {
             localStorage.setItem("legitreach_dashboard_cache", JSON.stringify(payload));
@@ -126,6 +149,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const clearDashboardCache = () => {
         setCachedDashboardPosts([]);
+        setCachedDashboardCurated([]);
+        setCachedDashboardSummary("");
         setCachedDashboardMeta(null);
         try {
             localStorage.removeItem("legitreach_dashboard_cache");
@@ -140,14 +165,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cachedMorningMeta && cachedMorningMeta.signature !== signature) {
             clearMorningCache();
         }
-        // dashboard depends on onboarding keywords/communities; clear to be safe
-        if (cachedDashboardMeta) {
+        // dashboard depends on onboarding keywords/communities
+        if (cachedDashboardMeta && cachedDashboardMeta.signature !== signature) {
             clearDashboardCache();
         }
     }, [onboarding.keywords, onboarding.oneMinuteBusinessPitch, onboarding.selectedCommunities]);
 
     const resetOnboarding = () => {
         setOnboarding(initialOnboardingState);
+        clearMorningCache();
+        clearDashboardCache();
         localStorage.removeItem("legitreach_onboarding");
         localStorage.removeItem("legitreach_responded");
     };
@@ -163,6 +190,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setMorningCache,
             clearMorningCache,
             cachedDashboardPosts,
+            cachedDashboardCurated,
+            cachedDashboardSummary,
             cachedDashboardMeta,
             setDashboardCache,
             clearDashboardCache,

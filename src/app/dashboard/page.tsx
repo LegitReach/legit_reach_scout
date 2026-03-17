@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const {
     onboarding,
     cachedDashboardPosts,
+    cachedDashboardCurated,
+    cachedDashboardSummary,
     cachedDashboardMeta,
     setDashboardCache,
   } = useApp();
@@ -24,7 +26,6 @@ export default function DashboardPage() {
   const [curatedResults, setCuratedResults] = useState<CuratedResult[]>([]);
   const [curateSummary, setCurateSummary] = useState<string>("");
   const [curating, setCurating] = useState(false);
-  const [curateMode, setCurateMode] = useState(false);
 
   // Load responded from localStorage
   useEffect(() => {
@@ -58,8 +59,21 @@ export default function DashboardPage() {
       cachedDashboardMeta.signature === signature &&
       Date.now() - cachedDashboardMeta.ts < DASHBOARD_CACHE_TTL
     ) {
-      setPosts(cachedDashboardPosts as RedditPost[]);
-      setLoading(false);
+      const cachedPosts = cachedDashboardPosts as RedditPost[];
+      setPosts(cachedPosts);
+
+      // Load cached curation results if they exist
+      if (cachedDashboardCurated && cachedDashboardCurated.length > 0) {
+        setCuratedResults(cachedDashboardCurated);
+        setCurateSummary(cachedDashboardSummary || "");
+        setLoading(false);
+      } else {
+        // If we have posts but no curation, trigger it
+        setLoading(false);
+        if (cachedPosts.length > 0) {
+          handleCurateWithAI(cachedPosts);
+        }
+      }
       return () => controller.abort();
     }
 
@@ -92,10 +106,14 @@ export default function DashboardPage() {
         combined.sort((a, b) => b.created_utc - a.created_utc);
 
         setPosts(combined);
-        try {
-          setDashboardCache(combined, signature);
-        } catch {
-          /* ignore */
+
+        // Curation results will be set and cached once handleCurateWithAI finishes
+        if (combined.length > 0) {
+          handleCurateWithAI(combined);
+        } else {
+          try {
+            setDashboardCache(combined, signature);
+          } catch { /* ignore */ }
         }
       } catch (error: unknown) {
         if ((error as { name?: string }).name === "AbortError") return;
@@ -117,8 +135,15 @@ export default function DashboardPage() {
 
   // Merge AI scores back into posts and re-order by opportunity score
   const curatedPosts = useMemo<RedditPost[]>(() => {
-    if (!curateMode || curatedResults.length === 0) return [];
-    const scoreMap = new Map(curatedResults.map((c) => [c.id, c]));
+    if (curatedResults.length === 0) return [];
+
+    // Create a map for fast lookup, filtering out "skip" results since we only want curated opportunities
+    const scoreMap = new Map(
+      curatedResults
+        .filter(c => c.recommended_action !== "skip")
+        .map((c) => [c.id, c])
+    );
+
     return posts
       .filter((p) => scoreMap.has(p.id))
       .map((p) => {
@@ -126,27 +151,38 @@ export default function DashboardPage() {
         return {
           ...p,
           relevance_score: ai.ai_relevance_score,
-          opportunity_type: `${ai.recommended_action === "engage" ? "🔥" : ai.recommended_action === "monitor" ? "👀" : "⏭"} ${ai.recommended_action} · AI score ${ai.ai_opportunity_score}`,
+          opportunity_type: `${ai.recommended_action === "engage" ? "🔥" : "👀"} ${ai.recommended_action} · AI score ${ai.ai_opportunity_score}`,
         };
       })
-      .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0));
-  }, [posts, curatedResults, curateMode]);
+      .sort((a, b) => {
+        // Sort primarily by opportunity score, then relevance
+        const aiA = scoreMap.get(a.id)!;
+        const aiB = scoreMap.get(b.id)!;
+        if (aiB.ai_opportunity_score !== aiA.ai_opportunity_score) {
+          return aiB.ai_opportunity_score - aiA.ai_opportunity_score;
+        }
+        return aiB.ai_relevance_score - aiA.ai_relevance_score;
+      });
+  }, [posts, curatedResults]);
 
-  const displayedPosts = curateMode ? curatedPosts : posts;
-  const visiblePosts = displayedPosts.filter(
+  const visiblePosts = curatedPosts.filter(
     (p) => !respondedPosts.includes(p.id),
   );
 
-  const handleCurateWithAI = async () => {
-    if (posts.length === 0) return;
-    posthog.capture("curate_with_ai_clicked", { post_count: posts.length });
+  const handleCurateWithAI = async (postsToCurate?: RedditPost[]) => {
+    const targetPosts = postsToCurate || posts;
+    if (targetPosts.length === 0) {
+      setCurating(false);
+      return;
+    }
+
     setCurating(true);
     try {
       const res = await fetch("/api/ai/curate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          posts,
+          posts: targetPosts,
           keywords,
           businessDescription: onboarding.oneMinuteBusinessPitch || "",
         }),
@@ -156,15 +192,34 @@ export default function DashboardPage() {
         return;
       }
       if (!res.ok) {
-        const err = await res.json();
+        let err;
+        try {
+          err = await res.json();
+        } catch {
+          const text = await res.text().catch(() => "Empty body");
+          err = { error: `Server error: ${res.status} ${res.statusText}`, detail: text };
+        }
         console.error("Curate error:", err);
         return;
       }
-      const data: CurateResponse = await res.json();
+
+      let data: CurateResponse;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text().catch(() => "Empty body");
+        console.error("Failed to parse AI response as JSON:", e, "Raw body:", text);
+        return;
+      }
+
       posthog.capture("ai_curation_completed", { curated_post_count: data.curated_posts.length });
       setCuratedResults(data.curated_posts);
       setCurateSummary(data.summary);
-      setCurateMode(true);
+
+      // Update cache with curated results
+      try {
+        setDashboardCache(targetPosts, signature, data.curated_posts, data.summary);
+      } catch { /* ignore */ }
     } catch (err) {
       console.error("Failed to curate posts:", err);
       posthog.captureException(err);
@@ -178,8 +233,8 @@ export default function DashboardPage() {
       {/* Header */}
       <header className={styles.header}>
         <div>
-          <h1>🔍 Opportunities</h1>
-          <p>Discussions matching your keywords across all communities</p>
+          <h1>✨ AI Opportunities</h1>
+          <p>Hand-picked leads vetted for your business by LegitReach AI</p>
         </div>
         <div className={styles.keywords}>
           {keywords.map((kw) => (
@@ -194,15 +249,15 @@ export default function DashboardPage() {
       <div className={styles.stats}>
         <div className={styles.stat}>
           <span className={styles.statNumber}>{visiblePosts.length}</span>
-          <span className={styles.statLabel}>Opportunities</span>
+          <span className={styles.statLabel}>Vetted Leads</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.statNumber}>{respondedPosts.length}</span>
-          <span className={styles.statLabel}>Responded</span>
+          <span className={styles.statLabel}>Handled</span>
         </div>
       </div>
 
-      {/* AI Curate button (no subreddit tabs) */}
+      {/* Community Tags Row */}
       <div className={styles.tabsRow}>
         <div className={styles.communityInfo}>
           {subreddits.map((sub) => (
@@ -211,38 +266,10 @@ export default function DashboardPage() {
             </span>
           ))}
         </div>
-
-        <div className={styles.curateActions}>
-          {curateMode && (
-            <button
-              onClick={() => {
-                setCurateMode(false);
-                setCuratedResults([]);
-                setCurateSummary("");
-              }}
-              className={styles.curateToggleBtn}
-            >
-              Show All
-            </button>
-          )}
-          <button
-            onClick={handleCurateWithAI}
-            disabled={curating || loading || posts.length === 0}
-            className={styles.curateBtn}
-          >
-            {curating ? (
-              <>
-                <span className={styles.spinnerSm} /> Analysing…
-              </>
-            ) : (
-              "✨ Curate with AI"
-            )}
-          </button>
-        </div>
       </div>
 
       {/* AI Summary banner */}
-      {curateMode && curateSummary && (
+      {curatedResults.length > 0 && curateSummary && !curating && !loading && (
         <div className={styles.aiSummary}>
           <span>🤖</span>
           <p>{curateSummary}</p>
@@ -251,23 +278,25 @@ export default function DashboardPage() {
 
       {/* Posts Feed */}
       <div className={styles.feed}>
-        {loading ? (
+        {loading || curating ? (
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
             <p>Your AI agent is scanning Reddit right now. First insights usually show up within a few hours. We will notify you when they are ready.</p>
           </div>
-        ) : visiblePosts.length === 0 && curateMode ? (
+        ) : curatedPosts.length === 0 ? (
+          // No posts made it past the AI filter
           <div className={styles.empty}>
-            <p>🤖 AI found no high-priority opportunities right now.</p>
+            <p>🤖 AI found no high-priority leads right now.</p>
             <p className={styles.emptyHint}>
-              Try switching to &quot;Show All&quot; to see every post.
+              We scanned all communities but didn&apos;t find any posts that warrant immediate action.
             </p>
           </div>
         ) : visiblePosts.length === 0 ? (
+          // All curated posts have been responded to
           <div className={styles.empty}>
-            <p>🎉 All caught up! No new opportunities.</p>
+            <p>🎉 All caught up! You&apos;ve handled all leads.</p>
             <p className={styles.emptyHint}>
-              Try adding more keywords or communities.
+              Check back soon or try adding more keywords.
             </p>
           </div>
         ) : (
