@@ -50,28 +50,11 @@ const AccordionItem = ({ title, content }: { title: string, content: string }) =
   );
 }
 
-const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
-  ({ className, children, ...props }, ref) => {
-    return (
-      <button
-        className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${className}`}
-        ref={ref}
-        {...props}
-      >
-        {children}
-      </button>
-    )
-  },
-)
-Button.displayName = "Button"
-
 export function WaitlistExperience(): ReactElement {
   const mountRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<Scene | null>(null)
   const rendererRef = useRef<WebGLRenderer | null>(null)
   const animationIdRef = useRef<number | null>(null)
-
-  const [showForm, setShowForm] = useState(false)
 
   // Three.js background effect
   useEffect(() => {
@@ -251,29 +234,7 @@ export function WaitlistExperience(): ReactElement {
     }
   }, [])
 
-  const handleGetAccess = () => {
-    setShowForm(true);
-    // Smooth scroll to form section, aligning the bottom of the container to the bottom of the viewport
-    setTimeout(() => {
-      const formEl = document.getElementById("signup-form");
-      if (formEl) {
-        formEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }
-    }, 150);
-  }
 
-  // To properly embed the external script without React throwing hydration errors
-  useEffect(() => {
-    if (showForm) {
-      const script = document.createElement("script");
-      script.src = "https://links.legitreach.com/js/form_embed.js";
-      script.async = true;
-      document.body.appendChild(script);
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
-  }, [showForm]);
 
   return (
     <main className="relative min-h-screen bg-black w-full font-sans selection:bg-green-500/30">
@@ -286,30 +247,130 @@ export function WaitlistExperience(): ReactElement {
         {/* HERO SECTION */}
         <div className="flex flex-col flex-1 items-center justify-center min-h-screen px-4 w-full text-center max-w-4xl mx-auto pt-20">
           <p className="text-white/60 tracking-[0.2em] uppercase text-xs md:text-sm mb-6 font-medium">
-            NEWSLETTERS ARE DEAD. INSTEAD, GET LEGITREACH
+            Reddit Customer Insights for Ecommerce Brands
           </p>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
-            AI-POWERED NEWSLETTER THAT GETS YOU <span className="text-green-500">LEGIT</span>REACH
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight leading-tight">
+            Find Your Ideal Customer Insights on Reddit
+            <br />
+            <span className="text-green-500">For Free</span>
           </h1>
+
+          <p className="text-white/80 text-base md:text-lg max-w-2xl mx-auto mb-8">
+            An AI agent built around your ecommerce brand. It reads Reddit the way your ideal customer would, picking up pain points, product requests, and competitor gaps you can act on today.
+          </p>
 
           <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-sm sm:max-w-none mx-auto">
             <Link
               href="/onboarding"
-              className="w-full sm:w-auto h-12 px-8 bg-green-500 hover:bg-green-600 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg uppercase tracking-wide flex items-center justify-center whitespace-nowrap"
+              className="w-full sm:w-auto h-12 px-8 bg-green-500 hover:bg-green-600 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap"
             >
-              Try for free
+              Start Finding Insights
             </Link>
-            <Button
-              onClick={handleGetAccess}
-              className="w-full sm:w-auto h-12 px-8 bg-white/5 hover:bg-white/10 text-white/90 font-medium rounded-lg transition-all duration-300 text-lg uppercase tracking-wide border border-white/20 backdrop-blur-sm whitespace-nowrap"
+            <Link
+              href="https://calendar.app.google/7a88C2bCKpKmzeik6"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto h-12 px-8 bg-white/5 hover:bg-white/10 text-white/90 font-medium rounded-lg transition-all duration-300 text-lg tracking-wide border border-white/20 backdrop-blur-sm whitespace-nowrap inline-flex items-center justify-center"
             >
-              Get Early Access
-            </Button>
+              Book a Demo
+            </Link>
           </div>
 
-          <p className="text-white/70 text-sm md:text-base max-w-2xl mx-auto mt-6">
-            Stop juggling newsletters. Single information digest with frictionless actions daily.
+          <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto mt-6">
+            Reddit is where half of all online purchase conversations happen. Your customers are there right now describing what they want, what frustrates them, and what they would pay for. LegitReach finds those conversations for you, automatically.
+          </p>
+        </div>
+
+        {/* HOW IT WORKS SECTION */}
+        <div className="w-full max-w-6xl mx-auto px-4 py-24 z-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-16">
+            How LegitReach Works
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Step 1 */}
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-xl font-bold mx-auto mb-6">
+                1
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-4">Tell Us About Your Brand</h3>
+              <p className="text-white/70">
+                Describe your ecommerce product, your target customer, and the problems you solve. Our AI builds a personalized model of your ideal buyer.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-xl font-bold mx-auto mb-6">
+                2
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-4">AI Scans Reddit Daily</h3>
+              <p className="text-white/70">
+                Your agent monitors relevant subreddits (r/ecommerce, r/skincare, r/supplements, r/DTC, and thousands more) looking for discussions that match your customer profile.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-xl font-bold mx-auto mb-6">
+                3
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-4">Get Insights You Can Use</h3>
+              <p className="text-white/70">
+                Every day, you get a set of pain points, product requests, competitor mentions, and buying signals with direct links into each conversation.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* WHY REDDIT SECTION */}
+        <div className="w-full max-w-3xl mx-auto px-4 py-16 z-10 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
+            Why Reddit Is Your Best Customer Research Channel
+          </h2>
+          <p className="text-white/70 text-lg">
+            Reddit is where your customers go to ask for honest recommendations, complain about products that fall short, and describe exactly what they would pay for, in their own words. Most ecommerce brands are not paying attention. LegitReach makes sure you are.
+          </p>
+        </div>
+
+        {/* BUILT FOR ECOMMERCE SECTION */}
+        <div className="w-full max-w-6xl mx-auto px-4 py-24 z-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-16">
+            Built for Ecommerce Brands
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Card 1 */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-semibold text-green-500 mb-4">Product Research</h3>
+              <p className="text-white/70">
+                Find out what customers wish your competitors made. Spot feature requests and unmet needs before anyone else does.
+              </p>
+            </div>
+
+            {/* Card 2 */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-semibold text-green-500 mb-4">Customer Pain Points</h3>
+              <p className="text-white/70">
+                See the exact words your customers use to describe their problems. Put that language in your ads, landing pages, and product copy.
+              </p>
+            </div>
+
+            {/* Card 3 */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-semibold text-green-500 mb-4">Competitor Intelligence</h3>
+              <p className="text-white/70">
+                Know what people love and hate about competing products. Find the gaps you can fill and the objections you need to handle.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* SOCIAL PROOF LINE */}
+        <div className="w-full max-w-3xl mx-auto px-4 pb-8 z-10 text-center">
+          <p className="text-white/50 text-sm">
+            Trusted by early stage ecommerce brands finding out what their customers actually want.
           </p>
         </div>
 
@@ -322,64 +383,22 @@ export function WaitlistExperience(): ReactElement {
           <Accordion>
             <AccordionItem
               title="What is LegitReach?"
-              content="LegitReach is an AI-powered platform that transforms standard information digests into actionable opportunities. We curate the best conversations across Reddit so you can jump in and engage with your target audience frictionlessly."
+              content="LegitReach is an AI agent built for ecommerce brands. It monitors Reddit around the clock to find real customer insights personalized to your brand. Think of it as a version of your ideal customer scanning Reddit 24/7, pulling up discussions where people talk about problems your product solves, features they wish existed, and competitors they are frustrated with."
             />
             <AccordionItem
-              title="How is this different from just subscribing to newsletters?"
-              content="Newsletters are passive reading. LegitReach curates real, live conversations happening right now that are highly relevant to your business, and provides AI-drafted responses so you can instantly take action instead of just reading."
+              title="How is this different from manually searching Reddit or using alerts?"
+              content="Manual searches return keyword matches. LegitReach returns context. Our AI understands your brand, your product category, and your customer profile. It does not just find posts that contain your keywords. It finds posts where someone is describing a problem your product solves, even if they never mention your category by name. It is the difference between searching for 'skincare' and finding someone saying 'my face breaks out every winter and nothing helps.'"
             />
             <AccordionItem
-              title="What does 'frictionless actions' mean?"
-              content="Instead of spending hours searching for relevant discussions and drafting replies, LegitReach delivers the opportunities to your dashboard and prepares tailored AI drafts. You just review, click, and post."
+              title="What kind of insights will I get?"
+              content="Every day you get Reddit discussions organized by type: customer pain points (what frustrates people), product requests (what people wish existed), competitor mentions (what people say about alternatives), and buying signals (people actively looking for a solution). Each insight links directly to the original Reddit thread so you can read the full context or engage."
             />
             <AccordionItem
-              title="Is early access free?"
-              content="Yes, our early access program is entirely free while we gather feedback and refine our features. Join the waitlist today to secure your spot."
+              title="Is it really free?"
+              content="Yes. Daily Reddit insights personalized to your brand are completely free. We are building LegitReach for ecommerce brands that want to understand their customers better, and now is the best time to join while we shape the product around early user feedback."
             />
           </Accordion>
         </div>
-
-        {/* FORM SECTION */}
-        {showForm && (
-          <div id="signup-form" className="w-full max-w-xl mx-auto px-4 pb-32 pt-12 z-10 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
-            <div className="rounded-2xl overflow-hidden border border-white/20 bg-white shadow-2xl relative">
-              {/* Top Image Cover */}
-              <div className="relative h-64 w-full">
-                <img
-                  src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1200"
-                  alt="Typing on a retro typewriter"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-6 text-center">
-                  <h3 className="text-white font-bold text-3xl md:text-4xl tracking-tight leading-snug drop-shadow-lg">
-                    LET'S MAKE WORDS<br />WORK FOR YOU
-                  </h3>
-                </div>
-              </div>
-
-              {/* Embedded Form Content */}
-              <div className="bg-white p-2">
-                <iframe
-                  src="https://links.legitreach.com/widget/form/ffY9J3zMF6VRmZs2ZKEs"
-                  style={{ width: '100%', height: '100%', border: 'none', borderRadius: '0px', minHeight: '665px' }}
-                  id="inline-ffY9J3zMF6VRmZs2ZKEs"
-                  data-layout="{'id':'INLINE'}"
-                  data-trigger-type="alwaysShow"
-                  data-trigger-value=""
-                  data-activation-type="alwaysActivated"
-                  data-activation-value=""
-                  data-deactivation-type="neverDeactivate"
-                  data-deactivation-value=""
-                  data-form-name="LegitReach Signup"
-                  data-height="665"
-                  data-layout-iframe-id="inline-ffY9J3zMF6VRmZs2ZKEs"
-                  data-form-id="ffY9J3zMF6VRmZs2ZKEs"
-                  title="LegitReach Signup"
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </main>

@@ -281,7 +281,7 @@ export default function DashboardPage() {
         {loading || curating ? (
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
-            <p>{loading ? "Searching Reddit..." : "AI is vetting opportunities..."}</p>
+            <p>Your AI agent is scanning Reddit right now. First insights usually show up within a few hours. We will notify you when they are ready.</p>
           </div>
         ) : curatedPosts.length === 0 ? (
           // No posts made it past the AI filter
