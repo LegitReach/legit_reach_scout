@@ -8,17 +8,17 @@ import { useApp } from "@/context/AppContext";
 import posthog from "posthog-js";
 
 interface PostDetails {
-        id: string;
-        title: string;
-        subreddit: string;
-        author: string;
-        score: number;
-        num_comments: number;
-        created_utc: number;
-        selftext: string;
-        url: string;
-        permalink: string;
-        comments?: Array<any>;
+    id: string;
+    title: string;
+    subreddit: string;
+    author: string;
+    score: number;
+    num_comments: number;
+    created_utc: number;
+    selftext: string;
+    url: string;
+    permalink: string;
+    comments?: Array<any>;
 }
 
 
@@ -29,10 +29,14 @@ function PostContent() {
     const [data, setData] = useState<PostDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [draft, setDraft] = useState("");
+    const [dmDraft, setDmDraft] = useState("");
     const [copied, setCopied] = useState(false);
+    const [copiedDM, setCopiedDM] = useState(false);
     const [generatingAI, setGeneratingAI] = useState(false);
-    const {onboarding} = useApp();
-    const {oneMinuteBusinessPitch} = onboarding;
+    const [generatingAIDM, setGeneratingAIDM] = useState(false);
+    const [dmGenerated, setDmGenerated] = useState(false);
+    const { onboarding } = useApp();
+    const { oneMinuteBusinessPitch } = onboarding;
     const router = useRouter();
 
     useEffect(() => {
@@ -74,13 +78,19 @@ function PostContent() {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const copyDMDraft = () => {
+        navigator.clipboard.writeText(dmDraft);
+        posthog.capture("dm_copied", { post_id: data?.id, subreddit: data?.subreddit });
+        setCopiedDM(true);
+        setTimeout(() => setCopiedDM(false), 2000);
+    };
+
     const generateAIResponse = async () => {
         if (!data) return;
-        
+
         setGeneratingAI(true);
         try {
             const prompt = `
-
             You are a marketing genius and helping a business with their reddit outreach. Do not sound like a bot, considering 
             the context mentioned below be empathetic and 
             at the same time think about the business too. Do not sound tooo promotional. 
@@ -91,29 +101,23 @@ function PostContent() {
             Post Content: ${data.selftext}
             Subreddit: ${data.subreddit}
 
-            Create a concise reply that is human and at the same time improves the business' outreach
+            Create a concise public comment reply that is human and at the same time improves the business' outreach. 
             
-            response format should be:
-            interface AIGeneratedResponse{
-                reply: string
-            }
+            Return ONLY a valid JSON object — no markdown, no extra text:
+            { "reply": "your response here" }
             `;
 
-            // hit our own rate‑limited API instead of calling Gemini client directly
             const res = await fetch("/api/ai/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ prompt }),
             });
             if (res.redirected) {
-                // server is redirecting to auth page
                 window.location.href = res.url;
                 return;
             }
             const body = await res.json();
             const reply = (body.text as string) || "";
-
-            // Clean up the response (remove quotes if present)
             const cleanedText = reply.replace(/^['"]|['"]$/g, "").trim();
             posthog.capture("ai_reply_generated", { post_id: data.id, subreddit: data.subreddit });
             setDraft(cleanedText);
@@ -123,6 +127,57 @@ function PostContent() {
             setDraft("Failed to generate response. Please try again.");
         } finally {
             setGeneratingAI(false);
+        }
+    };
+
+    const generateAIDMResponse = async () => {
+        if (!data) return;
+
+        setGeneratingAIDM(true);
+        try {
+            const prompt = `
+            You are a marketing genius helping an ecommerce business with personalized Reddit outreach via Direct Message (DM).
+            DMs should be personal, empathetic, and offer direct value or a deeper conversation.
+            
+            Key context:
+            Business Pitch: ${oneMinuteBusinessPitch}
+            User Post: "${data.title}"
+            Post Body: "${data.selftext}"
+            Person to send DM to: ${data.author}
+            
+            Task:
+            Write a highly personalized DM to this user. 
+            - Start by acknowledging their specific situation or pain point.
+            - Introduce the business naturally as a solution or resource.
+            - Include a clear, personalized call to action for an ecommerce business (e.g., offering a free consultation, a shopify/store audit, or setting up a quick 10-minute discovery call).
+            - Keep it friendly, professional, and absolutely non-spammy.
+            
+            Return ONLY a valid JSON object — no markdown, no extra text:
+            { "reply": "your personal dm here" }
+            Keep the response short and concise. 
+            `;
+
+            const res = await fetch("/api/ai/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt }),
+            });
+            if (res.redirected) {
+                window.location.href = res.url;
+                return;
+            }
+            const body = await res.json();
+            const reply = (body.text as string) || "";
+            const cleanedText = reply.replace(/^['"]|['"]$/g, "").trim();
+            posthog.capture("ai_dm_generated", { post_id: data.id, subreddit: data.subreddit });
+            setDmDraft(cleanedText);
+            setDmGenerated(true);
+        } catch (error) {
+            console.error("Failed to generate AI DM:", error);
+            posthog.captureException(error);
+            setDmDraft("Failed to generate DM. Please try again.");
+        } finally {
+            setGeneratingAIDM(false);
         }
     };
 
@@ -187,59 +242,117 @@ function PostContent() {
                 </div>
             </article>
 
-            {/* Draft Reply */}
-            <section className={styles.draftSection}>
-                <h2>📝 Draft Your Reply</h2>
-                <p className={styles.hint}>Write your reply here, then copy & paste to Reddit</p>
+            {/* Parallel Draft Sections */}
+            <div className={styles.parallelDrafts}>
+                {/* Public Reply Draft */}
+                <section className={styles.draftSection}>
+                    <div className={styles.draftHeader}>
+                        <h2>📝 Draft Your Reply</h2>
+                        <span className={styles.draftTypeBadge}>Public Comment</span>
+                    </div>
+                    <p className={styles.hint}>Best for community engagement and SEO visibility</p>
 
-                <textarea
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Write a helpful, non-promotional reply..."
-                    className={styles.draftTextarea}
-                    rows={5}
-                />
+                    <textarea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        placeholder="Write a helpful, non-promotional reply..."
+                        className={styles.draftTextarea}
+                        rows={6}
+                    />
 
-                <div className={styles.draftActions}>
-                    <button
-                        onClick={generateAIResponse}
-                        className={styles.copyBtn}
-                        disabled={generatingAI}
-                    >
-                        {generatingAI ? "✨ Generating..." : "✨ Generate with AI"}
-                    </button>
-                    <button
-                        onClick={copyDraft}
-                        className={styles.copyBtn}
-                        disabled={!draft.trim()}
-                    >
-                        {copied ? "✓ Copied!" : "📋 Copy to Clipboard"}
-                    </button>
-                    <a
-                        href={data.permalink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={styles.replyOnRedditBtn}
-                        onClick={() => posthog.capture("reply_on_reddit_clicked", { post_id: data.id, subreddit: data.subreddit })}
-                    >
-                        Reply on Reddit →
-                    </a>
-                    <button
-                        onClick={() => {
-                            // Mark as responded in localStorage
-                            const responded = JSON.parse(localStorage.getItem("legitreach_responded") || "[]");
-                            if (!responded.includes(data.id)) {
-                                responded.push(data.id);
-                                localStorage.setItem("legitreach_responded", JSON.stringify(responded));
-                            }
-                            router.push("/dashboard");
-                        }}
-                        className={styles.doneBtn}
-                    >
-                        ✓ Done
-                    </button>
-                </div>
-            </section>
+                    <div className={styles.draftActions}>
+                        <button
+                            onClick={generateAIResponse}
+                            className={styles.aiBtn}
+                            disabled={generatingAI}
+                        >
+                            {generatingAI ? "✨ Generating..." : "✨ Generate with AI"}
+                        </button>
+                        <button
+                            onClick={copyDraft}
+                            className={styles.copyBtn}
+                            disabled={!draft.trim()}
+                        >
+                            {copied ? "✓ Copied!" : "📋 Copy"}
+                        </button>
+                        <a
+                            href={data.permalink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.redditLinkBtn}
+                            onClick={() => posthog.capture("reply_on_reddit_clicked", { post_id: data.id, subreddit: data.subreddit })}
+                        >
+                            Reply on Reddit →
+                        </a>
+                    </div>
+                </section>
+
+                {/* Direct Message Draft */}
+                <section className={styles.draftSection}>
+                    <div className={styles.draftHeader}>
+                        <h2>✉️ Draft a DM</h2>
+                        <span className={styles.draftTypeBadgeDM}>Private Message</span>
+                    </div>
+                    <p className={styles.hint}>Best for high-ticket sales, calls, and personal outreach</p>
+
+                    <textarea
+                        value={dmDraft}
+                        onChange={(e) => setDmDraft(e.target.value)}
+                        placeholder="Draft a personal message for direct outreach..."
+                        className={styles.draftTextarea}
+                        rows={6}
+                    />
+
+                    <div className={styles.draftActions}>
+                        <button
+                            onClick={generateAIDMResponse}
+                            className={styles.aiBtnDM}
+                            disabled={generatingAIDM}
+                        >
+                            {generatingAIDM ? "✨ Generating..." : "✨ Generate with AI"}
+                        </button>
+                        <button
+                            onClick={copyDMDraft}
+                            className={styles.copyBtn}
+                            disabled={!dmDraft.trim()}
+                        >
+                            {copiedDM ? "✓ Copied!" : "📋 Copy"}
+                        </button>
+                        <a
+                            href={(!dmGenerated || !dmDraft.trim()) ? "#" : `https://www.reddit.com/message/compose/?to=${data.author}&subject=Re: ${encodeURIComponent(data.title.substring(0, 50))}&message=${encodeURIComponent(dmDraft)}`}
+                            target={(!dmGenerated || !dmDraft.trim()) ? undefined : "_blank"}
+                            rel="noopener noreferrer"
+                            className={`${styles.redditLinkBtnDM} ${(!dmGenerated || !dmDraft.trim()) ? styles.disabled : ""}`}
+                            onClick={(e) => {
+                                if (!dmGenerated || !dmDraft.trim()) {
+                                    e.preventDefault();
+                                    return;
+                                }
+                                posthog.capture("dm_on_reddit_clicked", { post_id: data.id, author: data.author });
+                            }}
+                        >
+                            Send DM on Reddit →
+                        </a>
+                    </div>
+                </section>
+            </div>
+
+            {/* Global Actions */}
+            <div className={styles.globalActions}>
+                <button
+                    onClick={() => {
+                        const responded = JSON.parse(localStorage.getItem("legitreach_responded") || "[]");
+                        if (!responded.includes(data.id)) {
+                            responded.push(data.id);
+                            localStorage.setItem("legitreach_responded", JSON.stringify(responded));
+                        }
+                        router.push("/dashboard");
+                    }}
+                    className={styles.doneBtnLarge}
+                >
+                    ✓ Mark as Handled & Return to Dashboard
+                </button>
+            </div>
 
             {/* Comments */}
         </div>
