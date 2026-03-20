@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LegitReach
+
+**Turn cold outreach into warm conversations.**
+
+LegitReach generates warm outreach packages tailored to your business and ideal customer profile. Tell us about your business and your ideal customer — we handle the rest, delivering copy-paste ready messages and filtered prospect lists that dramatically increase conversion rates.
+
+## How It Works
+
+1. **Tell us about you** — describe your business, what you offer, and how you help customers.
+2. **Tell us about your ideal customer** — define your target audience and interaction style.
+3. **Get your outreach package** — receive a complete warm outreach kit with prospect lists, personalized messages, and actionable next steps.
+
+## Pulse Package (Current Release)
+
+The **Pulse Package** is our first outreach package, converting daily social media snapshots into DM-ready material paired with filtered prospects.
+
+### What's live now
+
+- **Reddit prospecting** — LegitReach scans Reddit each morning, taking a snapshot of relevant prospects based on your ideal customer profile.
+- **Copy-paste ready DMs** — for every prospect found, we generate a personalized direct message you can send immediately to start a warm conversation.
+
+### Coming next
+
+- **X (Twitter) prospecting** — find and engage prospects on X, with DM generation built directly into the LegitReach app using X's post API capabilities.
+
+## Roadmap
+
+Beyond the Pulse Package, LegitReach will offer comprehensive outreach packages tailored to specific industries and use cases.
+
+**Example: Echo Package** (designed for e-commerce)
+
+- Personalized outreach playbooks
+- AI-agentic cart abandonment recovery
+- Personalized 3D-printed freebies frictionlessly shipped to your customers
 
 ## Getting Started
 
-First, run the development server:
+*Coming soon — setup instructions and documentation will be added as the project evolves.*
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## License
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*TBD*
