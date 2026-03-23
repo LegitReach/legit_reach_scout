@@ -19,6 +19,9 @@ const initialOnboardingState: OnboardingState = {
     oneMinuteBusinessPitch: ''
 };
 
+const STORAGE_KEY_GUEST = "legitreach_onboarding_guest";
+const STORAGE_KEY_USER = "legitreach_onboarding";
+
 interface AppContextValue {
     onboarding: OnboardingState;
     setOnboarding: (state: OnboardingState) => void;
@@ -63,15 +66,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // 2. Detection: SIGN IN (Sync or Hydrate)
         if (!prevSignedIn && isSignedIn) {
-            // Check if we already have local data
-            const localStored = localStorage.getItem("legitreach_onboarding");
-            const isLocalEmpty = !localStored || localStored === JSON.stringify(initialOnboardingState);
-            if (isLocalEmpty) {
-                // Device is fresh: Load from Supabase
+            // Check if we have guest trial data that needs "Claiming"
+            const guestDataRaw = localStorage.getItem(STORAGE_KEY_GUEST);
+            const userDataRaw = localStorage.getItem(STORAGE_KEY_USER);
+
+
+
+            if (guestDataRaw && guestDataRaw !== JSON.stringify(initialOnboardingState)) {
+                // Scenario: User just did a trial, now they signed in. 
+                // We PUSH the trial data to the cloud.
+                try {
+                    const guestData = JSON.parse(guestDataRaw);
+                    syncOnboardingData(guestData);
+                } catch (e) {
+                    console.error("Failed to parse guest data for sync", e);
+                }
+            } else if (!userDataRaw || userDataRaw === JSON.stringify(initialOnboardingState)) {
+                // Scenario: User signed in on a new device with no local data. 
+                // We FETCH their account data from the cloud.
+                console.log("Fetching cloud onboarding");
                 fetchCloudOnboarding();
-            } else {
-                // Device has data: Push to Supabase
-                syncOnboardingData();
             }
         }
 
@@ -81,13 +95,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Load from localStorage on mount
     useEffect(() => {
         setMounted(true);
-        const stored = localStorage.getItem("legitreach_onboarding");
-        if (stored) {
-            try {
-                setOnboarding(JSON.parse(stored));
-            } catch (e) {
-                console.error("Failed to parse stored onboarding state");
-            }
+
+        // Priority 1: Signed-in User Data
+        // Priority 2: Guest Data (if not signed in)
+        const userStored = localStorage.getItem(STORAGE_KEY_USER);
+        const guestStored = localStorage.getItem(STORAGE_KEY_GUEST);
+
+        if (isSignedIn && userStored) {
+            try { setOnboarding(JSON.parse(userStored)); } catch (e) { }
+        } else if (guestStored) {
+            try { setOnboarding(JSON.parse(guestStored)); } catch (e) { }
         }
 
         const morning = localStorage.getItem("legitreach_morning_cache");
@@ -121,9 +138,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Save to localStorage on change
     useEffect(() => {
         if (mounted) {
-            localStorage.setItem("legitreach_onboarding", JSON.stringify(onboarding));
+            const key = isSignedIn ? STORAGE_KEY_USER : STORAGE_KEY_GUEST;
+            localStorage.setItem(key, JSON.stringify(onboarding));
         }
-    }, [onboarding, mounted]);
+    }, [onboarding, mounted, isSignedIn]);
 
     const updateOnboarding = (updates: Partial<OnboardingState>) => {
         setOnboarding(prev => ({ ...prev, ...updates }));
@@ -197,14 +215,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setOnboarding(initialOnboardingState);
         clearMorningCache();
         clearDashboardCache();
-        localStorage.removeItem("legitreach_onboarding");
+        localStorage.removeItem(STORAGE_KEY_GUEST);
+        localStorage.removeItem(STORAGE_KEY_USER);
         localStorage.removeItem("legitreach_responded");
         localStorage.removeItem("lr_onboarding_synced");
     };
 
     const syncOnboardingData = async (dataToSync = onboarding) => {
         // Only sync if there is actually data (keywords or pitch)
-        console.log(dataToSync);
         if (!dataToSync.oneMinuteBusinessPitch && dataToSync.keywords.length === 0) {
             return;
         }
@@ -217,6 +235,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
             if (res.ok) {
                 console.log("☁️ Onboarding synced to Supabase profile.");
+
+                // ✅ MOVE: Save to USER_KEY and delete GUEST_KEY
+                localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(dataToSync));
+                localStorage.removeItem(STORAGE_KEY_GUEST);
                 localStorage.setItem("lr_onboarding_synced", "true");
             }
         } catch (e) {
@@ -226,12 +248,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const fetchCloudOnboarding = async () => {
         try {
-            console.log("Calling fetchCloudOnboarding");
             const res = await fetch("/api/user/sync");
             const body = await res.json();
 
             if (body.success && body.data) {
                 const cloud = body.data;
+                // 🗺️ Mapping DB columns (subreddits, business_pitch) back to State keys
                 const cloudState: OnboardingState = {
                     keywords: cloud.keywords || [],
                     selectedCommunities: cloud.subreddits || [],
@@ -241,8 +263,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 };
 
                 setOnboarding(cloudState);
+
+                // ✅ Update the USER_KEY so we don't fetch on every refresh
+                localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(cloudState));
                 localStorage.setItem("lr_onboarding_synced", "true");
-                console.log("🌊 State hydrated from cloud (cross-device sync).");
+                console.log("🌊 Account data hydrated from Supabase.");
             }
         } catch (e) {
             console.error("Failed to hydrate from cloud", e);
