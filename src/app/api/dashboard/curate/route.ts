@@ -11,7 +11,7 @@ import { randomUUID, createHash } from "crypto";
 import { consumeRequest, consumeAnonymousRequest } from "@/lib/consumption";
 
 const MODEL_NAME = "gemini-2.5-flash";
-const CACHE_TTL = 60 * 60 * 6; // 6 hours caching
+const CACHE_TTL = 60 * 60 * 24; // 24 hours caching
 
 function getClientIp(req: Request) {
   const cfIp = req.headers.get("cf-connecting-ip");

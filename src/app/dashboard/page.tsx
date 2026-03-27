@@ -8,13 +8,13 @@ import type { RedditPost, CuratedResult, DashboardCurateResponse } from "@/types
 import posthog from "posthog-js";
 
 export default function DashboardPage() {
-  const { 
-    onboarding, 
-    cachedDashboardPosts, 
-    cachedDashboardCurated, 
-    cachedDashboardSummary, 
-    cachedDashboardMeta, 
-    setDashboardCache 
+  const {
+    onboarding,
+    cachedDashboardPosts,
+    cachedDashboardCurated,
+    cachedDashboardSummary,
+    cachedDashboardMeta,
+    setDashboardCache
   } = useApp();
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export default function DashboardPage() {
     }
 
     // --- BROWSER CACHE CHECK ---
-    const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
+    const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
     if (
       cachedDashboardMeta &&
       cachedDashboardMeta.signature === signature &&
