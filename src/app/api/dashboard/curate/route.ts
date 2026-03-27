@@ -8,9 +8,25 @@ import type { RedditPost } from "@/types";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { getAuth } from "@clerk/nextjs/server";
 import { randomUUID, createHash } from "crypto";
+import { consumeRequest, consumeAnonymousRequest } from "@/lib/consumption";
 
 const MODEL_NAME = "gemini-2.5-flash";
 const CACHE_TTL = 60 * 60 * 6; // 6 hours caching
+
+function getClientIp(req: Request) {
+  const cfIp = req.headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp;
+
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp;
+
+  return "unknown";
+}
 
 async function handler(request: NextRequest): Promise<NextResponse> {
   const traceId = randomUUID();
@@ -47,6 +63,22 @@ async function handler(request: NextRequest): Promise<NextResponse> {
       console.log("Serving from cache for signature:", signature);
       return NextResponse.json({ ...cached, fromCache: true });
     }
+
+    // --- MANUAL CONSUMPTION CHECK (Only on cache miss) ---
+    if (userId) {
+      const { allowed, error, redirectTo } = await consumeRequest(userId);
+      if (!allowed) {
+        return NextResponse.json({ error, redirectTo }, { status: 429 });
+      }
+    } else {
+      const ip = getClientIp(request);
+      const ua = request.headers.get("user-agent");
+      const { allowed, error, redirectTo } = await consumeAnonymousRequest(ip, ua, 5);
+      if (!allowed) {
+        return NextResponse.json({ error, redirectTo }, { status: 429 });
+      }
+    }
+    // ----------------------------------------------------
 
     // 1. Fetch posts from all subreddits in parallel
     const keywordsParam = (keywords || []).join(",");
@@ -184,4 +216,4 @@ interface CurateResponse {
 }`;
 }
 
-export const POST = withRateLimit(handler, 5);
+export const POST = handler;
