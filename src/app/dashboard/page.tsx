@@ -8,7 +8,14 @@ import type { RedditPost, CuratedResult, DashboardCurateResponse } from "@/types
 import posthog from "posthog-js";
 
 export default function DashboardPage() {
-  const { onboarding } = useApp();
+  const { 
+    onboarding, 
+    cachedDashboardPosts, 
+    cachedDashboardCurated, 
+    cachedDashboardSummary, 
+    cachedDashboardMeta, 
+    setDashboardCache 
+  } = useApp();
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [respondedPosts, setRespondedPosts] = useState<string[]>([]);
@@ -39,6 +46,21 @@ export default function DashboardPage() {
   useEffect(() => {
     if (subreddits.length === 0) {
       setLoading(false);
+      return;
+    }
+
+    // --- BROWSER CACHE CHECK ---
+    const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
+    if (
+      cachedDashboardMeta &&
+      cachedDashboardMeta.signature === signature &&
+      Date.now() - cachedDashboardMeta.ts < DASHBOARD_CACHE_TTL
+    ) {
+      setPosts(cachedDashboardPosts as RedditPost[]);
+      setCuratedResults(cachedDashboardCurated as CuratedResult[]);
+      setCurateSummary(cachedDashboardSummary);
+      setLoading(false);
+      setCurating(false);
       return;
     }
 
@@ -77,9 +99,13 @@ export default function DashboardPage() {
         setCuratedResults(data.curated_posts);
         setCurateSummary(data.summary);
 
+        // Update browser-side cache
+        setDashboardCache(data.posts, signature, data.curated_posts, data.summary);
+
         posthog.capture("dashboard_curation_v2_completed", {
           total_found: data.posts.length,
           total_curated: data.curated_posts.length,
+          from_redis: !!data.fromCache
         });
 
       } catch (error: unknown) {
