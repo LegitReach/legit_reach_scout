@@ -4,10 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import styles from "./dashboard.module.css";
 import RedditList from "@/components/RedditList";
-import type { RedditPost, CuratedResult, CurateResponse } from "@/types";
+import type { RedditPost, CuratedResult, DashboardCurateResponse } from "@/types";
 import posthog from "posthog-js";
-
-const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
 export default function DashboardPage() {
   const {
@@ -16,7 +14,7 @@ export default function DashboardPage() {
     cachedDashboardCurated,
     cachedDashboardSummary,
     cachedDashboardMeta,
-    setDashboardCache,
+    setDashboardCache
   } = useApp();
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,85 +42,82 @@ export default function DashboardPage() {
   // Build a stable signature for all communities combined
   const signature = JSON.stringify([subreddits.sort().join(","), keywordsParam]);
 
-  // Fetch posts for ALL communities on first load; cache for 24 hours
+  // Fetch posts and curation for ALL communities in one go
   useEffect(() => {
     if (subreddits.length === 0) {
       setLoading(false);
       return;
     }
 
-    const controller = new AbortController();
-
-    // Use cache if it exists and is still fresh
+    // --- BROWSER CACHE CHECK ---
+    const DASHBOARD_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
     if (
       cachedDashboardMeta &&
       cachedDashboardMeta.signature === signature &&
       Date.now() - cachedDashboardMeta.ts < DASHBOARD_CACHE_TTL
     ) {
-      const cachedPosts = cachedDashboardPosts as RedditPost[];
-      setPosts(cachedPosts);
-
-      // Load cached curation results if they exist
-      if (cachedDashboardCurated && cachedDashboardCurated.length > 0) {
-        setCuratedResults(cachedDashboardCurated);
-        setCurateSummary(cachedDashboardSummary || "");
-        setLoading(false);
-      } else {
-        // If we have posts but no curation, trigger it
-        setLoading(false);
-        if (cachedPosts.length > 0) {
-          handleCurateWithAI(cachedPosts);
-        }
-      }
-      return () => controller.abort();
+      setPosts(cachedDashboardPosts as RedditPost[]);
+      setCuratedResults(cachedDashboardCurated as CuratedResult[]);
+      setCurateSummary(cachedDashboardSummary);
+      setLoading(false);
+      setCurating(false);
+      return;
     }
 
-    async function fetchAllPosts() {
+    const controller = new AbortController();
+
+    async function fetchEverything() {
       setLoading(true);
+      setCurating(true);
       try {
-        // Fetch from all communities in parallel
-        const requests = subreddits.map((sub) =>
-          fetch(
-            `/api/reddit/browse?subreddit=${sub}&keywords=${encodeURIComponent(keywordsParam)}&limit=15`,
-            { signal: controller.signal },
-          ).then((res) => res.json()),
-        );
+        const res = await fetch("/api/dashboard/curate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subreddits,
+            keywords,
+            businessDescription: onboarding.oneMinuteBusinessPitch || "",
+          }),
+          signal: controller.signal,
+        });
 
-        const results = await Promise.all(requests);
-
-        // Combine and deduplicate by post ID
-        const seenIds = new Set<string>();
-        const combined: RedditPost[] = [];
-        for (const data of results) {
-          for (const post of data.posts || []) {
-            if (!seenIds.has(post.id)) {
-              seenIds.add(post.id);
-              combined.push(post);
-            }
-          }
+        if (res.redirected) {
+          window.location.href = res.url;
+          return;
         }
 
-        // Sort by most recent first
-        combined.sort((a, b) => b.created_utc - a.created_utc);
-
-        setPosts(combined);
-
-        // Curation results will be set and cached once handleCurateWithAI finishes
-        if (combined.length > 0) {
-          handleCurateWithAI(combined);
-        } else {
-          try {
-            setDashboardCache(combined, signature);
-          } catch { /* ignore */ }
+        if (!res.ok) {
+          console.error("Dashboard curate failed:", res.status);
+          setLoading(false);
+          setCurating(false);
+          return;
         }
+
+        const data: DashboardCurateResponse = await res.json();
+
+        setPosts(data.posts);
+        setCuratedResults(data.curated_posts);
+        setCurateSummary(data.summary);
+
+        // Update browser-side cache
+        setDashboardCache(data.posts, signature, data.curated_posts, data.summary);
+
+        posthog.capture("dashboard_curation_v2_completed", {
+          total_found: data.posts.length,
+          total_curated: data.curated_posts.length,
+          from_redis: !!data.fromCache
+        });
+
       } catch (error: unknown) {
         if ((error as { name?: string }).name === "AbortError") return;
-        console.error("Failed to fetch posts:", error);
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+        setCurating(false);
       }
-      setLoading(false);
     }
 
-    fetchAllPosts();
+    fetchEverything();
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
@@ -169,64 +164,6 @@ export default function DashboardPage() {
     (p) => !respondedPosts.includes(p.id),
   );
 
-  const handleCurateWithAI = async (postsToCurate?: RedditPost[]) => {
-    const targetPosts = postsToCurate || posts;
-    if (targetPosts.length === 0) {
-      setCurating(false);
-      return;
-    }
-
-    setCurating(true);
-    try {
-      const res = await fetch("/api/ai/curate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          posts: targetPosts,
-          keywords,
-          businessDescription: onboarding.oneMinuteBusinessPitch || "",
-        }),
-      });
-      if (res.redirected) {
-        window.location.href = res.url;
-        return;
-      }
-      if (!res.ok) {
-        let err;
-        try {
-          err = await res.json();
-        } catch {
-          const text = await res.text().catch(() => "Empty body");
-          err = { error: `Server error: ${res.status} ${res.statusText}`, detail: text };
-        }
-        console.error("Curate error:", err);
-        return;
-      }
-
-      let data: CurateResponse;
-      try {
-        data = await res.json();
-      } catch (e) {
-        const text = await res.text().catch(() => "Empty body");
-        console.error("Failed to parse AI response as JSON:", e, "Raw body:", text);
-        return;
-      }
-
-      posthog.capture("ai_curation_completed", { curated_post_count: data.curated_posts.length });
-      setCuratedResults(data.curated_posts);
-      setCurateSummary(data.summary);
-
-      // Update cache with curated results
-      try {
-        setDashboardCache(targetPosts, signature, data.curated_posts, data.summary);
-      } catch { /* ignore */ }
-    } catch (err) {
-      console.error("Failed to curate posts:", err);
-      posthog.captureException(err);
-    } finally {
-      setCurating(false);
-    }
-  };
 
   return (
     <div className={styles.page}>

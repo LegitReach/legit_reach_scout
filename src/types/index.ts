@@ -47,6 +47,12 @@ export interface CurateResponse {
   total_analyzed: number;
 }
 
+/** Full response from POST /api/dashboard/curate */
+export interface DashboardCurateResponse extends CurateResponse {
+  posts: RedditPost[];
+  fromCache?: boolean;
+}
+
 /** Request body for POST /api/ai/curate */
 export interface CurateRequest {
   posts: RedditPost[];
