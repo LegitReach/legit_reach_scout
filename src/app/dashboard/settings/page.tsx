@@ -7,7 +7,7 @@ import styles from "./settings.module.css";
 
 export default function SettingsPage() {
     const router = useRouter();
-    const { onboarding, updateOnboarding, resetOnboarding, clearDashboardCache, clearMorningCache } = useApp();
+    const { onboarding, updateOnboarding, resetOnboarding, clearDashboardCache, clearMorningCache, syncOnboardingData } = useApp();
 
     // Local state mirroring onboarding data
     const [keywords, setKeywords] = useState<string[]>(onboarding.keywords || []);
@@ -76,14 +76,21 @@ export default function SettingsPage() {
         setLoadingSuggestions(false);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setSaving(true);
-        updateOnboarding({
+        const newState = {
+            ...onboarding,
             keywords,
             oneMinuteBusinessPitch: businessDesc,
             selectedCommunities: communities,
             completed: true,
-        });
+        };
+
+        updateOnboarding(newState);
+        
+        // 🚀 SYNC TO CLOUD
+        await syncOnboardingData(newState);
+
         // Clear caches so new data is fetched on next visit
         clearDashboardCache();
         clearMorningCache();
