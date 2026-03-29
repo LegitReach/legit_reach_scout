@@ -39,6 +39,8 @@ interface AppContextValue {
     clearDashboardCache: () => void;
     syncOnboardingData: (dataToSync?: OnboardingState) => Promise<boolean>;
     isAppLoaded: boolean;
+    activeDashboardJob: { jobId: string; signature: string } | null;
+    setDashboardJob: (job: { jobId: string; signature: string } | null) => void;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -54,6 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [cachedDashboardMeta, setCachedDashboardMeta] = useState<{ ts: number; signature: string } | null>(null);
     const { isLoaded, isSignedIn } = useAuth();
     const [isAppLoaded, setIsAppLoaded] = useState(false);
+    const [activeDashboardJob, setActiveDashboardJob] = useState<{ jobId: string; signature: string } | null>(null);
 
     // Memory for one-time side effects (idempotency gates)
     const hasHydratedRef = useRef(false);
@@ -344,6 +347,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             clearDashboardCache,
             syncOnboardingData,
             isAppLoaded,
+            activeDashboardJob,
+            setDashboardJob: (job: { jobId: string; signature: string } | null) => setActiveDashboardJob(job),
         }}>
             {children}
         </AppContext.Provider>

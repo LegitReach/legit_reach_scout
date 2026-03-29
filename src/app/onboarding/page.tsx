@@ -61,7 +61,9 @@ function OnboardingContent() {
 
             const data = await res.json();
             setScanStatus("Configuring target subreddits...");
-            await new Promise(r => setTimeout(r, 1000));
+            
+            // Artificial delay for UX "magic" effect (optional, but keep it if previous UX had it)
+            await new Promise(r => setTimeout(r, 800));
 
             updateOnboarding({
                 keywords: data.keywords || [],
@@ -72,6 +74,7 @@ function OnboardingContent() {
 
             posthog.capture("onboarding_completed", { method: "magic_scan" });
             router.push("/dashboard");
+
         } catch (error) {
             console.error(error);
             alert("Magic Scan failed. Switching to manual setup.");
