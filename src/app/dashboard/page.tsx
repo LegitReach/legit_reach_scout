@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
   // Build a stable signature for all communities combined
   const signature = JSON.stringify([subreddits.sort().join(","), keywordsParam]);
-  
+
   // GLOBAL JOB SYNC: Check if there's an active background job for this configuration
   const currentJobId = activeDashboardJob?.signature === signature ? activeDashboardJob.jobId : null;
 
@@ -100,9 +100,9 @@ export default function DashboardPage() {
     // --- ACTIVE JOB CHECK ---
     // If we already have a job in progress for this exact configuration, just wait for the hook.
     if (activeDashboardJob && activeDashboardJob.signature === signature) {
-        setLoading(true);
-        setCurating(true);
-        return;
+      setLoading(true);
+      setCurating(true);
+      return;
     }
 
     const controller = new AbortController();
@@ -147,6 +147,8 @@ export default function DashboardPage() {
         setPosts(data.posts);
         setCuratedResults(data.curated_posts);
         setCurateSummary(data.summary);
+        setLoading(false);
+        setCurating(false);
 
         // Update browser-side cache
         setDashboardCache(data.posts, signature, data.curated_posts, data.summary);
