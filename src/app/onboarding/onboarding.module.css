@@ -5,7 +5,7 @@
     justify-content: center;
     padding: var(--spacing-xl);
     background: var(--gradient-bg);
-    overflow: hidden;
+    overflow-x: hidden;
 }
 
 .card {
@@ -23,22 +23,10 @@
     box-shadow: var(--glass-shadow);
 }
 
-.card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle at center, rgba(255,69,0,0.05) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-}
-
 .header {
+    margin-bottom: var(--spacing-2xl);
     position: relative;
     z-index: 1;
-    margin-bottom: var(--spacing-2xl);
 }
 
 .badge {
@@ -67,16 +55,9 @@
     color: var(--color-text-secondary);
     font-size: var(--font-size-lg);
     line-height: 1.6;
-    max-width: 400px;
-    margin: 0 auto;
 }
 
 /* Magic Scan Section */
-.magicSection {
-    position: relative;
-    z-index: 1;
-}
-
 .urlWrapper {
     display: flex;
     flex-direction: column;
@@ -85,7 +66,7 @@
 
 .inputField {
     width: 100%;
-    padding: 20px 24px;
+    padding: 16px 20px;
     background: var(--color-bg-secondary);
     border: 2px solid var(--glass-border);
     border-radius: var(--radius-xl);
@@ -97,13 +78,11 @@
 .inputField:focus {
     outline: none;
     border-color: var(--color-primary);
-    background: var(--color-bg-tertiary);
-    box-shadow: 0 0 0 4px var(--color-primary-glow);
 }
 
-.scanBtn {
+.scanBtn, .completeBtn {
     width: 100%;
-    padding: 20px;
+    padding: 16px;
     background: var(--gradient-primary);
     color: white;
     font-size: var(--font-size-lg);
@@ -114,58 +93,142 @@
     justify-content: center;
     gap: var(--spacing-sm);
     transition: all var(--transition-base);
-    box-shadow: 0 10px 30px var(--color-primary-glow);
-    cursor: pointer;
 }
 
-.scanBtn:hover:not(:disabled) {
+.scanBtn:hover:not(:disabled), .completeBtn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 15px 40px var(--color-primary-glow);
+    box-shadow: 0 10px 30px var(--color-primary-glow);
 }
 
-.scanBtn:active:not(:disabled) {
-    transform: translateY(0);
-}
-
-.scanBtn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* Scanning States */
-.statusBox {
-    margin-top: var(--spacing-2xl);
+/* Manual Flow Styles */
+.progress {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: var(--spacing-md);
-    animation: fadeIn 0.3s ease;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xl);
 }
 
-.spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid var(--glass-border);
-    border-top-color: var(--color-primary);
+.progressStep {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
-    animation: spin 1.5s linear infinite;
-    filter: drop-shadow(0 0 10px var(--color-primary-glow));
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--glass-border);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--color-text-muted);
 }
 
-.statusText {
+.progressStep.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.progressLine {
+    width: 40px;
+    height: 2px;
+    background: var(--glass-border);
+}
+
+.stepContent {
+    text-align: left;
+    animation: fadeIn 0.4s ease;
+}
+
+.inputGroup {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.addBtn {
+    padding: 0 var(--spacing-lg);
+    background: var(--color-primary);
+    color: white;
     font-weight: 600;
-    color: var(--color-text-primary);
-    font-size: var(--font-size-lg);
+    border-radius: var(--radius-lg);
 }
 
-.statusDesc {
-    color: var(--color-text-secondary);
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-lg);
+}
+
+.tag {
+    background: rgba(255, 69, 0, 0.1);
+    color: var(--color-primary);
+    border: 1px solid rgba(255, 69, 0, 0.2);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
     font-size: var(--font-size-sm);
-    max-width: 300px;
-    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* Footer fallback */
+.tag button {
+    color: var(--color-primary);
+    font-weight: bold;
+}
+
+.textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 16px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-primary);
+    resize: vertical;
+    margin-bottom: var(--spacing-md);
+}
+
+.subredditGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.subredditBtn {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-secondary);
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.subredditBtn.selected {
+    border-color: var(--color-primary);
+    background: rgba(255, 69, 0, 0.05);
+    color: var(--color-primary);
+}
+
+.actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+}
+
+.backBtn {
+    flex: 1;
+    padding: 16px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+}
+
 .footer {
     margin-top: var(--spacing-2xl);
     padding-top: var(--spacing-xl);
@@ -173,75 +236,29 @@
 }
 
 .manualBtn {
-    background: none;
-    border: none;
     color: var(--color-text-muted);
     font-size: var(--font-size-sm);
+    text-decoration: underline;
     cursor: pointer;
-    transition: color 0.2s;
-    font-weight: 500;
 }
 
-.manualBtn:hover {
-    color: var(--color-text-secondary);
-    text-decoration: underline;
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--glass-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slideUp { 
-    from { opacity: 0; transform: translateY(40px); } 
+    from { opacity: 0; transform: translateY(20px); } 
     to { opacity: 1; transform: translateY(0); } 
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* TABLET AND MOBILE REFINEMENTS */
-@media (max-width: 768px) {
-    .container {
-        padding: var(--spacing-lg);
-        align-items: flex-start;
-        padding-top: 10vh;
-    }
-
-    .card {
-        padding: var(--spacing-xl);
-        border-radius: var(--radius-xl);
-    }
-
-    .header h1 {
-        font-size: var(--font-size-2xl);
-    }
-
-    .header p {
-        font-size: var(--font-size-base);
-    }
-}
-
-@media (max-width: 480px) {
-    .container {
-        padding: var(--spacing-md);
-        padding-top: 5vh;
-    }
-
-    .card {
-        padding: var(--spacing-lg);
-        border-radius: var(--radius-lg);
-    }
-
-    .badge {
-        font-size: 10px;
-        padding: 4px 10px;
-    }
-
-    .header h1 {
-        font-size: var(--font-size-xl);
-    }
-
-    .inputField, .scanBtn {
-        padding: 16px;
-        font-size: var(--font-size-base);
-    }
-
-    .statusText {
-        font-size: var(--font-size-base);
-    }
+@media (max-width: 600px) {
+    .card { padding: var(--spacing-xl); }
+    .header h1 { font-size: var(--font-size-2xl); }
 }

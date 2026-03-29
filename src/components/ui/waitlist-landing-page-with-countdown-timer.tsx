@@ -316,19 +316,19 @@ export function WaitlistExperience(): ReactElement {
           </p>
 
           <div className="mt-4 mb-4 flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md mx-auto">
-            <div className="flex w-full gap-2 p-2 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md mb-4 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            <div className="flex flex-col sm:flex-row w-full gap-2 p-2 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md mb-4 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
               <input
                 type="text"
                 value={storeUrl}
                 onChange={(e) => setStoreUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleMagicScan()}
-                placeholder="Enter your store URL (e.g. mystore.com)"
-                className="flex-1 bg-transparent border-none outline-none text-white px-4 h-12 text-lg placeholder:text-white/30"
+                placeholder="Enter your store URL"
+                className="flex-1 bg-transparent border-none outline-none text-white px-4 h-12 text-base md:text-lg placeholder:text-white/30 w-full"
               />
               <button
                 onClick={handleMagicScan}
                 disabled={!storeUrl || isScanning}
-                className="px-6 bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap min-w-[120px]"
+                className="w-full sm:w-auto px-6 h-12 bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap min-w-[120px]"
               >
                 {isScanning ? (
                   <div className="flex items-center gap-2">
