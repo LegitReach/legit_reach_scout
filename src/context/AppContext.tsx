@@ -39,6 +39,8 @@ interface AppContextValue {
     clearDashboardCache: () => void;
     syncOnboardingData: (dataToSync?: OnboardingState) => Promise<boolean>;
     isAppLoaded: boolean;
+    activeDashboardJob: { jobId: string; signature: string } | null;
+    setDashboardJob: (job: { jobId: string; signature: string } | null) => void;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -54,6 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [cachedDashboardMeta, setCachedDashboardMeta] = useState<{ ts: number; signature: string } | null>(null);
     const { isLoaded, isSignedIn } = useAuth();
     const [isAppLoaded, setIsAppLoaded] = useState(false);
+    const [activeDashboardJob, setActiveDashboardJob] = useState<{ jobId: string; signature: string } | null>(null);
 
     // Memory for one-time side effects (idempotency gates)
     const hasHydratedRef = useRef(false);
@@ -173,6 +176,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 }
             } catch (e) { }
         }
+
+        // --- SESSION PERSISTENCE FOR SYNC STATUS ---
+        const isSynced = localStorage.getItem("lr_onboarding_synced") === "true";
+        hasSyncedCompletionRef.current = isSynced;
+        hasSyncedCloudRef.current = isSynced;
     }, []); // Only once on mount
 
 
@@ -185,7 +193,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, [onboarding, mounted, isSignedIn, isAppLoaded]);
 
     const updateOnboarding = (updates: Partial<OnboardingState>) => {
-        setOnboarding(prev => ({ ...prev, ...updates }));
+        setOnboarding(prev => {
+            const hasChangedMainFields = updates.keywords || updates.oneMinuteBusinessPitch || updates.selectedCommunities;
+            if (hasChangedMainFields) {
+                localStorage.removeItem("lr_onboarding_synced");
+                hasSyncedCompletionRef.current = false;
+            }
+            return { ...prev, ...updates };
+        });
     };
 
     const setMorningCache = (posts: any[], signature: string) => {
@@ -344,6 +359,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             clearDashboardCache,
             syncOnboardingData,
             isAppLoaded,
+            activeDashboardJob,
+            setDashboardJob: (job: { jobId: string; signature: string } | null) => setActiveDashboardJob(job),
         }}>
             {children}
         </AppContext.Provider>

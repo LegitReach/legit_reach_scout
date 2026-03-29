@@ -6,6 +6,7 @@ import styles from "./dashboard.module.css";
 import RedditList from "@/components/RedditList";
 import type { RedditPost, CuratedResult, DashboardCurateResponse } from "@/types";
 import posthog from "posthog-js";
+import { useRealtime } from "@/hooks/useRealtime";
 
 export default function DashboardPage() {
   const {
@@ -14,8 +15,11 @@ export default function DashboardPage() {
     cachedDashboardCurated,
     cachedDashboardSummary,
     cachedDashboardMeta,
-    setDashboardCache
+    setDashboardCache,
+    activeDashboardJob,
+    setDashboardJob
   } = useApp();
+
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [respondedPosts, setRespondedPosts] = useState<string[]>([]);
@@ -42,6 +46,35 @@ export default function DashboardPage() {
   // Build a stable signature for all communities combined
   const signature = JSON.stringify([subreddits.sort().join(","), keywordsParam]);
 
+  // GLOBAL JOB SYNC: Check if there's an active background job for this configuration
+  const currentJobId = activeDashboardJob?.signature === signature ? activeDashboardJob.jobId : null;
+
+  // --- REAL-TIME INTEGRATION ---
+  useRealtime({
+    enabled: !!currentJobId,
+    channels: [`curate_${currentJobId}`],
+    events: ["curation.update.data"],
+    onData: ({ data }: any) => {
+      if (data.status === "completed") {
+        const finalData = data.data;
+        setPosts(finalData.posts || []);
+        setCuratedResults(finalData.curated_posts || []);
+        setCurateSummary(finalData.summary || "");
+        setCurating(false);
+        setLoading(false);
+        setDashboardJob(null); // Clear global job state
+
+        // Persist to browser cache
+        setDashboardCache(finalData.posts, signature, finalData.curated_posts, finalData.summary);
+
+        posthog.capture("dashboard_curation_push_received", {
+          total_found: finalData.posts.length,
+          total_curated: finalData.curated_posts.length
+        });
+      }
+    }
+  });
+
   // Fetch posts and curation for ALL communities in one go
   useEffect(() => {
     if (subreddits.length === 0) {
@@ -61,6 +94,14 @@ export default function DashboardPage() {
       setCurateSummary(cachedDashboardSummary);
       setLoading(false);
       setCurating(false);
+      return;
+    }
+
+    // --- ACTIVE JOB CHECK ---
+    // If we already have a job in progress for this exact configuration, just wait for the hook.
+    if (activeDashboardJob && activeDashboardJob.signature === signature) {
+      setLoading(true);
+      setCurating(true);
       return;
     }
 
@@ -86,6 +127,14 @@ export default function DashboardPage() {
           return;
         }
 
+        if (res.status === 202) {
+          // WORKER STARTED: Store in global context to survive page transitions
+          const data = await res.json();
+          console.log("[Dashboard] Job started successfully, jobId:", data.jobId);
+          setDashboardJob({ jobId: data.jobId, signature });
+          return;
+        }
+
         if (!res.ok) {
           console.error("Dashboard curate failed:", res.status);
           setLoading(false);
@@ -98,6 +147,8 @@ export default function DashboardPage() {
         setPosts(data.posts);
         setCuratedResults(data.curated_posts);
         setCurateSummary(data.summary);
+        setLoading(false);
+        setCurating(false);
 
         // Update browser-side cache
         setDashboardCache(data.posts, signature, data.curated_posts, data.summary);
@@ -112,8 +163,7 @@ export default function DashboardPage() {
         if ((error as { name?: string }).name === "AbortError") return;
         console.error("Failed to fetch dashboard data:", error);
       } finally {
-        setLoading(false);
-        setCurating(false);
+        // Handled by hook if 202 received
       }
     }
 
@@ -132,7 +182,6 @@ export default function DashboardPage() {
   const curatedPosts = useMemo<RedditPost[]>(() => {
     if (curatedResults.length === 0) return [];
 
-    // Create a map for fast lookup, filtering out "skip" results since we only want curated opportunities
     const scoreMap = new Map(
       curatedResults
         .filter(c => c.recommended_action !== "skip")
@@ -150,7 +199,6 @@ export default function DashboardPage() {
         };
       })
       .sort((a, b) => {
-        // Sort primarily by opportunity score, then relevance
         const aiA = scoreMap.get(a.id)!;
         const aiB = scoreMap.get(b.id)!;
         if (aiB.ai_opportunity_score !== aiA.ai_opportunity_score) {
@@ -218,10 +266,13 @@ export default function DashboardPage() {
         {loading || curating ? (
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
-            <p>Your AI agent is scanning Reddit right now. First insights usually show up within a few hours. We will notify you when they are ready.</p>
+            <p>
+              {currentJobId
+                ? "Your AI agent is scanning Reddit right now. This usually takes 20-30 seconds. Results will appear here instantly."
+                : "Preparing your lead generation workspace..."}
+            </p>
           </div>
-        ) : curatedPosts.length === 0 ? (
-          // No posts made it past the AI filter
+        ) : curatedResults.length === 0 ? (
           <div className={styles.empty}>
             <p>🤖 AI found no high-priority leads right now.</p>
             <p className={styles.emptyHint}>
@@ -229,7 +280,6 @@ export default function DashboardPage() {
             </p>
           </div>
         ) : visiblePosts.length === 0 ? (
-          // All curated posts have been responded to
           <div className={styles.empty}>
             <p>🎉 All caught up! You&apos;ve handled all leads.</p>
             <p className={styles.emptyHint}>

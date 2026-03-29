@@ -5,6 +5,7 @@ import AuthHeader from "@/components/AuthHeader";
 import "./globals.css";
 import { CSPostHogProvider, PostHogPageView } from "@/providers/posthog";
 import { Suspense } from "react";
+import { RealtimeProvider } from "@/providers/RealtimeProvider";
 
 export const metadata: Metadata = {
   title: "LegitReach | Find Your Ideal Customer Insights on Reddit",
@@ -41,8 +42,10 @@ export default function RootLayout({
               <PostHogPageView />
             </Suspense>
             <AppProvider>
-              <AuthHeader />
-              {children}
+              <RealtimeProvider>
+                <AuthHeader />
+                {children}
+              </RealtimeProvider>
             </AppProvider>
           </ClerkProvider>
         </CSPostHogProvider>

@@ -16,6 +16,7 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.99.3",
     "@types/three": "^0.183.1",
+    "@upstash/realtime": "^1.0.3",
     "@upstash/redis": "^1.36.2",
     "cheerio": "^1.2.0",
     "lucide-react": "^0.575.0",
