@@ -1,17 +1,29 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 import { WaitlistExperience } from "@/components/ui/waitlist-landing-page-with-countdown-timer";
 import {
   SignInButton,
   UserButton,
   SignedIn,
   SignedOut,
+  useAuth
 } from "@clerk/nextjs";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
 import posthog from "posthog-js";
 
 export default function Home() {
+  const router = useRouter();
+  const { onboarding, isAppLoaded } = useApp();
+  const { isSignedIn, isLoaded } = useAuth();
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && isAppLoaded && onboarding.completed) {
+      router.push("/dashboard");
+    }
+  }, [isLoaded, isSignedIn, isAppLoaded, onboarding.completed, router]);
   return (
     <div className="relative min-h-screen">
       {/* Absolute Header for Login/Dashboard Access */}

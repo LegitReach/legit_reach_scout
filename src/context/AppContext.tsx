@@ -38,6 +38,7 @@ interface AppContextValue {
     setDashboardCache: (posts: any[], signature: string, curated?: any[], summary?: string) => void;
     clearDashboardCache: () => void;
     syncOnboardingData: (dataToSync?: OnboardingState) => Promise<boolean>;
+    isAppLoaded: boolean;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -53,18 +54,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [cachedDashboardMeta, setCachedDashboardMeta] = useState<{ ts: number; signature: string } | null>(null);
     const [prevSignedIn, setPrevSignedIn] = useState(false);
     const [prevOnboardingCompleted, setPrevOnboardingCompleted] = useState(false);
+    const [isAppLoaded, setIsAppLoaded] = useState(false);
     const { isLoaded, isSignedIn } = useAuth();
 
     // 🔄 Sync logic and Reset Protection
     useEffect(() => {
         if (!isLoaded || !mounted) return;
 
-        // 1. SIGN OUT: Reset everything when account is disconnected
-        if (prevSignedIn && !isSignedIn) {
-            resetOnboarding();
+        // 1. HYDRATION: Load from localStorage if state is empty/stale
+        const userStored = localStorage.getItem(STORAGE_KEY_USER);
+        const guestStored = localStorage.getItem(STORAGE_KEY_GUEST);
+
+        if (isSignedIn && userStored) {
+            try {
+                const parsed = JSON.parse(userStored);
+                if (parsed && JSON.stringify(parsed) !== JSON.stringify(onboarding)) {
+                    setOnboarding(parsed);
+                    return; // Let the next render cycle handle other logic
+                }
+            } catch (e) { }
+        } else if (!isSignedIn && guestStored) {
+            try {
+                const parsed = JSON.parse(guestStored);
+                if (parsed && JSON.stringify(parsed) !== JSON.stringify(onboarding)) {
+                    setOnboarding(parsed);
+                    return;
+                }
+            } catch (e) { }
         }
 
-        // 2. SIGN IN: Sync GUEST data once the user joins
+        // 2. SIGN OUT: Reset everything when account is disconnected
+        if (prevSignedIn && !isSignedIn) {
+            resetOnboarding();
+            setPrevSignedIn(false);
+            return;
+        }
+
+        // 3. SIGN IN: Sync GUEST data once the user joins
         if (!prevSignedIn && isSignedIn) {
             const guestDataRaw = localStorage.getItem(STORAGE_KEY_GUEST);
             const userDataRaw = localStorage.getItem(STORAGE_KEY_USER);
@@ -79,33 +105,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
             } else if (!userDataRaw || userDataRaw === JSON.stringify(initialOnboardingState)) {
                 fetchCloudOnboarding();
             }
+            setPrevSignedIn(true);
         }
 
-        // 3. COMPLETION: Sync fresh data for already SIGNED-IN users
-        // This fires only once when the user hits the finish line
+        // 4. COMPLETION: Sync fresh data for already SIGNED-IN users
         if (isSignedIn && !prevOnboardingCompleted && onboarding.completed) {
             console.log("🏆 Syncing completed onboarding for logged-in user.");
             syncOnboardingData(onboarding);
+            setPrevOnboardingCompleted(true);
         }
 
-        setPrevSignedIn(isSignedIn);
-        setPrevOnboardingCompleted(onboarding.completed);
-    }, [isLoaded, isSignedIn, mounted, prevSignedIn, onboarding.completed, prevOnboardingCompleted]);
+        // Keep local trackers in sync
+        if (prevSignedIn !== isSignedIn) setPrevSignedIn(isSignedIn);
+        if (prevOnboardingCompleted !== onboarding.completed) setPrevOnboardingCompleted(onboarding.completed);
+        
+        setIsAppLoaded(true);
+    }, [isLoaded, isSignedIn, mounted, onboarding, prevSignedIn, prevOnboardingCompleted]);
 
-    // Load from localStorage on mount
+    // Load static items on mount
     useEffect(() => {
         setMounted(true);
-
-        // Priority 1: Signed-in User Data
-        // Priority 2: Guest Data (if not signed in)
-        const userStored = localStorage.getItem(STORAGE_KEY_USER);
-        const guestStored = localStorage.getItem(STORAGE_KEY_GUEST);
-
-        if (isSignedIn && userStored) {
-            try { setOnboarding(JSON.parse(userStored)); } catch (e) { }
-        } else if (guestStored) {
-            try { setOnboarding(JSON.parse(guestStored)); } catch (e) { }
-        }
 
         const morning = localStorage.getItem("legitreach_morning_cache");
         if (morning) {
@@ -133,15 +152,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 console.error("Failed to parse stored dashboard cache");
             }
         }
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     // Save to localStorage on change
     useEffect(() => {
-        if (mounted) {
+        if (mounted && isAppLoaded) {
             const key = isSignedIn ? STORAGE_KEY_USER : STORAGE_KEY_GUEST;
             localStorage.setItem(key, JSON.stringify(onboarding));
         }
-    }, [onboarding, mounted, isSignedIn]);
+    }, [onboarding, mounted, isSignedIn, isAppLoaded]);
 
     const updateOnboarding = (updates: Partial<OnboardingState>) => {
         setOnboarding(prev => ({ ...prev, ...updates }));
@@ -298,6 +317,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setDashboardCache,
             clearDashboardCache,
             syncOnboardingData,
+            isAppLoaded,
         }}>
             {children}
         </AppContext.Provider>
