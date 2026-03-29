@@ -76,9 +76,16 @@ export function WaitlistExperience(): ReactElement {
         body: JSON.stringify({ url: storeUrl }),
       })
 
-      if (!res.ok) throw new Error("Failed to scan store")
-
       const data = await res.json()
+
+      if (!res.ok) {
+        if (res.status === 429 && data.redirectTo) {
+          posthog.capture("magic_scan_rate_limited", { redirectTo: data.redirectTo })
+          window.location.href = data.redirectTo + "?returnUrl=/dashboard"
+          return
+        }
+        throw new Error(data.error || "Failed to scan store")
+      }
 
       // Update global onboarding state
       updateOnboarding({
@@ -97,7 +104,8 @@ export function WaitlistExperience(): ReactElement {
       router.push("/dashboard")
     } catch (error) {
       console.error("Magic scan failed:", error)
-      alert("We couldn't analyze your store automatically. Please try again or check the URL.")
+      const errorMsg = error instanceof Error ? error.message : "We couldn't analyze your store automatically. Please try again or check the URL.";
+      alert(errorMsg)
     } finally {
       setIsScanning(false)
     }

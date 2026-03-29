@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 
 interface OnboardingState {
@@ -52,80 +52,105 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [cachedDashboardCurated, setCachedDashboardCurated] = useState<any[]>([]);
     const [cachedDashboardSummary, setCachedDashboardSummary] = useState<string>("");
     const [cachedDashboardMeta, setCachedDashboardMeta] = useState<{ ts: number; signature: string } | null>(null);
-    const [prevSignedIn, setPrevSignedIn] = useState(false);
-    const [prevOnboardingCompleted, setPrevOnboardingCompleted] = useState(false);
-    const [isAppLoaded, setIsAppLoaded] = useState(false);
     const { isLoaded, isSignedIn } = useAuth();
+    const [isAppLoaded, setIsAppLoaded] = useState(false);
 
-    // 🔄 Sync logic and Reset Protection
+    // Memory for one-time side effects (idempotency gates)
+    const hasHydratedRef = useRef(false);
+    const hasSyncedCloudRef = useRef(false);
+    const hasSyncedCompletionRef = useRef(false);
+    const hasMergedGuestRef = useRef(false);
+
+    // 1. INITIAL HYDRATION (localStorage -> state)
     useEffect(() => {
-        if (!isLoaded || !mounted) return;
+        if (!isLoaded || !mounted || hasHydratedRef.current) return;
 
-        // 1. HYDRATION: Load from localStorage if state is empty/stale
-        const userStored = localStorage.getItem(STORAGE_KEY_USER);
-        const guestStored = localStorage.getItem(STORAGE_KEY_GUEST);
+        const hydrate = () => {
+            const userStored = localStorage.getItem(STORAGE_KEY_USER);
+            const guestStored = localStorage.getItem(STORAGE_KEY_GUEST);
 
-        if (isSignedIn && userStored) {
-            try {
-                const parsed = JSON.parse(userStored);
-                if (parsed && JSON.stringify(parsed) !== JSON.stringify(onboarding)) {
-                    setOnboarding(parsed);
-                    return; // Let the next render cycle handle other logic
-                }
-            } catch (e) { }
-        } else if (!isSignedIn && guestStored) {
-            try {
-                const parsed = JSON.parse(guestStored);
-                if (parsed && JSON.stringify(parsed) !== JSON.stringify(onboarding)) {
-                    setOnboarding(parsed);
-                    return;
-                }
-            } catch (e) { }
-        }
-
-        // 2. SIGN OUT: Reset everything when account is disconnected
-        if (prevSignedIn && !isSignedIn) {
-            resetOnboarding();
-            setPrevSignedIn(false);
-            return;
-        }
-
-        // 3. SIGN IN: Sync GUEST data once the user joins
-        if (!prevSignedIn && isSignedIn) {
-            const guestDataRaw = localStorage.getItem(STORAGE_KEY_GUEST);
-            const userDataRaw = localStorage.getItem(STORAGE_KEY_USER);
-
-            if (guestDataRaw && guestDataRaw !== JSON.stringify(initialOnboardingState)) {
-                try {
-                    const guestData = JSON.parse(guestDataRaw);
-                    syncOnboardingData(guestData);
-                } catch (e) {
-                    console.error("Failed to parse guest data for sync", e);
-                }
-            } else if (!userDataRaw || userDataRaw === JSON.stringify(initialOnboardingState)) {
-                fetchCloudOnboarding();
+            if (isSignedIn && userStored) {
+                try { setOnboarding(JSON.parse(userStored)); } catch (e) { }
+            } else if (!isSignedIn && guestStored) {
+                try { setOnboarding(JSON.parse(guestStored)); } catch (e) { }
             }
-            setPrevSignedIn(true);
-        }
 
-        // 4. COMPLETION: Sync fresh data for already SIGNED-IN users
-        if (isSignedIn && !prevOnboardingCompleted && onboarding.completed) {
-            console.log("🏆 Syncing completed onboarding for logged-in user.");
-            syncOnboardingData(onboarding);
-            setPrevOnboardingCompleted(true);
-        }
+            hasHydratedRef.current = true;
+            setIsAppLoaded(true);
+        };
 
-        // Keep local trackers in sync
-        if (prevSignedIn !== isSignedIn) setPrevSignedIn(isSignedIn);
-        if (prevOnboardingCompleted !== onboarding.completed) setPrevOnboardingCompleted(onboarding.completed);
-        
-        setIsAppLoaded(true);
-    }, [isLoaded, isSignedIn, mounted, onboarding, prevSignedIn, prevOnboardingCompleted]);
+        hydrate();
+    }, [isLoaded, mounted, isSignedIn]);
+
+    // 2. ACCOUNT LIFECYCLE MANAGER (Sequential Sync)
+    const isProcessingRef = useRef(false);
+    const latestOnboardingRef = useRef(onboarding);
+
+    // Maintain a live ref to ensure async tasks always have the freshest data
+    useEffect(() => {
+        latestOnboardingRef.current = onboarding;
+    }, [onboarding]);
+
+    useEffect(() => {
+        if (!isAppLoaded || isProcessingRef.current) return;
+
+        const runAccountTasks = async () => {
+            isProcessingRef.current = true;
+
+            try {
+                // --- TASK 1: AUTH STATE TRANSITIONS ---
+                if (!isSignedIn) {
+                    // Sign-Out Cleanup: ONLY reset if we find a leftover USER session
+                    // Guest data (STORAGE_KEY_GUEST) should NEVER be reset by this effect.
+                    if (localStorage.getItem(STORAGE_KEY_USER)) {
+                        console.log("🧹 Detected signed-out user. Resetting for privacy.");
+                        hasSyncedCloudRef.current = false;
+                        hasSyncedCompletionRef.current = false;
+                        hasMergedGuestRef.current = false;
+                        resetOnboarding();
+                    }
+                } else {
+                    // Sign-In Initialization (Merge or Fetch)
+                    if (!hasSyncedCloudRef.current) {
+                        const guestDataRaw = localStorage.getItem(STORAGE_KEY_GUEST);
+                        const userDataRaw = localStorage.getItem(STORAGE_KEY_USER);
+
+                        if (guestDataRaw && guestDataRaw !== JSON.stringify(initialOnboardingState)) {
+                            if (!hasMergedGuestRef.current) {
+                                try {
+                                    const guestData = JSON.parse(guestDataRaw);
+                                    await syncOnboardingData(guestData);
+                                    hasMergedGuestRef.current = true;
+                                } catch (e) { }
+                            }
+                        } else if (!userDataRaw || userDataRaw === JSON.stringify(initialOnboardingState)) {
+                            await fetchCloudOnboarding();
+                        }
+                        hasSyncedCloudRef.current = true;
+                    }
+
+                    // --- TASK 2: COMPLETION SYNC ---
+                    // RE-READ latest ref after Phase 1 (which might have been async)
+                    const freshOnboarding = latestOnboardingRef.current;
+                    if (freshOnboarding.completed && !hasSyncedCompletionRef.current) {
+                        console.log("🏆 Syncing latest completed profile.");
+                        const success = await syncOnboardingData(freshOnboarding);
+                        if (success) hasSyncedCompletionRef.current = true;
+                    }
+                }
+            } finally {
+                isProcessingRef.current = false;
+            }
+        };
+
+        runAccountTasks();
+    }, [isAppLoaded, isSignedIn, onboarding.completed]);
+
+
 
     // Load static items on mount
     useEffect(() => {
         setMounted(true);
-
         const morning = localStorage.getItem("legitreach_morning_cache");
         if (morning) {
             try {
@@ -134,9 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     setCachedMorningPosts(parsed.posts || []);
                     setCachedMorningMeta({ ts: parsed.ts, signature: parsed.signature });
                 }
-            } catch (e) {
-                console.error("Failed to parse stored morning cache");
-            }
+            } catch (e) { }
         }
         const dashboard = localStorage.getItem("legitreach_dashboard_cache");
         if (dashboard) {
@@ -148,11 +171,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     setCachedDashboardSummary(parsed.summary || "");
                     setCachedDashboardMeta({ ts: parsed.ts, signature: parsed.signature });
                 }
-            } catch (e) {
-                console.error("Failed to parse stored dashboard cache");
-            }
+            } catch (e) { }
         }
-    }, [isLoaded, isSignedIn]);
+    }, []); // Only once on mount
+
 
     // Save to localStorage on change
     useEffect(() => {
@@ -220,15 +242,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Invalidate caches when onboarding-relevant data changes
     useEffect(() => {
-        const signature = JSON.stringify([onboarding.keywords, onboarding.oneMinuteBusinessPitch, onboarding.selectedCommunities]);
+        const sortedKeywords = [...(onboarding.keywords || [])].sort();
+        const sortedCommunities = [...(onboarding.selectedCommunities || [])].sort();
+        const signature = JSON.stringify([
+            sortedKeywords,
+            onboarding.oneMinuteBusinessPitch || "",
+            sortedCommunities
+        ]);
+
         if (cachedMorningMeta && cachedMorningMeta.signature !== signature) {
             clearMorningCache();
         }
-        // dashboard depends on onboarding keywords/communities
         if (cachedDashboardMeta && cachedDashboardMeta.signature !== signature) {
             clearDashboardCache();
         }
     }, [onboarding.keywords, onboarding.oneMinuteBusinessPitch, onboarding.selectedCommunities]);
+
 
     const resetOnboarding = () => {
         setOnboarding(initialOnboardingState);
@@ -260,9 +289,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(dataToSync));
                 localStorage.removeItem(STORAGE_KEY_GUEST);
                 localStorage.setItem("lr_onboarding_synced", "true");
-
-                // Track completion locally
-                if (dataToSync.completed) setPrevOnboardingCompleted(true);
                 return true;
             }
             return false;

@@ -11,18 +11,18 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { onboarding } = useApp();
+    const { onboarding, isAppLoaded } = useApp();
     const router = useRouter();
 
     useEffect(() => {
         // Redirect to onboarding if not completed
-        if (!onboarding.completed && typeof window !== 'undefined') {
+        if (!onboarding.completed && typeof window !== 'undefined' && isAppLoaded) {
             const path = window.location.pathname;
             if (!path.includes('/onboarding')) {
                 router.push("/onboarding");
             }
         }
-    }, [onboarding.completed, router]);
+    }, [onboarding.completed, router, isAppLoaded]);
 
     return (
         <div className={styles.layout}>

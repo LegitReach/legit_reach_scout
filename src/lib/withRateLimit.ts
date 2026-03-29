@@ -26,7 +26,7 @@ export function withRateLimit(
         if (redirectTo) {
           const redirectUrl = new URL(redirectTo, req.url);
           const accept = req.headers.get("accept") || "";
-          if (accept.includes("text/html") || accept === '*/*') {
+          if (accept.includes("text/html") && !accept.includes("*/*")) {
             return NextResponse.redirect(redirectUrl);
           }
         }
@@ -46,7 +46,7 @@ export function withRateLimit(
         // after login we just send users back to home page
         redirectUrl.searchParams.set("returnUrl", "/dashboard");
         const accept = req.headers.get("accept") || "";
-        if (accept.includes("text/html") || accept === '*/*') {
+        if (accept.includes("text/html") && !accept.includes("*/*")) {
           return NextResponse.redirect(redirectUrl);
         }
       }
