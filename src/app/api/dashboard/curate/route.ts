@@ -64,6 +64,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     // 4. HAND OFF TO BACKGROUND WORKER
     // Use an absolute URL for the internal fetch
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${request.headers.get('host')}`;
+    console.log("Base URL:", baseUrl);
 
     // We don't 'await' the full execution, just the worker's acknowledgment (202 Accepted)
     const workerRes = await fetch(`${baseUrl}/api/worker/curate`, {
