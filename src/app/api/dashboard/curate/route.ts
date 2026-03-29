@@ -3,6 +3,7 @@ import { redis } from "@/lib/redis";
 import { getAuth } from "@clerk/nextjs/server";
 import { createHash } from "crypto";
 import { consumeRequest, consumeAnonymousRequest } from "@/lib/consumption";
+import { processCuration } from "@/lib/curation-worker";
 
 const CACHE_TTL = 60 * 60 * 24; // 24 hours caching
 
@@ -62,27 +63,15 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     }
 
     // 4. HAND OFF TO BACKGROUND WORKER
-    // Use an absolute URL for the internal fetch
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${request.headers.get('host')}`;
-    console.log("Base URL:", baseUrl);
-
-    // We don't 'await' the full execution, just the worker's acknowledgment (202 Accepted)
-    const workerRes = await fetch(`${baseUrl}/api/worker/curate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    // Use a direct function call to bypass Vercel/Clerk firewall issues (401s).
+    // We execute it as a fire-and-forget background task.
+    processCuration({
         jobId: hash,
         subreddits,
         keywords,
         businessDescription,
         userId
-      }),
-    });
-    console.log("Worker response:", workerRes);
-
-    if (!workerRes.ok) {
-      throw new Error("Failed to start background worker");
-    }
+    }).catch(err => console.error("Background curation worker error:", err));
 
     // 5. RETURN PROCESSING STATUS
     // The frontend will see this and start listening to the Realtime channel
