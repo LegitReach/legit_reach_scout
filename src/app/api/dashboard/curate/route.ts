@@ -78,6 +78,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
         userId
       }),
     });
+    console.log("Worker response:", workerRes);
 
     if (!workerRes.ok) {
       throw new Error("Failed to start background worker");
