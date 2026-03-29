@@ -17,6 +17,9 @@ import {
 import type { ReactElement } from "react"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useApp } from "@/context/AppContext"
+import posthog from "posthog-js"
 
 // Simple Accordion components for the FAQ since Shadcn is requested but we need something lightweight without complex install
 const Accordion = ({ children }: { children: React.ReactNode }) => {
@@ -55,6 +58,58 @@ export function WaitlistExperience(): ReactElement {
   const sceneRef = useRef<Scene | null>(null)
   const rendererRef = useRef<WebGLRenderer | null>(null)
   const animationIdRef = useRef<number | null>(null)
+
+  const router = useRouter()
+  const { updateOnboarding } = useApp()
+  const [storeUrl, setStoreUrl] = useState("")
+  const [isScanning, setIsScanning] = useState(false)
+
+  const handleMagicScan = async () => {
+    if (!storeUrl) return
+    setIsScanning(true)
+    posthog.capture("magic_scan_started", { url: storeUrl })
+
+    try {
+      const res = await fetch("/api/onboarding/magic-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: storeUrl }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (res.status === 429 && data.redirectTo) {
+          posthog.capture("magic_scan_rate_limited", { redirectTo: data.redirectTo })
+          window.location.href = data.redirectTo + "?returnUrl=/dashboard"
+          return
+        }
+        throw new Error(data.error || "Failed to scan store")
+      }
+
+      // Update global onboarding state
+      updateOnboarding({
+        keywords: data.keywords || [],
+        selectedCommunities: data.subreddits || [],
+        oneMinuteBusinessPitch: data.businessDescription || "",
+        completed: true,
+      })
+
+      posthog.capture("magic_scan_success", {
+        keywords: data.keywords?.length,
+        subreddits: data.subreddits?.length
+      })
+
+      // Redirect directly to dashboard
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Magic scan failed:", error)
+      const errorMsg = error instanceof Error ? error.message : "We couldn't analyze your store automatically. Please try again or check the URL.";
+      alert(errorMsg)
+    } finally {
+      setIsScanning(false)
+    }
+  }
 
   // Three.js background effect
   useEffect(() => {
@@ -260,20 +315,39 @@ export function WaitlistExperience(): ReactElement {
             An AI agent built around your ecommerce brand. It reads Reddit the way your ideal customer would, picking up pain points, product requests, and competitor gaps you can act on today.
           </p>
 
-          <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-sm sm:max-w-none mx-auto">
-            <Link
-              href="/onboarding"
-              className="w-full sm:w-auto h-12 px-8 bg-green-500 hover:bg-green-600 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap"
-            >
-              Start Finding Insights
-            </Link>
+          <div className="mt-4 mb-4 flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row w-full gap-2 p-2 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md mb-4 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+              <input
+                type="text"
+                value={storeUrl}
+                onChange={(e) => setStoreUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleMagicScan()}
+                placeholder="Enter your store URL"
+                className="flex-1 bg-transparent border-none outline-none text-white px-4 h-12 text-base md:text-lg placeholder:text-white/30 w-full"
+              />
+              <button
+                onClick={handleMagicScan}
+                disabled={!storeUrl || isScanning}
+                className="w-full sm:w-auto px-6 h-12 bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap min-w-[120px]"
+              >
+                {isScanning ? (
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+                    Scanning...
+                  </div>
+                ) : (
+                  "Magic Scan ✨"
+                )}
+              </button>
+            </div>
+
             <Link
               href="https://calendar.app.google/7a88C2bCKpKmzeik6"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto h-12 px-8 bg-white/5 hover:bg-white/10 text-white/90 font-medium rounded-lg transition-all duration-300 text-lg tracking-wide border border-white/20 backdrop-blur-sm whitespace-nowrap inline-flex items-center justify-center"
+              className="w-full sm:w-auto px-8 py-2 text-white/50 hover:text-white/90 font-medium rounded-lg transition-all duration-300 text-sm tracking-wide flex items-center justify-center"
             >
-              Book a Demo
+              Or Book a Demo →
             </Link>
           </div>
 

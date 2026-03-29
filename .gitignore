@@ -46,3 +46,5 @@ package-lock.json
 # clerk configuration (can include secrets)
 /.clerk/
 .env.local
+repository_observation.md
+onboarding_locations.md

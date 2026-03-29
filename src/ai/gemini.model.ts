@@ -4,10 +4,9 @@ import {
   HarmBlockThreshold,
   HarmCategory,
 } from "@google/generative-ai";
-import { Tool } from "@google/generative-ai/server";
 
 export function getGeminiModel(
-  model_name: string = "gemini-2.5-flash",
+  model_name: string = "gemini-3-flash-preview",
 ): GenerativeModel {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

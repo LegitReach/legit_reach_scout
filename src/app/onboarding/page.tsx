@@ -1,105 +1,145 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import styles from "./onboarding.module.css";
 import posthog from "posthog-js";
 
-export default function OnboardingPage() {
-    
-        const router = useRouter();
-        const { updateOnboarding, onboarding } = useApp();
-        const [step, setStep] = useState(1);
+function OnboardingContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { updateOnboarding, onboarding, isAppLoaded } = useApp();
+    const isManualMode = searchParams.get("manual") === "true";
 
-        // Form state
-        const [keywords, setKeywords] = useState<string[]>(onboarding.keywords || []);
-        const [keywordInput, setKeywordInput] = useState("");
-        const [subreddits, setSubreddits] = useState<string[]>(onboarding.selectedCommunities || []);
-        const [businessDesc, setBusinessDesc] = useState<string>(onboarding.oneMinuteBusinessPitch || "");
+    // Magic Scan State
+    const [storeUrl, setStoreUrl] = useState("");
+    const [isScanning, setIsScanning] = useState(false);
+    const [scanStatus, setScanStatus] = useState("Analyzing your store...");
 
-        // Dynamic suggestions
-        const [suggestedSubreddits, setSuggestedSubreddits] = useState<string[]>([]);
-        const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    // Manual Flow State
+    const [step, setStep] = useState(1);
+    const [keywords, setKeywords] = useState<string[]>(onboarding.keywords || []);
+    const [keywordInput, setKeywordInput] = useState("");
+    const [businessDesc, setBusinessDesc] = useState(onboarding.oneMinuteBusinessPitch || "");
+    const [suggestedSubreddits, setSuggestedSubreddits] = useState<string[]>([]);
+    const [selectedSubreddits, setSelectedSubreddits] = useState<string[]>(onboarding.selectedCommunities || []);
+    const [loadingSubreddits, setLoadingSubreddits] = useState(false);
 
-        const addKeyword = () => {
-            const v = keywordInput.trim();
-            if (v && !keywords.includes(v)) {
-                setKeywords([...keywords, v]);
-                setKeywordInput("");
-            }
-        };
+    // Skip if already done
+    useEffect(() => {
+        if (isAppLoaded && onboarding.completed) {
+            router.push("/dashboard");
+        }
+    }, [isAppLoaded, onboarding.completed, router]);
 
-        const removeKeyword = (kw: string) => {
-            setKeywords(keywords.filter(k => k !== kw));
-        };
+    // --- MAGIC SCAN HANDLER ---
+    const handleMagicScan = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!storeUrl || isScanning) return;
 
-        const toggleSubreddit = (sub: string) => {
-            if (subreddits.includes(sub)) {
-                setSubreddits(subreddits.filter(s => s !== sub));
-            } else {
-                setSubreddits([...subreddits, sub]);
-            }
-        };
+        setIsScanning(true);
+        setScanStatus("Analyzing store profile...");
+        posthog.capture("magic_scan_started", { url: storeUrl });
 
-        // Navigate to business description step
-        const goToBusinessStep = () => {
-            posthog.capture("onboarding_step_completed", { step: 1, keywords_count: keywords.length });
-            setStep(2);
-        };
-
-        // Fetch dynamic subreddit suggestions when moving to step 3 (communities)
-        const goToStep3 = async () => {
-            setLoadingSuggestions(true);
-            try {
-                const res = await fetch("/api/reddit/subreddits", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        keywords: keywords.join(","),
-                        businessDescription: businessDesc,
-                    }),
-                });
-                if (res.redirected) {
-                    window.location.href = res.url;
-                    return;
-                }
-
-                const data = await res.json();
-                setSuggestedSubreddits(data.suggestions || []);
-            } catch (error) {
-                console.error("Failed to fetch suggestions:", error);
-                posthog.captureException(error);
-            }
-            posthog.capture("onboarding_step_completed", { step: 2, business_desc_length: businessDesc.length });
-            setLoadingSuggestions(false);
-            setStep(3);
-        };
-
-        const handleComplete = () => {
-            posthog.capture("onboarding_completed", {
-                keywords_count: keywords.length,
-                communities_count: subreddits.length,
+        try {
+            const res = await fetch("/api/onboarding/magic-scan", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: storeUrl }),
             });
+
+            if (!res.ok) {
+                if (res.status === 429) {
+                    const data = await res.json();
+                    if (data.redirectTo) {
+                        window.location.href = data.redirectTo + "?returnUrl=/onboarding";
+                        return;
+                    }
+                }
+                throw new Error("Failed to scan store. Try manual setup.");
+            }
+
+            const data = await res.json();
+            setScanStatus("Configuring target subreddits...");
+            
+            // Artificial delay for UX "magic" effect (optional, but keep it if previous UX had it)
+            await new Promise(r => setTimeout(r, 800));
+
             updateOnboarding({
-                selectedCommunities: subreddits,
-                keywords: keywords, // repurposed as search keywords
-                oneMinuteBusinessPitch: businessDesc,
+                keywords: data.keywords || [],
+                selectedCommunities: data.subreddits || [],
+                oneMinuteBusinessPitch: data.businessDescription || "",
                 completed: true,
             });
+
+            posthog.capture("onboarding_completed", { method: "magic_scan" });
             router.push("/dashboard");
-        };
 
-        // Skip onboarding if already completed
-        useEffect(() => {
-            if (onboarding.completed) {
-                router.push("/dashboard");
-            }
-        }, [onboarding.completed, router]);
+        } catch (error) {
+            console.error(error);
+            alert("Magic Scan failed. Switching to manual setup.");
+            router.push("/onboarding?manual=true");
+            setIsScanning(false);
+        }
+    };
 
+    // --- MANUAL FLOW HANDLERS ---
+    const addKeyword = () => {
+        const val = keywordInput.trim();
+        if (val && !keywords.includes(val)) {
+            setKeywords([...keywords, val]);
+            setKeywordInput("");
+        }
+    };
+
+    const removeKeyword = (kw: string) => {
+        setKeywords(keywords.filter(k => k !== kw));
+    };
+
+    const fetchSubreddits = async () => {
+        setLoadingSubreddits(true);
+        setStep(3);
+        try {
+            const res = await fetch("/api/reddit/subreddits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ keywords: keywords.join(","), businessDescription: businessDesc }),
+            });
+            const data = await res.json();
+            setSuggestedSubreddits(data.suggestions || []);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoadingSubreddits(false);
+        }
+    };
+
+    const toggleSubreddit = (sub: string) => {
+        if (selectedSubreddits.includes(sub)) {
+            setSelectedSubreddits(selectedSubreddits.filter(s => s !== sub));
+        } else {
+            setSelectedSubreddits([...selectedSubreddits, sub]);
+        }
+    };
+
+    const handleManualComplete = () => {
+        updateOnboarding({
+            keywords,
+            oneMinuteBusinessPitch: businessDesc,
+            selectedCommunities: selectedSubreddits,
+            completed: true,
+        });
+        posthog.capture("onboarding_completed", { method: "manual" });
+        router.push("/dashboard");
+    };
+
+    if (!isAppLoaded) return null;
+
+    // --- RENDER MANUAL MODE ---
+    if (isManualMode) {
         return (
             <div className={styles.container}>
                 <div className={styles.card}>
-                    {/* Progress */}
                     <div className={styles.progress}>
                         <div className={`${styles.progressStep} ${step >= 1 ? styles.active : ""}`}>1</div>
                         <div className={styles.progressLine}></div>
@@ -110,82 +150,53 @@ export default function OnboardingPage() {
 
                     {step === 1 && (
                         <div className={styles.stepContent}>
-                            <p className={styles.stepLabel}>1: Your Brand &gt; 2: Subreddits &gt; 3: Your Insights</p>
-                            <h1>🔍 What does your brand sell?</h1>
-                            <p>Describe your product in a few words. Our AI uses this to find Reddit conversations where people need exactly what you sell.</p>
-
+                            <h1>What do you sell?</h1>
+                            <p>Add a few keywords that describe your brand or product.</p>
                             <div className={styles.inputGroup}>
-                                <input
-                                    type="text"
+                                <input 
+                                    className={styles.inputField} 
+                                    placeholder="e.g. organic coffee, minimalist decor"
                                     value={keywordInput}
-                                    onChange={(e) => setKeywordInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addKeyword())}
-                                    placeholder="Example: 'organic dog treats', 'minimalist phone cases', 'postpartum skincare'"
-                                    className={styles.input}
+                                    onChange={e => setKeywordInput(e.target.value)}
+                                    onKeyDown={e => e.key === "Enter" && addKeyword()}
                                 />
-                                <button onClick={addKeyword} className={styles.addBtn}>Add</button>
+                                <button className={styles.addBtn} onClick={addKeyword}>Add</button>
                             </div>
-
                             <div className={styles.tags}>
                                 {keywords.map(kw => (
                                     <span key={kw} className={styles.tag}>
-                                        {kw}
-                                        <button onClick={() => removeKeyword(kw)}>×</button>
+                                        {kw} <button onClick={() => removeKeyword(kw)}>×</button>
                                     </span>
                                 ))}
                             </div>
-
-                            <p className={styles.hint}>
-                                💡 Not sure what to type? Describe your brand in a sentence.
-                            </p>
-
-                            <div className={styles.actions}>
-                                <button
-                                    onClick={goToBusinessStep}
-                                    className={styles.nextBtn}
-                                    disabled={keywords.length === 0}
-                                >
-                                    Describe your business →
-                                </button>
-                            </div>
+                            <button 
+                                className={styles.completeBtn} 
+                                disabled={keywords.length === 0}
+                                onClick={() => setStep(2)}
+                            >
+                                Next: Describe Business →
+                            </button>
                         </div>
                     )}
 
                     {step === 2 && (
                         <div className={styles.stepContent}>
-                            <p className={styles.stepLabel}>1: Your Brand &gt; 2: Subreddits &gt; 3: Your Insights</p>
-                            <h1>🏷️ Describe your business</h1>
-                            <p>Help us surface better opportunities by describing your business.</p>
-
-                            <textarea
+                            <h1>Describe your business</h1>
+                            <p>A short pitch helps our AI find the right conversations.</p>
+                            <textarea 
+                                className={styles.textarea}
+                                placeholder="We provide high-quality organic coffee beans sourced directly from farmers..."
                                 value={businessDesc}
-                                onChange={(e) => setBusinessDesc(e.target.value)}
-                                placeholder={`Add  "signals" like your price point (luxury vs. budget), geographic focus (local vs. global), and unique selling proposition (sustainability, safety, or ease of use).`}
-                                className={styles.input}
-                                rows={6}
+                                onChange={e => setBusinessDesc(e.target.value)}
                             />
-
-                            <p className={styles.hint}>
-                                💡 Tip: Be as descriptive as possible — include what your product or service does, who your ideal customer is, your price point (budget vs. premium), geographic focus (local vs. global), and what makes you unique (e.g., sustainability, speed, ease of use). The more detail you provide, the better we can match you with the right Reddit conversations.
-                            </p>
-
                             <div className={styles.actions}>
-                                <button onClick={() => setStep(1)} className={styles.backBtn}>
-                                    ← Back
-                                </button>
-                                <button
-                                    onClick={goToStep3}
-                                    className={styles.completeBtn}
-                                    disabled={!businessDesc.trim() || loadingSuggestions}
+                                <button className={styles.backBtn} onClick={() => setStep(1)}>Back</button>
+                                <button 
+                                    className={styles.completeBtn} 
+                                    disabled={!businessDesc.trim()}
+                                    onClick={fetchSubreddits}
                                 >
-                                    {loadingSuggestions ? (
-                                        <>
-                                            <span className={styles.spinner} style={{width:18,height:18,borderWidth:2,marginRight:8}}></span>
-                                            Finding communities...
-                                        </>
-                                    ) : (
-                                        'Find Communities →'
-                                    )}
+                                    Find Subreddits →
                                 </button>
                             </div>
                         </div>
@@ -193,41 +204,32 @@ export default function OnboardingPage() {
 
                     {step === 3 && (
                         <div className={styles.stepContent}>
-                            <p className={styles.stepLabel}>1: Your Brand &gt; 2: Subreddits &gt; 3: Your Insights</p>
-                            <h1>📍 Recommended Communities</h1>
-                            <p>Based on your keywords, here are relevant subreddits:</p>
-
-                            {loadingSuggestions ? (
-                                <div className={styles.loadingContainer}>
-                                    <div className={styles.spinner}></div>
-                                    <p>Finding relevant communities...</p>
+                            <h1>Target Communities</h1>
+                            <p>Select the subreddits where your audience is most active.</p>
+                            {loadingSubreddits ? (
+                                <div style={{textAlign: "center", padding: 40}}>
+                                    <div className={styles.spinner} style={{margin: "0 auto"}}></div>
+                                    <p style={{marginTop: 12}}>Finding relevant communities...</p>
                                 </div>
                             ) : (
-                                <>
-                                    <div className={styles.subredditGrid}>
-                                        {suggestedSubreddits.map(sub => (
-                                            <button
-                                                key={sub}
-                                                onClick={() => toggleSubreddit(sub)}
-                                                className={`${styles.subredditBtn} ${subreddits.includes(sub) ? styles.selected : ""}`}
-                                            >
-                                                <span className={styles.subName}>{sub}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <p className={styles.hint}>Selected: {subreddits.length} communities</p>
-                                </>
+                                <div className={styles.subredditGrid}>
+                                    {suggestedSubreddits.map(sub => (
+                                        <button 
+                                            key={sub}
+                                            className={`${styles.subredditBtn} ${selectedSubreddits.includes(sub) ? styles.selected : ""}`}
+                                            onClick={() => toggleSubreddit(sub)}
+                                        >
+                                            {sub}
+                                        </button>
+                                    ))}
+                                </div>
                             )}
-
                             <div className={styles.actions}>
-                                <button onClick={() => setStep(2)} className={styles.backBtn}>
-                                    ← Back
-                                </button>
-                                <button
-                                    onClick={handleComplete}
-                                    className={styles.completeBtn}
-                                    disabled={subreddits.length === 0 || loadingSuggestions}
+                                <button className={styles.backBtn} onClick={() => setStep(2)}>Back</button>
+                                <button 
+                                    className={styles.completeBtn} 
+                                    disabled={selectedSubreddits.length === 0}
+                                    onClick={handleManualComplete}
                                 >
                                     Start Finding Opportunities 🚀
                                 </button>
@@ -237,4 +239,56 @@ export default function OnboardingPage() {
                 </div>
             </div>
         );
+    }
+
+    // --- RENDER MAGIC SCAN MODE ---
+    return (
+        <div className={styles.container}>
+            <div className={styles.card}>
+                <div className={styles.header}>
+                    <div className={styles.badge}>Beta</div>
+                    <h1>✨ Magic Scan</h1>
+                    <p>Enter your store URL to automatically configure your targeting.</p>
+                </div>
+
+                {!isScanning ? (
+                    <form onSubmit={handleMagicScan} className={styles.urlWrapper}>
+                        <input 
+                            type="url"
+                            className={styles.inputField}
+                            placeholder="https://yourstore.com"
+                            value={storeUrl}
+                            onChange={e => setStoreUrl(e.target.value)}
+                            required
+                        />
+                        <button className={styles.scanBtn} type="submit" disabled={!storeUrl}>
+                            Scan Store & Start 🚀
+                        </button>
+                    </form>
+                ) : (
+                    <div style={{textAlign: "center", padding: 20}}>
+                        <div className={styles.spinner} style={{margin: "0 auto"}}></div>
+                        <p style={{marginTop: 16, fontWeight: 600}}>{scanStatus}</p>
+                    </div>
+                )}
+
+                <div className={styles.footer}>
+                    <button 
+                        className={styles.manualBtn}
+                        onClick={() => router.push("/onboarding?manual=true")}
+                    >
+                        Configure manually instead
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function OnboardingPage() {
+    return (
+        <Suspense fallback={null}>
+            <OnboardingContent />
+        </Suspense>
+    );
 }
