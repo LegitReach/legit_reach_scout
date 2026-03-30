@@ -14,7 +14,6 @@
   "dependencies": {
     "@clerk/nextjs": "^6.38.1",
     "@google/generative-ai": "^0.24.1",
-    "@next/swc-darwin-arm64": "^16.2.1",
     "@supabase/supabase-js": "^2.99.3",
     "@types/three": "^0.183.1",
     "@upstash/realtime": "^1.0.3",
