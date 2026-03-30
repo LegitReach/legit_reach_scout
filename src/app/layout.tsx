@@ -31,6 +31,9 @@ export const metadata: Metadata = {
     description: "AI finds what your ecommerce customers actually say on Reddit. Pain points. Product wishes. Competitor complaints. Free.",
     images: ["https://legitreach.com/og-image.png"],
   },
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
