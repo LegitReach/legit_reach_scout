@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Outfit } from "next/font/google";
 import { AppProvider } from "@/context/AppContext";
 import { ClerkProvider } from "@clerk/nextjs";
 import AuthHeader from "@/components/AuthHeader";
@@ -6,6 +7,13 @@ import "./globals.css";
 import { CSPostHogProvider, PostHogPageView } from "@/providers/posthog";
 import { Suspense } from "react";
 import { RealtimeProvider } from "@/providers/RealtimeProvider";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-outfit",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "LegitReach | Find Your Ideal Customer Insights on Reddit",
@@ -31,10 +39,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="icon" href="/Logo%20Initials%20LegitReach.png" type="image/png" />
-      </head>
+    <html lang="en" className={outfit.className}>
+      <head />
       <body>
         <CSPostHogProvider>
           <ClerkProvider>

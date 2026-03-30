@@ -29,10 +29,10 @@ const Accordion = ({ children }: { children: React.ReactNode }) => {
 const AccordionItem = ({ title, content }: { title: string, content: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <div className="border border-white/20 bg-black/60 backdrop-blur-md rounded-xl overflow-hidden">
+    <div className="border border-border bg-card/90 backdrop-blur-md rounded-xl overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center p-4 text-left text-white/90 hover:bg-white/5 transition-colors font-medium"
+        className="w-full flex justify-between items-center p-4 text-left text-foreground hover:bg-accent transition-colors font-medium"
       >
         {title}
         <svg
@@ -45,7 +45,7 @@ const AccordionItem = ({ title, content }: { title: string, content: string }) =
         </svg>
       </button>
       {isOpen && (
-        <div className="p-4 pt-0 text-white/70 border-t border-white/10 mt-2">
+        <div className="p-4 pt-0 text-muted-foreground border-t border-border mt-2">
           {content}
         </div>
       )}
@@ -128,7 +128,7 @@ export function WaitlistExperience(): ReactElement {
     rendererRef.current = renderer
 
     renderer.setSize(window.innerWidth, window.innerHeight)
-    renderer.setClearColor(0x000000, 1)
+    renderer.setClearColor(0xfcfcfc, 1)
     mountRef.current.appendChild(renderer.domElement)
 
     // Create curved light geometry
@@ -159,10 +159,10 @@ export function WaitlistExperience(): ReactElement {
       varying vec3 vPosition;
       
       void main() {
-        // Create the gradient from bright green to deep green
-        vec3 color1 = vec3(0.13, 0.77, 0.36); // #22c55e (Tailwind green-500)
-        vec3 color2 = vec3(0.08, 0.62, 0.52); // Teal
-        vec3 color3 = vec3(0.02, 0.25, 0.15); // Deep dark green
+        // Create the gradient from mint to soft green
+        vec3 color1 = vec3(0.447, 0.890, 0.678); // #72e3ad (Mint)
+        vec3 color2 = vec3(0.290, 0.870, 0.500); // #4ade80 (Green-light)
+        vec3 color3 = vec3(0.0, 0.385, 0.224); // #006239 (Deep green)
         
         // Mix colors based on UV coordinates
         vec3 finalColor = mix(color1, color2, vUv.x);
@@ -208,8 +208,8 @@ export function WaitlistExperience(): ReactElement {
         varying vec3 vPosition;
         
         void main() {
-          vec3 color1 = vec3(0.13, 0.77, 0.36); // Green
-          vec3 color2 = vec3(0.00, 0.50, 0.20); // Darker Green
+          vec3 color1 = vec3(0.447, 0.890, 0.678); // #72e3ad Mint
+          vec3 color2 = vec3(0.0, 0.385, 0.224); // #006239 Deep green
           
           vec3 finalColor = mix(color1, color2, vUv.x);
           
@@ -292,7 +292,7 @@ export function WaitlistExperience(): ReactElement {
 
 
   return (
-    <main className="relative min-h-screen bg-black w-full font-sans selection:bg-green-500/30">
+    <main className="relative min-h-screen bg-background w-full font-sans selection:bg-primary/30">
       {/* Three.js Background */}
       <div ref={mountRef} className="fixed inset-0 w-full h-full" style={{ zIndex: 0 }} />
 
@@ -301,42 +301,42 @@ export function WaitlistExperience(): ReactElement {
 
         {/* HERO SECTION */}
         <div className="flex flex-col flex-1 items-center justify-center min-h-screen px-4 w-full text-center max-w-4xl mx-auto pt-20">
-          <p className="text-white/60 tracking-[0.2em] uppercase text-xs md:text-sm mb-6 font-medium">
+          <p className="text-foreground/60 tracking-[0.2em] uppercase text-xs md:text-sm mb-6 font-medium">
             Reddit Customer Insights for Ecommerce Brands
           </p>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight leading-tight">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 tracking-tight leading-tight">
             Find Your Ideal Customer Insights on Reddit
             <br />
-            <span className="text-green-500">For Free</span>
+            <span className="text-primary">For Free</span>
           </h1>
 
-          <p className="text-white/80 text-base md:text-lg max-w-2xl mx-auto mb-8">
+          <p className="text-foreground/70 text-base md:text-lg max-w-2xl mx-auto mb-8">
             An AI agent built around your ecommerce brand. It reads Reddit the way your ideal customer would, picking up pain points, product requests, and competitor gaps you can act on today.
           </p>
 
           <div className="mt-4 mb-4 flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md mx-auto">
-            <div className="flex flex-col sm:flex-row w-full gap-2 p-2 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md mb-4 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            <div className="flex flex-col sm:flex-row w-full gap-2 p-2 bg-card border border-border rounded-xl backdrop-blur-md mb-4 shadow-md">
               <input
                 type="text"
                 value={storeUrl}
                 onChange={(e) => setStoreUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleMagicScan()}
                 placeholder="Enter your store URL"
-                className="flex-1 bg-transparent border-none outline-none text-white px-4 h-12 text-base md:text-lg placeholder:text-white/30 w-full"
+                className="flex-1 bg-transparent border-none outline-none text-foreground px-4 h-12 text-base md:text-lg placeholder:text-muted-foreground w-full"
               />
               <button
                 onClick={handleMagicScan}
                 disabled={!storeUrl || isScanning}
-                className="w-full sm:w-auto px-6 h-12 bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 text-black font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap min-w-[120px]"
+                className="w-full sm:w-auto px-6 h-12 bg-primary hover:brightness-110 disabled:opacity-50 text-primary-foreground font-bold rounded-lg transition-all duration-300 shadow-[0_0_15px_rgba(114,227,173,0.3)] hover:shadow-[0_0_25px_rgba(114,227,173,0.5)] text-lg tracking-wide flex items-center justify-center whitespace-nowrap min-w-[120px]"
               >
                 {isScanning ? (
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+                    <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></span>
                     Scanning...
                   </div>
                 ) : (
-                  "Magic Scan ✨"
+                  "Magic Scan"
                 )}
               </button>
             </div>
@@ -345,53 +345,53 @@ export function WaitlistExperience(): ReactElement {
               href="https://calendar.app.google/7a88C2bCKpKmzeik6"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto px-8 py-2 text-white/50 hover:text-white/90 font-medium rounded-lg transition-all duration-300 text-sm tracking-wide flex items-center justify-center"
+              className="w-full sm:w-auto px-8 py-2 text-foreground/50 hover:text-foreground/90 font-medium rounded-lg transition-all duration-300 text-sm tracking-wide flex items-center justify-center"
             >
               Or Book a Demo →
             </Link>
           </div>
 
-          <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto mt-6">
+          <p className="text-foreground/50 text-sm md:text-base max-w-2xl mx-auto mt-6">
             Reddit is where half of all online purchase conversations happen. Your customers are there right now describing what they want, what frustrates them, and what they would pay for. LegitReach finds those conversations for you, automatically.
           </p>
         </div>
 
         {/* HOW IT WORKS SECTION */}
         <div className="w-full max-w-6xl mx-auto px-4 py-24 z-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-16">
             How LegitReach Works
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
             {/* Step 1 */}
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-xl font-bold mx-auto mb-6">
+              <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 1
               </div>
-              <h3 className="text-xl font-semibold text-white mb-4">Tell Us About Your Brand</h3>
-              <p className="text-white/70">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Tell Us About Your Brand</h3>
+              <p className="text-muted-foreground">
                 Describe your ecommerce product, your target customer, and the problems you solve. Our AI builds a personalized model of your ideal buyer.
               </p>
             </div>
 
             {/* Step 2 */}
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-xl font-bold mx-auto mb-6">
+              <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 2
               </div>
-              <h3 className="text-xl font-semibold text-white mb-4">AI Scans Reddit Daily</h3>
-              <p className="text-white/70">
+              <h3 className="text-xl font-semibold text-foreground mb-4">AI Scans Reddit Daily</h3>
+              <p className="text-muted-foreground">
                 Your agent monitors relevant subreddits (r/ecommerce, r/skincare, r/supplements, r/DTC, and thousands more) looking for discussions that match your customer profile.
               </p>
             </div>
 
             {/* Step 3 */}
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-xl font-bold mx-auto mb-6">
+              <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 3
               </div>
-              <h3 className="text-xl font-semibold text-white mb-4">Get Insights You Can Use</h3>
-              <p className="text-white/70">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Get Insights You Can Use</h3>
+              <p className="text-muted-foreground">
                 Every day, you get a set of pain points, product requests, competitor mentions, and buying signals with direct links into each conversation.
               </p>
             </div>
@@ -400,41 +400,41 @@ export function WaitlistExperience(): ReactElement {
 
         {/* WHY REDDIT SECTION */}
         <div className="w-full max-w-3xl mx-auto px-4 py-16 z-10 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-8">
             Why Reddit Is Your Best Customer Research Channel
           </h2>
-          <p className="text-white/70 text-lg">
+          <p className="text-muted-foreground text-lg">
             Reddit is where your customers go to ask for honest recommendations, complain about products that fall short, and describe exactly what they would pay for, in their own words. Most ecommerce brands are not paying attention. LegitReach makes sure you are.
           </p>
         </div>
 
         {/* BUILT FOR ECOMMERCE SECTION */}
         <div className="w-full max-w-6xl mx-auto px-4 py-24 z-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-16">
             Built for Ecommerce Brands
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
             {/* Card 1 */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-green-500 mb-4">Product Research</h3>
-              <p className="text-white/70">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="text-xl font-semibold text-primary mb-4">Product Research</h3>
+              <p className="text-muted-foreground">
                 Find out what customers wish your competitors made. Spot feature requests and unmet needs before anyone else does.
               </p>
             </div>
 
             {/* Card 2 */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-green-500 mb-4">Customer Pain Points</h3>
-              <p className="text-white/70">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="text-xl font-semibold text-primary mb-4">Customer Pain Points</h3>
+              <p className="text-muted-foreground">
                 See the exact words your customers use to describe their problems. Put that language in your ads, landing pages, and product copy.
               </p>
             </div>
 
             {/* Card 3 */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-green-500 mb-4">Competitor Intelligence</h3>
-              <p className="text-white/70">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="text-xl font-semibold text-primary mb-4">Competitor Intelligence</h3>
+              <p className="text-muted-foreground">
                 Know what people love and hate about competing products. Find the gaps you can fill and the objections you need to handle.
               </p>
             </div>
@@ -443,14 +443,14 @@ export function WaitlistExperience(): ReactElement {
 
         {/* SOCIAL PROOF LINE */}
         <div className="w-full max-w-3xl mx-auto px-4 pb-8 z-10 text-center">
-          <p className="text-white/50 text-sm">
+          <p className="text-foreground/40 text-sm">
             Trusted by early stage ecommerce brands finding out what their customers actually want.
           </p>
         </div>
 
         {/* FAQ SECTION */}
         <div className="w-full max-w-3xl mx-auto px-4 py-24 z-10">
-          <h2 className="text-4xl font-bold text-green-500 text-center mb-12 uppercase tracking-widest">
+          <h2 className="text-4xl font-bold text-primary text-center mb-12 uppercase tracking-widest">
             FAQ
           </h2>
 

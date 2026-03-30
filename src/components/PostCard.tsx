@@ -49,13 +49,13 @@ export default function PostCard({
 
       {post.opportunity_type && (
         <div className={styles.opportunityBadge}>
-          💡 {post.opportunity_type}
+          {post.opportunity_type}
         </div>
       )}
 
       <div className={styles.postStats}>
-        <span>⬆️ {post.score}</span>
-        <span>💬 {post.num_comments} comments</span>
+        <span>{post.score} pts</span>
+        <span>{post.num_comments} comments</span>
       </div>
 
       <div className={styles.postActions}>

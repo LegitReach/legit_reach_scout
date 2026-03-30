@@ -218,7 +218,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className={styles.header}>
         <div>
-          <h1>✨ AI Opportunities</h1>
+          <h1>AI Opportunities</h1>
           <p>Hand-picked leads vetted for your business by LegitReach AI</p>
         </div>
         <div className={styles.keywords}>
@@ -256,7 +256,7 @@ export default function DashboardPage() {
       {/* AI Summary banner */}
       {curatedResults.length > 0 && curateSummary && !curating && !loading && (
         <div className={styles.aiSummary}>
-          <span>🤖</span>
+          <span>AI Summary</span>
           <p>{curateSummary}</p>
         </div>
       )}
@@ -274,14 +274,14 @@ export default function DashboardPage() {
           </div>
         ) : curatedResults.length === 0 ? (
           <div className={styles.empty}>
-            <p>🤖 AI found no high-priority leads right now.</p>
+            <p>No high-priority leads right now.</p>
             <p className={styles.emptyHint}>
               We scanned all communities but didn&apos;t find any posts that warrant immediate action.
             </p>
           </div>
         ) : visiblePosts.length === 0 ? (
           <div className={styles.empty}>
-            <p>🎉 All caught up! You&apos;ve handled all leads.</p>
+            <p>All caught up! You&apos;ve handled all leads.</p>
             <p className={styles.emptyHint}>
               Check back soon or try adding more keywords.
             </p>
