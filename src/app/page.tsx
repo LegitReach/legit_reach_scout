@@ -31,7 +31,7 @@ export default function Home() {
         <SignedOut>
           <Link
             href="/"
-            className="text-sm font-medium text-white bg-green-500 hover:bg-green-600 px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)]"
+            className="text-sm font-medium text-primary-foreground bg-primary hover:brightness-110 px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(114,227,173,0.3)] hover:shadow-[0_0_25px_rgba(114,227,173,0.5)]"
             onClick={() => {
               posthog.capture("try_for_free_clicked");
               // Scroll to scan input
@@ -44,7 +44,7 @@ export default function Home() {
           </Link>
           <SignInButton mode="modal">
             <button
-              className="text-sm font-medium text-white/70 hover:text-white px-4 py-2 rounded-full border border-white/10 hover:border-white/30 bg-black/40 backdrop-blur-md transition-all"
+              className="text-sm font-medium text-foreground/70 hover:text-foreground px-4 py-2 rounded-full border border-border hover:border-primary bg-card/40 backdrop-blur-md transition-all"
               onClick={() => posthog.capture("sign_in_clicked")}
             >
               Sign In
@@ -54,7 +54,7 @@ export default function Home() {
         <SignedIn>
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-white/90 hover:text-white px-4 py-2 rounded-full border border-green-500/30 hover:border-green-500 bg-green-500/10 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(34,197,94,0.1)] hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] mr-2"
+            className="text-sm font-medium text-foreground/90 hover:text-foreground px-4 py-2 rounded-full border border-primary/30 hover:border-primary bg-primary/10 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(114,227,173,0.1)] hover:shadow-[0_0_20px_rgba(114,227,173,0.3)] mr-2"
           >
             Go to Dashboard
           </Link>

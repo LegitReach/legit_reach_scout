@@ -231,7 +231,7 @@ function OnboardingContent() {
                                     disabled={selectedSubreddits.length === 0}
                                     onClick={handleManualComplete}
                                 >
-                                    Start Finding Opportunities 🚀
+                                    Start Finding Opportunities
                                 </button>
                             </div>
                         </div>
@@ -247,7 +247,7 @@ function OnboardingContent() {
             <div className={styles.card}>
                 <div className={styles.header}>
                     <div className={styles.badge}>Beta</div>
-                    <h1>✨ Magic Scan</h1>
+                    <h1>Magic Scan</h1>
                     <p>Enter your store URL to automatically configure your targeting.</p>
                 </div>
 
@@ -262,7 +262,7 @@ function OnboardingContent() {
                             required
                         />
                         <button className={styles.scanBtn} type="submit" disabled={!storeUrl}>
-                            Scan Store & Start 🚀
+                            Scan Store & Start
                         </button>
                     </form>
                 ) : (

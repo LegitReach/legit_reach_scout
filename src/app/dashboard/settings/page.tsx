@@ -109,13 +109,13 @@ export default function SettingsPage() {
     return (
         <div className={styles.page}>
             <header className={styles.header}>
-                <h1>⚙️ Settings</h1>
+                <h1>Settings</h1>
                 <p>Update your business profile, keywords, and communities</p>
             </header>
 
             {/* Keywords Section */}
             <section className={styles.section}>
-                <h2>🔍 Keywords</h2>
+                <h2>Keywords</h2>
                 <p className={styles.sectionDesc}>
                     Keywords help us find relevant Reddit discussions for your business.
                 </p>
@@ -144,7 +144,7 @@ export default function SettingsPage() {
 
             {/* Business Description Section */}
             <section className={styles.section}>
-                <h2>🏷️ Business Description</h2>
+                <h2>Business Description</h2>
                 <p className={styles.sectionDesc}>
                     Describe your business to help our AI surface better opportunities.
                 </p>
@@ -160,7 +160,7 @@ export default function SettingsPage() {
 
             {/* Communities Section */}
             <section className={styles.section}>
-                <h2>📍 Communities</h2>
+                <h2>Communities</h2>
                 <p className={styles.sectionDesc}>
                     Subreddits we monitor for opportunities.
                 </p>
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 <div className={styles.tags}>
                     {communities.map(c => (
                         <span key={c} className={styles.tag}>
-                            r/{c}
+                            {c.startsWith('r/') ? c : `r/${c}`}
                             <button onClick={() => removeCommunity(c)}>×</button>
                         </span>
                     ))}
@@ -191,7 +191,7 @@ export default function SettingsPage() {
                     className={styles.suggestBtn}
                     disabled={loadingSuggestions || keywords.length === 0}
                 >
-                    {loadingSuggestions ? "Finding suggestions..." : "🔄 Get AI Suggestions"}
+                    {loadingSuggestions ? "Finding suggestions..." : "Get AI Suggestions"}
                 </button>
 
                 {suggestedSubreddits.length > 0 && (

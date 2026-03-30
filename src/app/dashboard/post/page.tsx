@@ -229,8 +229,8 @@ function PostContent() {
                 </div>
 
                 <div className={styles.postStats}>
-                    <span>⬆️ {data.score}</span>
-                    <span>💬 {data.num_comments} comments</span>
+                    <span>{data.score} pts</span>
+                    <span>{data.num_comments} comments</span>
                     <a
                         href={data.permalink}
                         target="_blank"
@@ -247,7 +247,7 @@ function PostContent() {
                 {/* Public Reply Draft */}
                 <section className={styles.draftSection}>
                     <div className={styles.draftHeader}>
-                        <h2>📝 Draft Your Reply</h2>
+                        <h2>Draft Your Reply</h2>
                         <span className={styles.draftTypeBadge}>Public Comment</span>
                     </div>
                     <p className={styles.hint}>Best for community engagement and SEO visibility</p>
@@ -266,14 +266,14 @@ function PostContent() {
                             className={styles.aiBtn}
                             disabled={generatingAI}
                         >
-                            {generatingAI ? "✨ Generating..." : "✨ Generate with AI"}
+                            {generatingAI ? "Generating..." : "Generate with AI"}
                         </button>
                         <button
                             onClick={copyDraft}
                             className={styles.copyBtn}
                             disabled={!draft.trim()}
                         >
-                            {copied ? "✓ Copied!" : "📋 Copy"}
+                            {copied ? "Copied!" : "Copy"}
                         </button>
                         <a
                             href={data.permalink}
@@ -290,7 +290,7 @@ function PostContent() {
                 {/* Direct Message Draft */}
                 <section className={styles.draftSection}>
                     <div className={styles.draftHeader}>
-                        <h2>✉️ Draft a DM</h2>
+                        <h2>Draft a DM</h2>
                         <span className={styles.draftTypeBadgeDM}>Private Message</span>
                     </div>
                     <p className={styles.hint}>Best for high-ticket sales, calls, and personal outreach</p>
@@ -309,14 +309,14 @@ function PostContent() {
                             className={styles.aiBtnDM}
                             disabled={generatingAIDM}
                         >
-                            {generatingAIDM ? "✨ Generating..." : "✨ Generate with AI"}
+                            {generatingAIDM ? "Generating..." : "Generate with AI"}
                         </button>
                         <button
                             onClick={copyDMDraft}
                             className={styles.copyBtn}
                             disabled={!dmDraft.trim()}
                         >
-                            {copiedDM ? "✓ Copied!" : "📋 Copy"}
+                            {copiedDM ? "Copied!" : "Copy"}
                         </button>
                         <a
                             href={(!dmGenerated || !dmDraft.trim()) ? "#" : `https://www.reddit.com/message/compose/?to=${data.author}&subject=Re: ${encodeURIComponent(data.title.substring(0, 50))}&message=${encodeURIComponent(dmDraft)}`}

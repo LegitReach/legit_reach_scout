@@ -32,10 +32,10 @@
 .badge {
     display: inline-block;
     padding: 6px 12px;
-    background: rgba(255, 69, 0, 0.1);
-    border: 1px solid rgba(255, 69, 0, 0.2);
+    background: rgba(114, 227, 173, 0.12);
+    border: 1px solid rgba(114, 227, 173, 0.3);
     border-radius: var(--radius-full);
-    color: var(--color-primary);
+    color: var(--color-text-primary);
     font-size: var(--font-size-xs);
     font-weight: 700;
     text-transform: uppercase;
@@ -162,9 +162,9 @@
 }
 
 .tag {
-    background: rgba(255, 69, 0, 0.1);
-    color: var(--color-primary);
-    border: 1px solid rgba(255, 69, 0, 0.2);
+    background: rgba(114, 227, 173, 0.12);
+    color: var(--color-text-primary);
+    border: 1px solid rgba(114, 227, 173, 0.3);
     padding: 4px 12px;
     border-radius: var(--radius-full);
     font-size: var(--font-size-sm);
@@ -174,7 +174,7 @@
 }
 
 .tag button {
-    color: var(--color-primary);
+    color: var(--color-text-secondary);
     font-weight: bold;
 }
 
@@ -210,8 +210,8 @@
 
 .subredditBtn.selected {
     border-color: var(--color-primary);
-    background: rgba(255, 69, 0, 0.05);
-    color: var(--color-primary);
+    background: rgba(114, 227, 173, 0.1);
+    color: var(--color-text-primary);
 }
 
 .actions {
