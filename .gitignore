@@ -48,3 +48,4 @@ package-lock.json
 .env.local
 repository_observation.md
 onboarding_locations.md
+.agents/*
