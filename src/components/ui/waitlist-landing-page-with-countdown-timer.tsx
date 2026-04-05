@@ -19,6 +19,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useApp } from "@/context/AppContext"
+import { useAuth, useClerk } from "@clerk/nextjs"
 import posthog from "posthog-js"
 
 // Simple Accordion components for the FAQ since Shadcn is requested but we need something lightweight without complex install
@@ -64,16 +65,31 @@ export function WaitlistExperience(): ReactElement {
   const [storeUrl, setStoreUrl] = useState("")
   const [isScanning, setIsScanning] = useState(false)
 
-  const handleMagicScan = async () => {
-    if (!storeUrl) return
+  // Clerk hooks for auth state and sign-in modal
+  const { isSignedIn, isLoaded: authLoaded } = useAuth()
+  const { openSignIn } = useClerk()
+
+  // After sign-in completes, check for a pending scan URL and auto-trigger
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn) return
+    const pendingUrl = localStorage.getItem("lr_pending_scan_url")
+    if (pendingUrl) {
+      setStoreUrl(pendingUrl)
+      runMagicScan(pendingUrl)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoaded, isSignedIn])
+
+  const runMagicScan = async (urlToScan: string) => {
+    if (!urlToScan) return
     setIsScanning(true)
-    posthog.capture("magic_scan_started", { url: storeUrl })
+    posthog.capture("magic_scan_started", { url: urlToScan })
 
     try {
       const res = await fetch("/api/onboarding/magic-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: storeUrl }),
+        body: JSON.stringify({ url: urlToScan }),
       })
 
       const data = await res.json()
@@ -81,7 +97,7 @@ export function WaitlistExperience(): ReactElement {
       if (!res.ok) {
         if (res.status === 429 && data.redirectTo) {
           posthog.capture("magic_scan_rate_limited", { redirectTo: data.redirectTo })
-          window.location.href = data.redirectTo + "?returnUrl=/dashboard"
+          window.location.href = data.redirectTo + "?returnUrl=/terminal"
           return
         }
         throw new Error(data.error || "Failed to scan store")
@@ -100,8 +116,11 @@ export function WaitlistExperience(): ReactElement {
         subreddits: data.subreddits?.length
       })
 
-      // Redirect directly to dashboard
-      router.push("/dashboard")
+      // Clear pending URL — scan is done
+      localStorage.removeItem("lr_pending_scan_url")
+
+      // Redirect to the new Bloomberg terminal
+      router.push("/terminal")
     } catch (error) {
       console.error("Magic scan failed:", error)
       const errorMsg = error instanceof Error ? error.message : "We couldn't analyze your store automatically. Please try again or check the URL.";
@@ -109,6 +128,23 @@ export function WaitlistExperience(): ReactElement {
     } finally {
       setIsScanning(false)
     }
+  }
+
+  const handleMagicScan = async () => {
+    if (!storeUrl) return
+
+    // Always save the URL first (survives sign-in redirect)
+    localStorage.setItem("lr_pending_scan_url", storeUrl)
+
+    // If not signed in, open Clerk modal — scan triggers automatically after sign-in via the useEffect above
+    if (!isSignedIn) {
+      posthog.capture("magic_scan_requires_signin", { url: storeUrl })
+      openSignIn({ redirectUrl: "/" })
+      return
+    }
+
+    // Already signed in — run the scan now
+    await runMagicScan(storeUrl)
   }
 
   // Three.js background effect
@@ -302,17 +338,17 @@ export function WaitlistExperience(): ReactElement {
         {/* HERO SECTION */}
         <div className="flex flex-col flex-1 items-center justify-center min-h-screen px-4 w-full text-center max-w-4xl mx-auto pt-20">
           <p className="text-foreground/60 tracking-[0.2em] uppercase text-xs md:text-sm mb-6 font-medium">
-            Reddit Customer Insights for Ecommerce Brands
+            E-Commerce Management System
           </p>
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 tracking-tight leading-tight">
-            Find Your Ideal Customer Insights on Reddit
+            Your Brand&apos;s Command Center
             <br />
-            <span className="text-primary">For Free</span>
+            <span className="text-primary">Powered by AI</span>
           </h1>
 
           <p className="text-foreground/70 text-base md:text-lg max-w-2xl mx-auto mb-8">
-            An AI agent built around your ecommerce brand. It reads Reddit the way your ideal customer would, picking up pain points, product requests, and competitor gaps you can act on today.
+            Enter your store URL and get a Bloomberg-style terminal with real-time brand intelligence, AI-powered Reddit engagement, and growth insights.
           </p>
 
           <div className="mt-4 mb-4 flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md mx-auto">
@@ -457,19 +493,19 @@ export function WaitlistExperience(): ReactElement {
           <Accordion>
             <AccordionItem
               title="What is LegitReach?"
-              content="LegitReach is an AI agent built for ecommerce brands. It monitors Reddit around the clock to find real customer insights personalized to your brand. Think of it as a version of your ideal customer scanning Reddit 24/7, pulling up discussions where people talk about problems your product solves, features they wish existed, and competitors they are frustrated with."
+              content="LegitReach is an E-Commerce Management System (EMS) presented as a Bloomberg-style terminal. It centralizes real-time brand intelligence, tracks dynamic growth metrics, and utilizes autonomous AI agents to continuously scout the internet for actionable opportunities."
             />
             <AccordionItem
-              title="How is this different from manually searching Reddit or using alerts?"
-              content="Manual searches return keyword matches. LegitReach returns context. Our AI understands your brand, your product category, and your customer profile. It does not just find posts that contain your keywords. It finds posts where someone is describing a problem your product solves, even if they never mention your category by name. It is the difference between searching for 'skincare' and finding someone saying 'my face breaks out every winter and nothing helps.'"
+              title="How does the Bloomberg-style terminal work?"
+              content="Just like financial professionals use a terminal to monitor markets, LegitReach gives you a live, consolidated feed of everything happening around your brand. Instead of jumping between tabs, you get instant monitoring of news trends, integrated analytics (coming soon), and active AI agents all in one unified, data-dense view."
             />
             <AccordionItem
-              title="What kind of insights will I get?"
-              content="Every day you get Reddit discussions organized by type: customer pain points (what frustrates people), product requests (what people wish existed), competitor mentions (what people say about alternatives), and buying signals (people actively looking for a solution). Each insight links directly to the original Reddit thread so you can read the full context or engage."
+              title="What do the AI agents actually do?"
+              content="Our agents are designed to take action. For example, our Reddit Agent monitors conversations 24/7 to find highly relevant discussions where your brand can step in. It discovers customer pain points, competitor complaints, and buying signals across thousands of subreddits, pulling actionable intelligence directly into your terminal."
             />
             <AccordionItem
               title="Is it really free?"
-              content="Yes. Daily Reddit insights personalized to your brand are completely free. We are building LegitReach for ecommerce brands that want to understand their customers better, and now is the best time to join while we shape the product around early user feedback."
+              content="Yes. You can launch your EMS terminal and start the AI agents completely for free right now. We are actively building LegitReach alongside early adopting e-commerce brands, so early users get full access."
             />
           </Accordion>
         </div>
