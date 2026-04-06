@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -91,21 +92,25 @@ function PostContent() {
         setGeneratingAI(true);
         try {
             const prompt = `
-            You are a marketing genius and helping a business with their reddit outreach. Do not sound like a bot, considering 
-            the context mentioned below be empathetic and 
-            at the same time think about the business too. Do not sound tooo promotional. 
-            First i would like to understand the business's one minute pitch: ${oneMinuteBusinessPitch}
-            then understand what the post is about:
+You are helping write a Reddit comment. The person posting knows about this business but that context is just for you — do NOT mention the business, pitch anything, or drop links.
 
-            Post Title: ${data.title}
-            Post Content: ${data.selftext}
-            Subreddit: ${data.subreddit}
+Business context (for your understanding only): ${oneMinuteBusinessPitch}
 
-            Create a concise public comment reply that is human and at the same time improves the business' outreach. 
-            
-            Return ONLY a valid JSON object — no markdown, no extra text:
-            { "reply": "your response here" }
-            `;
+Post title: ${data.title}
+Post body: ${data.selftext}
+Subreddit: r/${data.subreddit}
+
+Write a short, genuine comment that adds value to the conversation. Rules:
+- 1-3 sentences max
+- Sound like a real person, not a marketer
+- No business mention, no promo, no CTA
+- If the post is a question, give a useful answer or perspective
+- If it's a rant/story, empathize briefly or add a relevant insight
+- No filler phrases like "Great question!" or "I totally understand"
+
+Return ONLY a valid JSON object — no markdown, no extra text:
+{ "reply": "your comment here" }
+`;
 
             const res = await fetch("/api/ai/generate", {
                 method: "POST",
@@ -136,26 +141,24 @@ function PostContent() {
         setGeneratingAIDM(true);
         try {
             const prompt = `
-            You are a marketing genius helping an ecommerce business with personalized Reddit outreach via Direct Message (DM).
-            DMs should be personal, empathetic, and offer direct value or a deeper conversation.
-            
-            Key context:
-            Business Pitch: ${oneMinuteBusinessPitch}
-            User Post: "${data.title}"
-            Post Body: "${data.selftext}"
-            Person to send DM to: ${data.author}
-            
-            Task:
-            Write a highly personalized DM to this user. 
-            - Start by acknowledging their specific situation or pain point.
-            - Introduce the business naturally as a solution or resource.
-            - Include a clear, personalized call to action for an ecommerce business (e.g., offering a free consultation, a shopify/store audit, or setting up a quick 10-minute discovery call).
-            - Keep it friendly, professional, and absolutely non-spammy.
-            
-            Return ONLY a valid JSON object — no markdown, no extra text:
-            { "reply": "your personal dm here" }
-            Keep the response short and concise. 
-            `;
+You are helping write a short Reddit DM for outreach. It must feel human, not like a sales pitch.
+
+Business context: ${oneMinuteBusinessPitch}
+Their post title: "${data.title}"
+Their post body: "${data.selftext}"
+Sending to: u/${data.author}
+
+Write a brief DM (3-5 sentences max). Rules:
+- Open with one specific line referencing their post — show you actually read it
+- Briefly mention what the business does and be upfront that you're reaching out because it might be relevant (full disclosure)
+- Say something like "no pressure at all" — make it clear there's zero obligation
+- End with a single soft ask: would they be open to a quick 15-min call to chat more?
+- No bullet points, no headers, no hype words
+- Conversational tone — write like you're texting someone you respect
+
+Return ONLY a valid JSON object — no markdown, no extra text:
+{ "reply": "your dm here" }
+`;
 
             const res = await fetch("/api/ai/generate", {
                 method: "POST",

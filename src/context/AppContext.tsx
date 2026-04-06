@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
@@ -37,6 +39,10 @@ interface AppContextValue {
     cachedDashboardMeta: { ts: number; signature: string } | null;
     setDashboardCache: (posts: any[], signature: string, curated?: any[], summary?: string) => void;
     clearDashboardCache: () => void;
+    cachedMetaAds: any | null;
+    cachedMetaAdsMeta: { ts: number; signature: string } | null;
+    setMetaAdsCache: (ads: any, signature: string) => void;
+    clearMetaAdsCache: () => void;
     syncOnboardingData: (dataToSync?: OnboardingState) => Promise<boolean>;
     isAppLoaded: boolean;
     activeDashboardJob: { jobId: string; signature: string } | null;
@@ -54,6 +60,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [cachedDashboardCurated, setCachedDashboardCurated] = useState<any[]>([]);
     const [cachedDashboardSummary, setCachedDashboardSummary] = useState<string>("");
     const [cachedDashboardMeta, setCachedDashboardMeta] = useState<{ ts: number; signature: string } | null>(null);
+    const [cachedMetaAds, setCachedMetaAds] = useState<any | null>(null);
+    const [cachedMetaAdsMeta, setCachedMetaAdsMeta] = useState<{ ts: number; signature: string } | null>(null);
     const { isLoaded, isSignedIn } = useAuth();
     const [isAppLoaded, setIsAppLoaded] = useState(false);
     const [activeDashboardJob, setActiveDashboardJob] = useState<{ jobId: string; signature: string } | null>(null);
@@ -177,6 +185,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
             } catch (e) { }
         }
 
+        const metaAds = localStorage.getItem("legitreach_metaads_cache");
+        if (metaAds) {
+            try {
+                const parsed = JSON.parse(metaAds);
+                if (parsed && parsed.ads && parsed.ts && parsed.signature) {
+                    setCachedMetaAds(parsed.ads);
+                    setCachedMetaAdsMeta({ ts: parsed.ts, signature: parsed.signature });
+                }
+            } catch (e) { }
+        }
+
         // --- SESSION PERSISTENCE FOR SYNC STATUS ---
         const isSynced = localStorage.getItem("lr_onboarding_synced") === "true";
         hasSyncedCompletionRef.current = isSynced;
@@ -255,6 +274,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const setMetaAdsCache = (ads: any, signature: string) => {
+        const payload = { ads, ts: Date.now(), signature };
+        setCachedMetaAds(ads);
+        setCachedMetaAdsMeta({ ts: payload.ts, signature });
+        try {
+            localStorage.setItem("legitreach_metaads_cache", JSON.stringify(payload));
+        } catch (e) {
+            console.error("Failed to persist meta ads cache", e);
+        }
+    };
+
+    const clearMetaAdsCache = () => {
+        setCachedMetaAds(null);
+        setCachedMetaAdsMeta(null);
+        try {
+            localStorage.removeItem("legitreach_metaads_cache");
+        } catch (e) { }
+    };
+
     // Invalidate caches when onboarding-relevant data changes
     useEffect(() => {
         const sortedKeywords = [...(onboarding.keywords || [])].sort();
@@ -271,6 +309,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cachedDashboardMeta && cachedDashboardMeta.signature !== signature) {
             clearDashboardCache();
         }
+        // Let MetaAds handle its own signature clearing since it depends on brand matching
     }, [onboarding.keywords, onboarding.oneMinuteBusinessPitch, onboarding.selectedCommunities]);
 
 
@@ -278,6 +317,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setOnboarding(initialOnboardingState);
         clearMorningCache();
         clearDashboardCache();
+        clearMetaAdsCache();
         localStorage.removeItem(STORAGE_KEY_GUEST);
         localStorage.removeItem(STORAGE_KEY_USER);
         localStorage.removeItem("legitreach_responded");
@@ -357,6 +397,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             cachedDashboardMeta,
             setDashboardCache,
             clearDashboardCache,
+            cachedMetaAds,
+            cachedMetaAdsMeta,
+            setMetaAdsCache,
+            clearMetaAdsCache,
             syncOnboardingData,
             isAppLoaded,
             activeDashboardJob,

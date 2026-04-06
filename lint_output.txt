@@ -1,0 +1,167 @@
+
+> legitreach@0.1.0 lint
+> eslint
+
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/__tests__/gemini.response.test.ts
+  130:17  warning  '_id' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  185:28  warning  '_cp' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  198:22  warning  '_s' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/api/checkout/route.ts
+  38:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/api/dashboard/curate/route.ts
+   8:7   warning  'CACHE_TTL' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  49:36  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  83:17  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/api/morning/brief/route.ts
+  39:52  warning  'subreddits' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/api/newsletter/route.ts
+  106:11  warning  'encoded' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/api/user/credits/route.ts
+  23:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/api/webhook/route.ts
+  19:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/auth/[[...rest]]/page.tsx
+  21:12  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/dashboard/page.tsx
+  57:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/dashboard/post/page.tsx
+  21:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/dashboard/settings/page.tsx
+  27:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/dashboard/settings/page.tsx:27:9
+  25 |     // Sync local state if onboarding changes externally
+  26 |     useEffect(() => {
+> 27 |         setKeywords(onboarding.keywords || []);
+     |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |         setBusinessDesc(onboarding.oneMinuteBusinessPitch || "");
+  29 |         setCommunities(onboarding.selectedCommunities || []);
+  30 |     }, [onboarding.keywords, onboarding.oneMinuteBusinessPitch, onboarding.selectedCommunities]);  react-hooks/set-state-in-effect
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/demo/page.tsx
+  51:28  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  80:34  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/subscribe/page.tsx
+  51:28  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/MetaAdsIntel.tsx
+  91:56  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/MetaAdsIntel.tsx:91:56
+  89 |
+  90 |   const oldestTs = Math.min(...results.map(r => r.start_date ?? Infinity));
+> 91 |   const daysRunning = isFinite(oldestTs) ? Math.floor((Date.now() / 1000 - oldestTs) / 86400) : null;
+     |                                                        ^^^^^^^^^^ Cannot call impure function
+  92 |   const isLongRunning = daysRunning !== null && daysRunning > 100;
+  93 |
+  94 |   const uniqueCodes = [...new Set(results.flatMap(r => findPromoCodes(getAdBody(r))))];  react-hooks/purity
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/loading-screen.tsx
+   72:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/loading-screen.tsx:72:9
+  70 |       if (saved) {
+  71 |         const parsed = JSON.parse(saved);
+> 72 |         setAnswers(parsed);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  73 |         // Advance poll index past answered questions
+  74 |         let nextIndex = 0;
+  75 |         for (let i = 0; i < POLLS.length; i++) {  react-hooks/set-state-in-effect
+   95:43  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/loading-screen.tsx:95:43
+  93 |
+  94 |   useEffect(() => {
+> 95 |     if (!redditLoading && activeStep < 2) setActiveStep(2);
+     |                                           ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  96 |   }, [redditLoading]);
+  97 |
+  98 |   useEffect(() => {                                                            react-hooks/set-state-in-effect
+   96:6   warning  React Hook useEffect has a missing dependency: 'activeStep'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+   99:41  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/loading-screen.tsx:99:41
+   97 |
+   98 |   useEffect(() => {
+>  99 |     if (!newsLoading && activeStep < 3) setActiveStep(3);
+      |                                         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  100 |   }, [newsLoading]);
+  101 |
+  102 |   useEffect(() => {                                                           react-hooks/set-state-in-effect
+  100:6   warning  React Hook useEffect has a missing dependency: 'activeStep'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/app/terminal/page.tsx
+   76:5   warning  'cachedDashboardSummary' is assigned a value but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  112:30  warning  'prev' is defined but never used                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  236:59  warning  React Hook useMemo has a missing dependency: 'keywords'. Either include it or remove the dependency array                                                                                                                                                                                                    react-hooks/exhaustive-deps
+  236:60  warning  React Hook useMemo has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                                                       react-hooks/exhaustive-deps
+  337:6   warning  React Hook useEffect has missing dependencies: 'activeDashboardJob', 'cachedDashboardCurated', 'cachedDashboardMeta', 'cachedDashboardPosts', 'keywords', 'onboarding.oneMinuteBusinessPitch', 'setDashboardCache', 'setDashboardJob', and 'subreddits'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  385:6   warning  React Hook useEffect has missing dependencies: 'keywords' and 'onboarding.oneMinuteBusinessPitch'. Either include them or remove the dependency array                                                                                                                                                        react-hooks/exhaustive-deps
+  474:6   warning  React Hook useEffect has a missing dependency: 'keywords'. Either include it or remove the dependency array                                                                                                                                                                                                  react-hooks/exhaustive-deps
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/components/RedditList.tsx
+  14:3  warning  'respondedPosts' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/components/Sidebar.tsx
+  52:11  warning  'handleReset' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/components/ui/waitlist-landing-page-with-countdown-timer.tsx
+  317:18  warning  The ref value 'mountRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'mountRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/context/AppContext.tsx
+   78:71  warning  'e' is defined but never used                                                                                                                     @typescript-eslint/no-unused-vars
+   80:72  warning  'e' is defined but never used                                                                                                                     @typescript-eslint/no-unused-vars
+  129:42  warning  'e' is defined but never used                                                                                                                     @typescript-eslint/no-unused-vars
+  152:8   warning  React Hook useEffect has missing dependencies: 'resetOnboarding' and 'syncOnboardingData'. Either include them or remove the dependency array     react-hooks/exhaustive-deps
+  167:22  warning  'e' is defined but never used                                                                                                                     @typescript-eslint/no-unused-vars
+  179:22  warning  'e' is defined but never used                                                                                                                     @typescript-eslint/no-unused-vars
+  276:8   warning  React Hook useEffect has missing dependencies: 'cachedDashboardMeta' and 'cachedMorningMeta'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/lib/curation-worker.ts
+   9:10  warning  'CurationEvents' is defined but never used       @typescript-eslint/no-unused-vars
+  18:7   warning  'EVENT_NAME' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/manthanadmane/ClaudeCode/LegitReach/legit_reach_scout/src/lib/withRateLimit.ts
+   2:10  warning  'checkRateLimit' is defined but never used  @typescript-eslint/no-unused-vars
+  17:14  warning  'err' is defined but never used             @typescript-eslint/no-unused-vars
+
+✖ 45 problems (15 errors, 30 warnings)
+

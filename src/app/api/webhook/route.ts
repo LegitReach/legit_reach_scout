@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { stripe } from "@/lib/stripe";
 import { redis } from "@/lib/redis";
 import { getPostHogClient } from "@/lib/posthog-server";

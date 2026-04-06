@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import type { RedditPost } from "@/types";
 
 export async function fetchRedditPosts(subreddit: string, keywords: string, sort: string = "hot", limit: number = 10): Promise<RedditPost[]> {

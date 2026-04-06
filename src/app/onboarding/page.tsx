@@ -72,6 +72,9 @@ function OnboardingContent() {
                 completed: true,
             });
 
+            // Persist URL so the terminal can use it for brand intelligence (Meta Ads, news, etc.)
+            localStorage.setItem("lr_pending_scan_url", storeUrl);
+
             posthog.capture("onboarding_completed", { method: "magic_scan" });
             router.push("/terminal");
 
