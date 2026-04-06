@@ -13,8 +13,8 @@ import styles from "./AuthHeader.module.css";
 export default function AuthHeader() {
   const pathname = usePathname();
 
-  // Hide on home page and dashboard as it's integrated into the custom nav/sidebar
-  if (pathname === '/' || pathname?.startsWith('/dashboard') || pathname?.startsWith('/morning')) {
+  // Hide on home page, dashboard, and terminal as they have custom navs
+  if (pathname === '/' || pathname?.startsWith('/dashboard') || pathname?.startsWith('/morning') || pathname?.startsWith('/terminal')) {
     return null;
   }
 

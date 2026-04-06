@@ -9,6 +9,9 @@ import styles from "./Sidebar.module.css";
 import { useApp } from "@/context/AppContext";
 
 const Icons = {
+    Terminal: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+    ),
     Search: () => (
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
     ),
@@ -21,8 +24,8 @@ const Icons = {
 };
 
 const navItems = [
-    { href: "/dashboard", icon: Icons.Search, label: "Opportunities" },
-    { href: "/morning", icon: Icons.Morning, label: "Daily Insights" },
+    { href: "/terminal", icon: Icons.Terminal, label: "Terminal" },
+    { href: "/dashboard", icon: Icons.Search, label: "Reddit Agent" },
     { href: "/dashboard/settings", icon: Icons.Settings, label: "Settings" },
 ];
 
@@ -54,7 +57,7 @@ export default function Sidebar() {
     return (
         <aside className={styles.sidebar}>
             <div className={styles.header}>
-                <Link href="/dashboard" className={styles.logo}>
+                <Link href="/terminal" className={styles.logo}>
                     <div className={styles.logoIcon}>
                         <Image src="/logo-lr.png" alt="LR" width={28} height={28} style={{ objectFit: 'contain' }} />
                     </div>
