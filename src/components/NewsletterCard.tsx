@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import styles from "./NewsletterCard.module.css";
 import type { RedditPost } from "@/types";
 
@@ -13,8 +14,16 @@ export default function NewsletterCard({
     post,
     viewHref,
 }: Props) {
+    const [now, setNow] = useState<number | null>(null);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setNow(Date.now());
+    }, []);
+
     const formatTime = (timestamp: number) => {
-        const hours = Math.floor((Date.now() / 1000 - timestamp) / 3600);
+        if (now === null) return "";
+        const hours = Math.floor((now / 1000 - timestamp) / 3600);
         if (hours < 1) return "Just now";
         if (hours < 24) return `${hours}h ago`;
         return `${Math.floor(hours / 24)}d ago`;

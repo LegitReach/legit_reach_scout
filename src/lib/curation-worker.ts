@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { redis, realtime } from "@/lib/redis";
 import type { RedditPost } from "@/types";
 import { getPostHogClient } from "@/lib/posthog-server";

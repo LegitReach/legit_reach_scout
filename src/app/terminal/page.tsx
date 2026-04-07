@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
@@ -9,6 +9,8 @@ import { useRealtime } from "@/hooks/useRealtime";
 import type { RedditPost, CuratedResult, DashboardCurateResponse } from "@/types";
 import styles from "./terminal.module.css";
 import LoadingScreen from "./loading-screen";
+import MetaAdsIntel, { type MetaAdsResponse } from "./MetaAdsIntel";
+import type { Update } from "@/app/api/updates/route";
 import posthog from "posthog-js";
 
 // ─── Types ───
@@ -77,6 +79,9 @@ export default function TerminalPage() {
     setDashboardCache,
     activeDashboardJob,
     setDashboardJob,
+    cachedMetaAds,
+    cachedMetaAdsMeta,
+    setMetaAdsCache,
   } = useApp();
 
   // ─── State ───
@@ -87,14 +92,25 @@ export default function TerminalPage() {
   const [trends, setTrends] = useState<TrendItem[]>([]);
   const [brandMeta, setBrandMeta] = useState<BrandMeta | null>(null);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [metaAds, setMetaAds] = useState<MetaAdsResponse | null>(null);
+  const [metaAdsLoading, setMetaAdsLoading] = useState(true);
+  const [metaAdsProgress, setMetaAdsProgress] = useState(0);
+  const [competitorAds, setCompetitorAds] = useState<MetaAdsResponse | null>(null);
+  const [manualBrandOverride, setManualBrandOverride] = useState<string | null>(null);
+  const [showAllNews, setShowAllNews] = useState(false);
+  const [showAllMeta, setShowAllMeta] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [updates, setUpdates] = useState<Update[]>([]);
+  const [showUpdates, setShowUpdates] = useState(false);
+  const [updatesUnread, setUpdatesUnread] = useState(false);
   const [clock, setClock] = useState("");
   const [terminalReady, setTerminalReady] = useState(false);
   const [credits, setCredits] = useState<{ credits: number; freeRequestsLeft: number; totalRemaining: number } | null>(null);
-  const { user } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
+  const wasSignedIn = useRef(isSignedIn);
 
   // Mobile menu/list states
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showAllNewsMobile, setShowAllNewsMobile] = useState(false);
   const [showAllRedditMobile, setShowAllRedditMobile] = useState(false);
   const [scoutingProgress, setScoutingProgress] = useState(0);
 
@@ -122,12 +138,39 @@ export default function TerminalPage() {
     }
   }, [redditLoading]);
 
+  // ─── Meta Ads Loading Progress ───
+  useEffect(() => {
+    if (metaAdsLoading) {
+      const start = Date.now();
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - start;
+        setMetaAdsProgress(() => {
+          if (elapsed <= 8000) return Math.floor((elapsed / 8000) * 85);
+          const extra = elapsed - 8000;
+          const next = 85 + Math.floor(extra / 1500);
+          return next < 99 ? next : 99;
+        });
+      }, 200);
+      return () => clearInterval(interval);
+    } else {
+      setMetaAdsProgress(100);
+    }
+  }, [metaAdsLoading]);
+
+  useEffect(() => {
+    if (isSignedIn) wasSignedIn.current = true;
+  }, [isSignedIn]);
+
   // ─── Redirect if not onboarded ───
   useEffect(() => {
     if (isAppLoaded && !onboarding.completed) {
-      router.push("/onboarding");
+      if (wasSignedIn.current && !isSignedIn) {
+        router.push("/");
+      } else {
+        router.push("/onboarding");
+      }
     }
-  }, [isAppLoaded, onboarding.completed, router]);
+  }, [isAppLoaded, onboarding.completed, isSignedIn, router]);
 
   // ─── Clock ───
   useEffect(() => {
@@ -147,6 +190,28 @@ export default function TerminalPage() {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // ─── Mobile detection ───
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // ─── Fetch Updates ───
+  useEffect(() => {
+    fetch("/api/updates")
+      .then((r) => r.json())
+      .then((data: Update[]) => {
+        setUpdates(data);
+        const lastSeen = localStorage.getItem("legitreach_updates_seen");
+        if (data.length > 0 && lastSeen !== data[0].date) {
+          setUpdatesUnread(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // ─── Fetch Credits ───
@@ -221,6 +286,7 @@ export default function TerminalPage() {
     enabled: !!currentJobId,
     channels: [`curate_${currentJobId}`],
     events: ["curation.update.data"],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onData: ({ data }: any) => {
       if (data.status === "completed") {
         const finalData = data.data;
@@ -359,6 +425,116 @@ export default function TerminalPage() {
     fetchNewsletter();
   }, [onboarding.completed]);
 
+  // ─── Meta Ads fetch (triggered once brandMeta is resolved) ───
+  useEffect(() => {
+    if (newsLoading) return; // still waiting for brandMeta
+
+    // Build a ranked list of company name candidates from the og:title and domain.
+    //
+    // Key insight: ScrapeCreators does fuzzy/contains matching on companyName.
+    // Short partial queries (e.g. "House of") will match unrelated brands.
+    //
+    // Strategy:
+    //   - Short title (≤3 meaningful words) → the whole title IS the brand name
+    //     e.g. "House of Rui" → try "House of Rui", then domain slug
+    //   - Long title (4+ words) → first word(s) are the brand, rest is product copy
+    //     e.g. "PharmAdva MedaCube™ Automatic Pill Dispenser" → try "PharmAdva", "PharmAdva MedaCube", domain slug
+    const rawTitle = brandMeta?.title ?? "";
+    const titleWords = rawTitle
+      .replace(/[™®©℠]/g, "")           // strip trademark symbols
+      .split(/[\s,.]+/)                   // split on whitespace/comma/dot
+      .map(w => w.replace(/[^a-zA-Z0-9&''-]/g, "")) // strip remaining punctuation
+      .filter(w => w.length >= 2);        // drop single-char words ("a", "&" stripped → "")
+
+    const domainSlug = (brandMeta?.domain ?? "")
+      .replace(/^www\./, "")
+      .split(".")[0];
+
+    const fullTitle = titleWords.join(" "); // cleaned title without trademark chars
+
+    const candidates =
+      titleWords.length <= 3
+        ? // Short title = the brand name itself — try it whole, then domain slug
+          [...new Set([fullTitle, domainSlug].filter(Boolean))]
+        : // Long title = first word is the brand, remainder is product/tagline
+          [...new Set([
+            titleWords[0],                      // e.g. "PharmAdva"
+            titleWords.slice(0, 2).join(" "),   // e.g. "PharmAdva MedaCube"
+            domainSlug,                         // e.g. "medacube"
+          ].filter(Boolean))];
+
+    const actualCandidates = manualBrandOverride 
+      ? [manualBrandOverride] 
+      : candidates;
+
+    if (actualCandidates.length === 0) {
+      setMetaAdsLoading(false);
+      return;
+    }
+
+    const cacheSignature = actualCandidates.join(",");
+    const CACHE_TTL = 1000 * 60 * 60 * 24;
+
+    if (
+      cachedMetaAdsMeta && 
+      cachedMetaAdsMeta.signature === cacheSignature &&
+      Date.now() - cachedMetaAdsMeta.ts < CACHE_TTL
+    ) {
+      setMetaAds(cachedMetaAds);
+      setMetaAdsLoading(false);
+      return;
+    }
+
+    console.log("[meta-ads] candidates →", actualCandidates);
+
+    let cancelled = false;
+    async function fetchMetaAds() {
+      setMetaAdsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/meta-ads?candidates=${encodeURIComponent(actualCandidates.join(","))}`
+        );
+        if (res.ok) {
+          const data: MetaAdsResponse = await res.json();
+          if (!cancelled) {
+            setMetaAds(data);
+            setMetaAdsCache(data, cacheSignature);
+          }
+        }
+
+      } catch (err) {
+        console.error("[meta-ads] fetch error:", err);
+      } finally {
+        if (!cancelled) setMetaAdsLoading(false);
+      }
+    }
+    fetchMetaAds();
+    return () => { cancelled = true; };
+  }, [newsLoading, brandMeta?.title, brandMeta?.domain, manualBrandOverride, setMetaAdsCache, cachedMetaAdsMeta, cachedMetaAds]);
+
+  // ─── Competitor ads fetch — fires when brand has no active ads ───
+  useEffect(() => {
+    if (metaAdsLoading) return;
+    if (!metaAds || (metaAds.results?.length ?? 0) > 0) return;
+    if (keywords.length === 0) return;
+
+    async function fetchCompetitorAds() {
+      const candidates = keywords.slice(0, 4).join(",");
+      try {
+        const res = await fetch(
+          `/api/meta-ads?candidates=${encodeURIComponent(candidates)}`
+        );
+        if (res.ok) {
+          const data: MetaAdsResponse = await res.json();
+          setCompetitorAds(data);
+        }
+      } catch (err) {
+        console.error("[meta-ads] competitor fetch error:", err);
+      }
+    }
+    fetchCompetitorAds();
+  }, [metaAds, metaAdsLoading]);
+
   // ─── Determine if terminal is ready ───
   useEffect(() => {
     // Terminal is ready when at least one data source is loaded
@@ -452,6 +628,23 @@ export default function TerminalPage() {
           </button>
           <span className={styles.terminalLogo}>LegitReach</span>
           <span className={styles.terminalBadge}>EMS Terminal</span>
+          <button
+            className={styles.updatesBtn}
+            onClick={() => {
+              setShowUpdates(true);
+              setUpdatesUnread(false);
+              if (updates.length > 0) {
+                localStorage.setItem("legitreach_updates_seen", updates[0].date);
+              }
+            }}
+            aria-label="Recent updates"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            {updatesUnread && <span className={styles.updatesDot} />}
+          </button>
         </div>
 
         <div className={styles.topBarCenter}>
@@ -465,6 +658,35 @@ export default function TerminalPage() {
           <span className={styles.clock}>{clock}</span>
         </div>
       </div>
+
+      {/* ── Updates Modal ── */}
+      {showUpdates && (
+        <div className={styles.updatesOverlay} onClick={() => setShowUpdates(false)}>
+          <div className={styles.updatesDrawer} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.updatesHeader}>
+              <span className={styles.updatesTitle}>What&apos;s New</span>
+              <button className={styles.updatesClose} onClick={() => setShowUpdates(false)}>×</button>
+            </div>
+            <div className={styles.updatesList}>
+              {updates.length === 0 ? (
+                <p className={styles.updatesEmpty}>No updates yet.</p>
+              ) : updates.map((u, i) => (
+                <div key={i} className={styles.updateEntry}>
+                  <div className={styles.updateMeta}>
+                    <span className={styles.updateDate}>{u.date}</span>
+                    {u.title && <span className={styles.updateEntryTitle}>{u.title}</span>}
+                  </div>
+                  <ul className={styles.updateItems}>
+                    {u.items.map((item, j) => (
+                      <li key={j}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Left Panel: Data Sources ── */}
       <div className={`${styles.panelLeft} ${isMobileMenuOpen ? styles.mobileOpen : ""}`}>
@@ -496,7 +718,7 @@ export default function TerminalPage() {
           </button>
           <SignedIn>
             <div className={styles.userRow}>
-              <UserButton appearance={{ elements: { avatarBox: { width: 28, height: 28 } } }} />
+              <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: 28, height: 28 } } }} />
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.firstName || "Account"}</span>
                 <span className={styles.creditsText}>
@@ -508,19 +730,18 @@ export default function TerminalPage() {
         </div>
       </div>
 
-      {/* ── Center Panel: Newsletter ── */}
+      {/* ── Center Panel: Brand Intelligence ── */}
       <div className={styles.panelCenter}>
+        {/* ── News sub-section ── */}
         <div className={styles.panelHeader}>
-          <span className={styles.panelTitle}>Brand Intelligence</span>
+          <span className={styles.panelTitle}>Industry News</span>
           <span className={styles.panelSubtitle}>LAST 24H</span>
         </div>
 
         {newsLoading ? (
           <div className={styles.newsLoading}>
             <div className={styles.loadingDots}>
-              <span></span>
-              <span></span>
-              <span></span>
+              <span></span><span></span><span></span>
             </div>
             <span className={styles.loadingText}>Scanning sources...</span>
           </div>
@@ -533,21 +754,15 @@ export default function TerminalPage() {
           </div>
         ) : (
           <>
-            <div className={`${styles.newsletterFeed} ${showAllNewsMobile ? styles.expanded : ""}`}>
-              {newsArticles.map((article, i) => (
-                <div key={i} className={styles.newsCard}>
+            <div className={`${styles.newsletterFeed} ${showAllNews ? styles.expanded : ""}`}>
+              {(showAllNews ? newsArticles : newsArticles.slice(0, 2)).map((article, i) => (
+                <div key={i} className={`${styles.newsCard}${i >= 1 && !showAllNews ? ` ${styles.newsCardMobileHide}` : ""}`}>
                   <div className={styles.newsCardHeader}>
                     <span className={styles.newsSource}>{article.source}</span>
-                    <span className={styles.newsTime}>
-                      {formatNewsTime(article.timestamp)}
-                    </span>
+                    <span className={styles.newsTime}>{formatNewsTime(article.timestamp)}</span>
                   </div>
                   <div className={styles.newsTitle}>
-                    <a
-                      href={article.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={article.url} target="_blank" rel="noopener noreferrer">
                       {article.title}
                     </a>
                   </div>
@@ -557,36 +772,98 @@ export default function TerminalPage() {
                 </div>
               ))}
             </div>
-            
             {newsArticles.length > 2 && (
-              <button 
-                className={styles.mobileShowMore} 
-                onClick={() => setShowAllNewsMobile(!showAllNewsMobile)}
+              <button
+                className={`${styles.readMoreBtn} ${styles.readMoreBtnDesktop}`}
+                onClick={() => setShowAllNews((v) => !v)}
               >
-                {showAllNewsMobile ? "Show Less" : `Show More (${newsArticles.length - 2} hidden)`}
+                {showAllNews ? "Show less" : `Read more (${newsArticles.length - 2} more)`}
               </button>
             )}
-
-            {/* Trends */}
-            {trends.length > 0 && (
-              <div className={styles.trendsSection}>
-                <div className={styles.panelHeader} style={{ padding: "0 0 8px 0", borderBottom: "none" }}>
-                  <span className={styles.panelTitle}>Trending</span>
-                  <span className={styles.panelSubtitle}>GOOGLE TRENDS</span>
-                </div>
-                <div className={styles.trendsList}>
-                  {trends.map((trend, i) => (
-                    <div key={i} className={styles.trendTag}>
-                      <span>{trend.keyword}</span>
-                      <span className={styles.trendTraffic}>
-                        {trend.interest}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {newsArticles.length > 1 && (
+              <button
+                className={`${styles.readMoreBtn} ${styles.readMoreBtnMobile}`}
+                onClick={() => setShowAllNews((v) => !v)}
+              >
+                {showAllNews ? "Show less" : `Read more (${newsArticles.length - 1} more)`}
+              </button>
             )}
           </>
+        )}
+
+        {/* ── Meta Ads Intel sub-section ── */}
+        <div className={styles.panelHeader} style={{ marginTop: 4 }}>
+          <span className={styles.panelTitle}>Meta Ads Intel</span>
+          <div className={styles.panelHeaderActions}>
+            <span className={styles.panelSubtitle}>AD LIBRARY</span>
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11px', marginBottom: '8px', color: '#94a3b8' }}>
+           Not your brand? &nbsp; 
+           <button onClick={() => {
+              const url = window.prompt("Enter Brand Name or Facebook Page URL (e.g. facebook.com/brand):");
+              if (url) {
+                 const match = url.match(/facebook\.com\/([^\/?#]+)/i);
+                 const override = match ? match[1] : url.trim();
+                 if (override) {
+                   setManualBrandOverride(override);
+                   setMetaAds(null);
+                   setCompetitorAds(null);
+                 }
+              }
+           }} style={{ color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+             Rescan
+           </button>
+        </div>
+
+        {metaAdsLoading ? (
+          <div className={styles.newsLoading}>
+            <div className={styles.loadingDots}>
+              <span></span><span></span><span></span>
+            </div>
+            <span className={styles.loadingText} style={{ color: "#a78bfa" }}>
+              Scanning Meta Ad Library... {metaAdsProgress}%
+            </span>
+          </div>
+        ) : metaAds && (metaAds.results?.length ?? 0) > 0 ? (
+          <>
+            <MetaAdsIntel data={metaAds} collapsed={isMobile && !showAllMeta} />
+            <button
+              className={`${styles.readMoreBtn} ${styles.readMoreBtnMobile}`}
+              onClick={() => setShowAllMeta((v) => !v)}
+            >
+              {showAllMeta ? "Show less" : "Read more"}
+            </button>
+          </>
+        ) : metaAds && (metaAds.results?.length ?? 0) === 0 ? (
+          <>
+            <MetaAdsIntel data={metaAds} competitorData={competitorAds} collapsed={isMobile && !showAllMeta} />
+            <button
+              className={`${styles.readMoreBtn} ${styles.readMoreBtnMobile}`}
+              onClick={() => setShowAllMeta((v) => !v)}
+            >
+              {showAllMeta ? "Show less" : "Read more"}
+            </button>
+          </>
+        ) : null}
+
+        {/* ── Trends sub-section ── */}
+        {trends.length > 0 && (
+          <div className={styles.trendsSection}>
+            <div className={styles.panelHeader} style={{ padding: "0 0 8px 0", borderBottom: "none" }}>
+              <span className={styles.panelTitle}>Trending</span>
+              <span className={styles.panelSubtitle}>GOOGLE TRENDS</span>
+            </div>
+            <div className={styles.trendsList}>
+              {trends.map((trend, i) => (
+                <div key={i} className={styles.trendTag}>
+                  <span>{trend.keyword}</span>
+                  <span className={styles.trendTraffic}>{trend.interest}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
@@ -668,18 +945,10 @@ export default function TerminalPage() {
               <div className={styles.agentActions}>
                 <Link
                   href={
-                    topOpportunities[0]
-                      ? `/dashboard/post?id=${topOpportunities[0].id}`
-                      : "/dashboard"
+                    "/dashboard"
                   }
                   className={styles.invokeBtn}
                   onClick={() => {
-                    if (topOpportunities[0]) {
-                      sessionStorage.setItem(
-                        `reddit_post_${topOpportunities[0].id}`,
-                        JSON.stringify(topOpportunities[0])
-                      );
-                    }
                     posthog.capture("terminal_invoke_reddit_agent");
                   }}
                 >
