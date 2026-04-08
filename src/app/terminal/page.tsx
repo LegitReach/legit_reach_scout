@@ -1,17 +1,52 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
-import { UserButton, SignedIn, useUser } from "@clerk/nextjs";
+import { UserButton, SignedIn, useUser, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useRealtime } from "@/hooks/useRealtime";
 import type { RedditPost, CuratedResult, DashboardCurateResponse } from "@/types";
 import styles from "./terminal.module.css";
 import LoadingScreen from "./loading-screen";
-import MetaAdsIntel, { type MetaAdsResponse } from "./MetaAdsIntel";
+import type { MetaAdsResponse } from "./MetaAdsIntel";
+import CompetitiveIntelPane from "./CompetitiveIntelPane";
 import type { Update } from "@/app/api/updates/route";
 import posthog from "posthog-js";
+
+// ─── Daily Checklist Items ───
+const DAILY_TASKS = [
+  { id: "seo", name: "SEO Check", desc: "Review rankings, fix broken links", icon: "🔍" },
+  { id: "geo", name: "GEO Optimize", desc: "Check local listings, update NAP", icon: "🌐" },
+  { id: "community", name: "Community Engage", desc: "Reply to 3 posts in your niche", icon: "💬" },
+];
+
+const ON_DEMAND_SERVICES = [
+  { id: "creatives", name: "Ad Creatives", desc: "Custom visuals in 24h", price: "$29", iconType: "palette" },
+  { id: "seo", name: "SEO Blogs", desc: "Keyword-optimized articles in 24h", price: "$19", iconType: "file" },
+  { id: "twitter", name: "X (Twitter) Posts", desc: "Engagement-optimized threads", price: "$19", iconType: "hash" },
+];
+
+// SVG icon components for on-demand services
+const ServiceIcon = ({ type }: { type: string }) => {
+  if (type === "palette") return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12" r=".5" fill="currentColor"/>
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+    </svg>
+  );
+  if (type === "file") return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+    </svg>
+  );
+  if (type === "hash") return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+    </svg>
+  );
+  return null;
+};
 
 // ─── Types ───
 interface NewsArticle {
@@ -106,6 +141,7 @@ export default function TerminalPage() {
   const [clock, setClock] = useState("");
   const [terminalReady, setTerminalReady] = useState(false);
   const [credits, setCredits] = useState<{ credits: number; freeRequestsLeft: number; totalRemaining: number } | null>(null);
+  const [showAllNewsMobile, setShowAllNewsMobile] = useState(false);
   const { user, isLoaded, isSignedIn } = useUser();
   const wasSignedIn = useRef(isSignedIn);
 
@@ -113,6 +149,19 @@ export default function TerminalPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showAllRedditMobile, setShowAllRedditMobile] = useState(false);
   const [scoutingProgress, setScoutingProgress] = useState(0);
+
+  // Daily checklist
+  const [checkedTasks, setCheckedTasks] = useState<Record<string, boolean>>({});
+  
+  // On-demand coming soon modal
+  const [comingSoonService, setComingSoonService] = useState<string | null>(null);
+
+  // Settings modal
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsUrl, setSettingsUrl] = useState("");
+
+  // Guide Popup
+  const [showGuide, setShowGuide] = useState(false);
 
   // ─── exact Loading Escelation for Scouting ───
   useEffect(() => {
@@ -200,6 +249,25 @@ export default function TerminalPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // ─── Daily Checklist (reset each day) ───
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const key = `lr_checklist_${today}`;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) setCheckedTasks(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleTask = (taskId: string) => {
+    setCheckedTasks((prev) => {
+      const next = { ...prev, [taskId]: !prev[taskId] };
+      const today = new Date().toISOString().split("T")[0];
+      try { localStorage.setItem(`lr_checklist_${today}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   // ─── Fetch Updates ───
   useEffect(() => {
     fetch("/api/updates")
@@ -215,32 +283,38 @@ export default function TerminalPage() {
   }, []);
 
   // ─── Fetch Credits ───
-  useEffect(() => {
-    async function fetchCredits() {
-      try {
-        const res = await fetch("/api/user/credits");
-        if (res.ok) {
-          const data = await res.json();
-          setCredits(data);
-        }
-      } catch {}
-    }
-    fetchCredits();
+  const refreshCredits = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/credits");
+      if (res.ok) {
+        const data = await res.json();
+        setCredits(data);
+      }
+    } catch {}
   }, []);
 
-  // ─── Rescan URL (Settings) ───
-  const handleRescan = async () => {
-    const newUrl = window.prompt("Enter new e-commerce URL to scan (e.g. houseofrui.com):");
-    if (!newUrl || !newUrl.trim()) return;
+  useEffect(() => {
+    refreshCredits();
+  }, [refreshCredits]);
 
-    const urlToScan = newUrl.trim();
-    setTerminalReady(false); // Show loading screen
+  // ─── Open Settings Modal ───
+  const openSettings = () => {
+    const storedUrl = typeof window !== "undefined" ? localStorage.getItem("lr_pending_scan_url") || "" : "";
+    setSettingsUrl(storedUrl);
+    setShowSettings(true);
+  };
+
+  // ─── Rescan URL (Settings) ───
+  const handleRescan = async (urlToScan: string) => {
+    if (!urlToScan.trim()) return;
+    setShowSettings(false);
+    setTerminalReady(false);
 
     try {
       const res = await fetch("/api/onboarding/magic-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: urlToScan }),
+        body: JSON.stringify({ url: urlToScan.trim() }),
       });
 
       const data = await res.json();
@@ -259,10 +333,9 @@ export default function TerminalPage() {
         completed: true,
       });
 
-      localStorage.setItem("lr_pending_scan_url", urlToScan);
-      posthog.capture("terminal_rescan", { url: urlToScan });
+      localStorage.setItem("lr_pending_scan_url", urlToScan.trim());
+      posthog.capture("terminal_rescan", { url: urlToScan.trim() });
 
-      // Clean cache so we get fresh Reddit posts
       window.location.reload();
     } catch (error) {
       console.error("Rescan failed:", error);
@@ -540,10 +613,22 @@ export default function TerminalPage() {
     // Terminal is ready when at least one data source is loaded
     if (!redditLoading || !newsLoading) {
       // Small delay for smooth transition
-      const timer = setTimeout(() => setTerminalReady(true), 600);
+      const timer = setTimeout(() => {
+        setTerminalReady(true);
+        // Check if we need to show the guide
+        const hasSeenGuide = localStorage.getItem("lr_terminal_guide_seen");
+        if (!hasSeenGuide) {
+          setShowGuide(true);
+        }
+      }, 600);
       return () => clearTimeout(timer);
     }
   }, [redditLoading, newsLoading]);
+
+  const dismissGuide = () => {
+    localStorage.setItem("lr_terminal_guide_seen", "true");
+    setShowGuide(false);
+  };
 
   // ─── Top 2 Reddit Opportunities ───
   const topOpportunities = useMemo<RedditPost[]>(() => {
@@ -650,7 +735,12 @@ export default function TerminalPage() {
         <div className={styles.topBarCenter}>
           <div className={styles.brandPill}>
             <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', animation: 'blink 2s ease infinite' }}></span>
-            <span>{brandMeta?.brandName || brandMeta?.domain || keywords[0] || "Brand"}</span>
+            <span>
+              {brandMeta?.brandName || 
+               (brandMeta?.domain && brandMeta.domain.split('.')[0].charAt(0).toUpperCase() + brandMeta.domain.split('.')[0].slice(1)) || 
+               keywords[0] || 
+               "Brand"}
+            </span>
           </div>
         </div>
 
@@ -688,33 +778,77 @@ export default function TerminalPage() {
         </div>
       )}
 
-      {/* ── Left Panel: Data Sources ── */}
+      {/* ── Left Panel: Data Connections + Daily Tasks ── */}
       <div className={`${styles.panelLeft} ${isMobileMenuOpen ? styles.mobileOpen : ""}`}>
         <div className={styles.panelHeader}>
-          <span className={styles.panelTitle}>Data Sources</span>
+          <span className={styles.panelTitle}>LegitReach</span>
           <div className={styles.panelHeaderActions}>
-            <span className={styles.panelSubtitle}>INTEGRATIONS</span>
             <button className={styles.mobileCloseBtn} onClick={() => setIsMobileMenuOpen(false)}>×</button>
           </div>
         </div>
+
+        {/* Data Connections */}
         <div className={styles.dataSourceList}>
-          {DATA_SOURCES.map((ds) => (
-            <div key={ds.name} className={styles.dataSourceItem}>
-              <div className={styles.dsIcon}><ds.icon /></div>
-              <div className={styles.dsInfo}>
-                <div className={styles.dsName}>{ds.name}</div>
-                <div className={styles.dsDesc}>{ds.desc}</div>
+          <div style={{ padding: '8px 12px 4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>Data Connections</div>
+          <div className={styles.dataSourceItem}>
+            <div className={styles.dsIcon}><DSIcons.Ads /></div>
+            <div className={styles.dsInfo}>
+              <div className={styles.dsName}>Meta Ads</div>
+              <div className={styles.dsDesc}>Connect your Meta ad account</div>
+            </div>
+            <span className={`${styles.dsBadge} ${styles.comingSoon}`}>Coming Soon</span>
+          </div>
+          <div className={styles.dataSourceItem}>
+            <div className={styles.dsIcon} style={{ color: '#4285f4' }}><DSIcons.Analytics /></div>
+            <div className={styles.dsInfo}>
+              <div className={styles.dsName}>Google Ads</div>
+              <div className={styles.dsDesc}>Connect your Google ad account</div>
+            </div>
+            <span className={`${styles.dsBadge} ${styles.comingSoon}`}>Coming Soon</span>
+          </div>
+        </div>
+
+        {/* Perks */}
+        <div className={styles.dailyChecklist} style={{ paddingBottom: '0' }}>
+           <div className={styles.checklistTitle} style={{ color: '#ff4500' }}>Perks</div>
+           <a href="https://www.business.reddit.com/pro" target="_blank" rel="noreferrer" className={styles.dataSourceItem} style={{ textDecoration: 'none', background: 'rgba(255, 69, 0, 0.05)', borderColor: 'rgba(255, 69, 0, 0.2)' }}>
+              <div className={styles.dsIcon} style={{ color: '#ff4500' }}>
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22 11.5c0-1.38-1.12-2.5-2.5-2.5-.66 0-1.26.26-1.72.69-.1-.06-.21-.11-.32-.16l-3.23.6-1.57-7.39c-.06-.29.13-.56.42-.62l4.63-1 .28 1.34c.03.15.17.26.32.26h.02c.18 0 .32-.15.32-.33V.94c0-.18-.15-.32-.32-.32h-.05c-.32.01-.6.23-.66.55l-5.11 1.09c-.11.02-.21.09-.27.18-.06.1-.08.21-.06.32l1.69 7.97c-.12.06-.23.13-.34.2-2.85-1.59-6.3-1.59-9.15 0-.11-.07-.22-.14-.34-.2l1.69-7.97c.02-.11 0-.22-.06-.32-.06-.09-.16-.16-.27-.18l-5.11-1.09c-.06-.32-.34-.54-.66-.55h-.05c-.17 0-.32.14-.32.32v1.17c0 .18.14.33.32.33h.02c.15 0 .29-.11.32-.26l.28-1.34 4.63 1c.29.06.48.33.42.62l-1.57 7.39c-.11.05-.22.1-.32.16-.46-.43-1.06-.69-1.72-.69C1.12 9 0 10.12 0 11.5c0 1 .59 1.86 1.45 2.25-.03.16-.05.32-.05.47 0 3.73 4.74 6.75 10.6 6.75s10.6-3.02 10.6-6.75c0-.15-.02-.31-.05-.47.86-.39 1.45-1.25 1.45-2.25zm-20.89 0c0-.77.62-1.39 1.39-1.39.39 0 .74.16.99.42-.81.65-1.46 1.46-1.9 2.37-.29-.39-.48-.87-.48-1.4zm6.65 6.13c-1.36.03-2.61-.39-3.6-1.12-.15-.11-.18-.32-.07-.47.11-.15.32-.18.47-.07.85.63 1.95.99 3.16.96 1.37-.02 2.62-.48 3.55-1.24.13-.11.33-.08.44.05.11.13.08.33-.05.44-1.07.88-2.49 1.43-3.9 1.45zm-2.02-3.13c-.63 0-1.14-.51-1.14-1.14 0-.63.51-1.14 1.14-1.14.63 0 1.14.51 1.14 1.14 0 .63-.51 1.14-1.14 1.14zm7.44 0c-.63 0-1.14-.51-1.14-1.14 0-.63.51-1.14 1.14-1.14.63 0 1.14.51 1.14 1.14 0 .63-.51 1.14-1.14 1.14zm4.27-2.64c-.44-.91-1.09-1.72-1.9-2.37.25-.26.6-.42.99-.42.77 0 1.39.62 1.39 1.39 0 .53-.19 1.01-.48 1.4z"/></svg>
               </div>
-              <span className={`${styles.dsBadge} ${styles.comingSoon}`}>
-                Soon
-              </span>
+              <div className={styles.dsInfo}>
+                <div className={styles.dsName} style={{ color: '#fff' }}>Get Reddit Pro</div>
+                <div className={styles.dsDesc}>Claim your free perk & setup ads</div>
+              </div>
+              <span className={styles.dsBadge} style={{ background: '#ff4500', color: '#fff', border: 'none' }}>Free</span>
+           </a>
+        </div>
+
+        {/* Daily Brand Tasks */}
+        <div className={styles.dailyChecklist}>
+          <div className={styles.checklistTitle}>Daily Brand Tasks</div>
+          <div className={styles.checklistSubtext}>Complete daily tasks to boost brand presence</div>
+          {DAILY_TASKS.map((task) => (
+            <div
+              key={task.id}
+              className={`${styles.checklistItem} ${checkedTasks[task.id] ? styles.completed : ""}`}
+              onClick={() => toggleTask(task.id)}
+            >
+              <div className={`${styles.checklistCheck} ${checkedTasks[task.id] ? styles.checked : ""}`}>
+                {checkedTasks[task.id] ? "✓" : ""}
+              </div>
+              <div className={styles.checklistItemInfo}>
+                <div className={styles.checklistItemName}>{task.name}</div>
+                <div className={styles.checklistItemDesc}>{task.desc}</div>
+              </div>
+              <span className={styles.checklistItemIcon}>{task.icon}</span>
             </div>
           ))}
         </div>
+
         <div className={styles.panelFooter}>
-          <button className={styles.settingsBtn} onClick={handleRescan}>
+          <button className={styles.settingsBtn} onClick={openSettings}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            Settings (Rescan URL)
+            Settings
           </button>
           <SignedIn>
             <div className={styles.userRow}>
@@ -727,126 +861,87 @@ export default function TerminalPage() {
               </div>
             </div>
           </SignedIn>
+
+          <SignedOut>
+            <div className={styles.userRow}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}>G</div>
+              <div className={styles.userInfo}>
+                {credits?.totalRemaining === 0 ? (
+                  <SignInButton mode="modal">
+                     <button style={{ background: 'transparent', border: 'none', color: '#4ade80', fontSize: '11px', cursor: 'pointer', padding: 0, textDecoration: 'underline', textAlign: 'left' }}>
+                       Sign in for 3 free credits
+                     </button>
+                  </SignInButton>
+                ) : (
+                  <>
+                    <span className={styles.userName}>Guest</span>
+                    <span className={styles.creditsText}>
+                      {credits ? `${credits.totalRemaining} credits left` : "Loading..."}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </SignedOut>
         </div>
       </div>
 
-      {/* ── Center Panel: Brand Intelligence ── */}
+      {/* ── Center Panel: Competitive Intelligence ── */}
       <div className={styles.panelCenter}>
-        {/* ── News sub-section ── */}
         <div className={styles.panelHeader}>
-          <span className={styles.panelTitle}>Industry News</span>
-          <span className={styles.panelSubtitle}>LAST 24H</span>
+          <span className={styles.panelTitle}>Competitive Intelligence</span>
+          <span className={styles.panelSubtitle}>POWERED BY YOUR STORE DATA</span>
         </div>
 
-        {newsLoading ? (
-          <div className={styles.newsLoading}>
-            <div className={styles.loadingDots}>
-              <span></span><span></span><span></span>
+        {/* Competitive Intelligence Pane */}
+        <CompetitiveIntelPane
+          domain={brandMeta?.domain || ""}
+          brandName={brandMeta?.brandName || brandMeta?.title || keywords[0] || ""}
+          keywords={keywords}
+          onScanComplete={refreshCredits}
+        />
+
+        {/* ── Industry Pulse (reuses news data) ── */}
+        {newsArticles.length > 0 && (
+          <div className={styles.industryPulse}>
+            <div className={styles.panelHeader} style={{ padding: '0 0 8px 0', borderBottom: 'none' }}>
+              <span className={styles.panelTitle}>Industry Pulse</span>
             </div>
-            <span className={styles.loadingText}>Scanning sources...</span>
-          </div>
-        ) : newsArticles.length === 0 ? (
-          <div className={styles.emptyState}>
-            <div className={styles.emptyTitle}>No articles found</div>
-            <div className={styles.emptyDesc}>
-              We&apos;ll keep scanning for brand mentions and industry news.
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className={`${styles.newsletterFeed} ${showAllNews ? styles.expanded : ""}`}>
-              {(showAllNews ? newsArticles : newsArticles.slice(0, 2)).map((article, i) => (
-                <div key={i} className={`${styles.newsCard}${i >= 1 && !showAllNews ? ` ${styles.newsCardMobileHide}` : ""}`}>
-                  <div className={styles.newsCardHeader}>
-                    <span className={styles.newsSource}>{article.source}</span>
-                    <span className={styles.newsTime}>{formatNewsTime(article.timestamp)}</span>
-                  </div>
-                  <div className={styles.newsTitle}>
-                    <a href={article.url} target="_blank" rel="noopener noreferrer">
-                      {article.title}
-                    </a>
-                  </div>
-                  {article.snippet && (
-                    <div className={styles.newsSnippet}>{article.snippet}</div>
-                  )}
+            {newsLoading ? (
+              <div className={styles.newsLoading}>
+                <div className={styles.loadingDots}><span></span><span></span><span></span></div>
+                <span className={styles.loadingText}>Loading news...</span>
+              </div>
+            ) : (
+              <>
+                <div className={styles.pulseList}>
+                  {(showAllNews ? newsArticles : newsArticles.slice(0, isMobile ? 1 : 3)).map((article, i) => (
+                    <div key={i} className={styles.pulseItem}>
+                      <span className={styles.pulseItemTitle}>
+                        <a href={article.url} target="_blank" rel="noopener noreferrer">
+                          {article.title}
+                        </a>
+                      </span>
+                      <span className={styles.pulseItemDate}>
+                        {formatNewsTime(article.timestamp)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {newsArticles.length > 2 && (
-              <button
-                className={`${styles.readMoreBtn} ${styles.readMoreBtnDesktop}`}
-                onClick={() => setShowAllNews((v) => !v)}
-              >
-                {showAllNews ? "Show less" : `Read more (${newsArticles.length - 2} more)`}
-              </button>
+                {newsArticles.length > (isMobile ? 1 : 3) && (
+                  <button
+                    className={styles.readMoreBtn}
+                    onClick={() => setShowAllNews((v) => !v)}
+                    style={{ marginTop: 8 }}
+                  >
+                    {showAllNews ? "Show less" : `Read more news`}
+                  </button>
+                )}
+                <div className={styles.pulseSubtext}>Curated industry news, updated weekly</div>
+              </>
             )}
-            {newsArticles.length > 1 && (
-              <button
-                className={`${styles.readMoreBtn} ${styles.readMoreBtnMobile}`}
-                onClick={() => setShowAllNews((v) => !v)}
-              >
-                {showAllNews ? "Show less" : `Read more (${newsArticles.length - 1} more)`}
-              </button>
-            )}
-          </>
+          </div>
         )}
-
-        {/* ── Meta Ads Intel sub-section ── */}
-        <div className={styles.panelHeader} style={{ marginTop: 4 }}>
-          <span className={styles.panelTitle}>Meta Ads Intel</span>
-          <div className={styles.panelHeaderActions}>
-            <span className={styles.panelSubtitle}>AD LIBRARY</span>
-          </div>
-        </div>
-        
-        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11px', marginBottom: '8px', color: '#94a3b8' }}>
-           Not your brand? &nbsp; 
-           <button onClick={() => {
-              const url = window.prompt("Enter Brand Name or Facebook Page URL (e.g. facebook.com/brand):");
-              if (url) {
-                 const match = url.match(/facebook\.com\/([^\/?#]+)/i);
-                 const override = match ? match[1] : url.trim();
-                 if (override) {
-                   setManualBrandOverride(override);
-                   setMetaAds(null);
-                   setCompetitorAds(null);
-                 }
-              }
-           }} style={{ color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-             Rescan
-           </button>
-        </div>
-
-        {metaAdsLoading ? (
-          <div className={styles.newsLoading}>
-            <div className={styles.loadingDots}>
-              <span></span><span></span><span></span>
-            </div>
-            <span className={styles.loadingText} style={{ color: "#a78bfa" }}>
-              Scanning Meta Ad Library... {metaAdsProgress}%
-            </span>
-          </div>
-        ) : metaAds && (metaAds.results?.length ?? 0) > 0 ? (
-          <>
-            <MetaAdsIntel data={metaAds} collapsed={isMobile && !showAllMeta} />
-            <button
-              className={`${styles.readMoreBtn} ${styles.readMoreBtnMobile}`}
-              onClick={() => setShowAllMeta((v) => !v)}
-            >
-              {showAllMeta ? "Show less" : "Read more"}
-            </button>
-          </>
-        ) : metaAds && (metaAds.results?.length ?? 0) === 0 ? (
-          <>
-            <MetaAdsIntel data={metaAds} competitorData={competitorAds} collapsed={isMobile && !showAllMeta} />
-            <button
-              className={`${styles.readMoreBtn} ${styles.readMoreBtnMobile}`}
-              onClick={() => setShowAllMeta((v) => !v)}
-            >
-              {showAllMeta ? "Show less" : "Read more"}
-            </button>
-          </>
-        ) : null}
 
         {/* ── Trends sub-section ── */}
         {trends.length > 0 && (
@@ -867,15 +962,17 @@ export default function TerminalPage() {
         )}
       </div>
 
-      {/* ── Right Panel: Agents ── */}
+      {/* ── Right Panel: AI Agents ── */}
       <div className={styles.panelRight}>
         {/* Reddit Agent Section */}
         <div className={styles.agentSection}>
           <div className={styles.panelHeader}>
-            <span className={styles.panelTitle}>🔴 Reddit Agent</span>
-            <span className={styles.panelSubtitle}>
-              {redditLoading ? "SCANNING" : "ACTIVE"}
-            </span>
+            <span className={styles.panelTitle}>AI Agents</span>
+            <span className={styles.panelSubtitle}>HUMAN-ASSISTED, DELIVERED IN 24H</span>
+          </div>
+          <div className={styles.panelHeader} style={{ borderBottom: 'none', paddingTop: 8, paddingBottom: 4 }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🔴 Reddit Agent</span>
+            <span className={styles.panelSubtitle}>{redditLoading ? "SCANNING" : "ACTIVE"}</span>
           </div>
 
           {redditLoading ? (
@@ -962,23 +1059,97 @@ export default function TerminalPage() {
           )}
         </div>
 
-        {/* X Agent Section (Coming Soon) */}
-        <div className={styles.agentSectionBottom}>
-          <div className={styles.panelHeader} style={{ padding: "0 0 8px 0", borderBottom: "none" }}>
-            <span className={styles.panelTitle}>𝕏 Agent</span>
-            <span className={`${styles.dsBadge} ${styles.comingSoon}`}>
-              Soon
-            </span>
+        {/* On-Demand Services */}
+        <div className={styles.onDemandSection}>
+          <div className={styles.onDemandTitle}>On-Demand Services</div>
+          {ON_DEMAND_SERVICES.map((service) => (
+            <div key={service.id} className={styles.onDemandCard}>
+              <span className={styles.onDemandIcon}><ServiceIcon type={service.iconType} /></span>
+              <div className={styles.onDemandInfo}>
+                <div className={styles.onDemandName}>{service.name}</div>
+                <div className={styles.onDemandDesc}>{service.desc}</div>
+              </div>
+              <button
+                className={styles.onDemandBuyBtn}
+                onClick={() => setComingSoonService(service.name)}
+              >
+                Buy · {service.price}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Guide Popup */}
+      {showGuide && (
+        <div className={styles.guideModal} onClick={dismissGuide}>
+          <div className={styles.guideModalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.guideModalTitle}>Reddit Agent Initialized</div>
+            <div className={styles.guideModalDesc}>
+              Use the Reddit Agent to send DMs automatically while it fetches data. Keep an eye out for initial scans generated directly from your store data in the intel section!
+            </div>
+            <button className={styles.guideModalCloseBtn} onClick={dismissGuide}>
+              Get Started
+            </button>
           </div>
-          <div className={styles.comingSoonAgent}>
-            <div className={styles.comingSoonIcon}>𝕏</div>
-            <div className={styles.comingSoonTitle}>X / Twitter Agent</div>
-            <div className={styles.comingSoonDesc}>
-              Automated engagement, trend monitoring, and audience growth on X. Coming soon.
+        </div>
+      )}
+
+      {/* Coming Soon Modal */}
+      {comingSoonService && (
+        <div className={styles.comingSoonModal} onClick={() => setComingSoonService(null)}>
+          <div className={styles.comingSoonModalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.comingSoonModalIcon}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <div className={styles.comingSoonModalTitle}>Coming Soon</div>
+            <div className={styles.comingSoonModalDesc}>
+              Thank you for your interest in <strong>{comingSoonService}</strong>. Our human-assisted AI operators will deliver premium content within 24 hours. This service is launching very soon.
+            </div>
+            <button className={styles.comingSoonModalClose} onClick={() => setComingSoonService(null)}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className={styles.settingsModal} onClick={() => setShowSettings(false)}>
+          <div className={styles.settingsModalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.settingsModalHeader}>
+              <span className={styles.settingsModalTitle}>Settings</span>
+              <button className={styles.settingsModalClose} onClick={() => setShowSettings(false)}>×</button>
+            </div>
+            <div className={styles.settingsModalBody}>
+              <div>
+                <label className={styles.settingsLabel}>Current Store URL</label>
+                <div className={styles.settingsCurrentUrl}>
+                  {localStorage.getItem("lr_pending_scan_url") || "No URL set"}
+                </div>
+              </div>
+              <div>
+                <label className={styles.settingsLabel}>New E-Commerce URL</label>
+                <input
+                  className={styles.settingsInput}
+                  value={settingsUrl}
+                  onChange={(e) => setSettingsUrl(e.target.value)}
+                  placeholder="e.g. houseofrui.com"
+                  onKeyDown={(e) => e.key === "Enter" && handleRescan(settingsUrl)}
+                />
+              </div>
+              <button className={styles.settingsSaveBtn} onClick={() => handleRescan(settingsUrl)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Scan & Refresh Dashboard
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

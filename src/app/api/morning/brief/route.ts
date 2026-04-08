@@ -201,3 +201,34 @@ interface CurateResponse {
 }
 
 export const POST = withRateLimit(handler);
+
+// GET handler for external/production access
+// GET /api/morning/brief?businessDescription=...&keywords=k1,k2&subreddits=s1,s2
+async function getHandler(request: NextRequest): Promise<NextResponse> {
+  const { searchParams } = new URL(request.url);
+  const businessDescription = searchParams.get("businessDescription") || "";
+  const keywordsParam = searchParams.get("keywords") || "";
+  const subredditsParam = searchParams.get("subreddits") || "";
+
+  const keywords = keywordsParam ? keywordsParam.split(",").map(k => k.trim()).filter(Boolean) : [];
+  const subreddits = subredditsParam ? subredditsParam.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+  if (!businessDescription && keywords.length === 0) {
+    return NextResponse.json(
+      { error: "businessDescription or keywords query param required" },
+      { status: 400 },
+    );
+  }
+
+  // Create a fake request with the body to reuse the handler
+  const fakeBody = JSON.stringify({ businessDescription, keywords, subreddits });
+  const fakeReq = new NextRequest(request.url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: fakeBody,
+  });
+
+  return handler(fakeReq);
+}
+
+export const GET = withRateLimit(getHandler);
