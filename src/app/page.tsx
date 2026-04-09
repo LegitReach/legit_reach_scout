@@ -21,7 +21,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isLoaded && isSignedIn && isAppLoaded && onboarding.completed) {
-      router.push("/dashboard");
+      router.push("/terminal");
     }
   }, [isLoaded, isSignedIn, isAppLoaded, onboarding.completed, router]);
   return (
@@ -30,15 +30,9 @@ export default function Home() {
       <div className="absolute top-4 right-4 md:top-8 md:right-8 z-50 flex items-center gap-4">
         <SignedOut>
           <Link
-            href="/"
+            href="/onboarding"
             className="text-sm font-medium text-primary-foreground bg-primary hover:brightness-110 px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(114,227,173,0.3)] hover:shadow-[0_0_25px_rgba(114,227,173,0.5)]"
-            onClick={() => {
-              posthog.capture("try_for_free_clicked");
-              // Scroll to scan input
-              const input = document.querySelector('input[placeholder*="Enter your store URL"]');
-              input?.scrollIntoView({ behavior: 'smooth' });
-              (input as HTMLInputElement)?.focus();
-            }}
+            onClick={() => posthog.capture("try_for_free_clicked")}
           >
             Start for Free
           </Link>
@@ -53,10 +47,10 @@ export default function Home() {
         </SignedOut>
         <SignedIn>
           <Link
-            href="/dashboard"
+            href="/terminal"
             className="text-sm font-medium text-foreground/90 hover:text-foreground px-4 py-2 rounded-full border border-primary/30 hover:border-primary bg-primary/10 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(114,227,173,0.1)] hover:shadow-[0_0_20px_rgba(114,227,173,0.3)] mr-2"
           >
-            Go to Dashboard
+            Go to Terminal
           </Link>
           <UserButton />
         </SignedIn>

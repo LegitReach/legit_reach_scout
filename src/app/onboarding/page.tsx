@@ -28,7 +28,7 @@ function OnboardingContent() {
     // Skip if already done
     useEffect(() => {
         if (isAppLoaded && onboarding.completed) {
-            router.push("/dashboard");
+            router.push("/terminal");
         }
     }, [isAppLoaded, onboarding.completed, router]);
 
@@ -72,8 +72,11 @@ function OnboardingContent() {
                 completed: true,
             });
 
+            // Persist URL so the terminal can use it for brand intelligence (Meta Ads, news, etc.)
+            localStorage.setItem("lr_pending_scan_url", storeUrl);
+
             posthog.capture("onboarding_completed", { method: "magic_scan" });
-            router.push("/dashboard");
+            router.push("/terminal");
 
         } catch (error) {
             console.error(error);
@@ -130,7 +133,7 @@ function OnboardingContent() {
             completed: true,
         });
         posthog.capture("onboarding_completed", { method: "manual" });
-        router.push("/dashboard");
+        router.push("/terminal");
     };
 
     if (!isAppLoaded) return null;
@@ -272,14 +275,6 @@ function OnboardingContent() {
                     </div>
                 )}
 
-                <div className={styles.footer}>
-                    <button 
-                        className={styles.manualBtn}
-                        onClick={() => router.push("/onboarding?manual=true")}
-                    >
-                        Configure manually instead
-                    </button>
-                </div>
             </div>
         </div>
     );
