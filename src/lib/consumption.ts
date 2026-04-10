@@ -18,7 +18,7 @@ export interface ConsumptionResult {
 export async function consumeRequest(userId: string): Promise<ConsumptionResult> {
   try {
     // 1. Check daily free limit (5 per 24h)
-    const { allowed, remaining } = await checkRateLimit(`user:${userId}`, 5);
+    const { allowed, remaining } = await checkRateLimit(`user:${userId}`, 10);
 
     if (allowed) {
       return { 
