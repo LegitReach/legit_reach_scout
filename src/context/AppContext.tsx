@@ -11,6 +11,13 @@ interface OnboardingState {
     neverSay: string[]; // repurposed as search keywords
     completed: boolean;
     oneMinuteBusinessPitch: string;
+    // Fields extracted by magic-scan (Jina + Gemini)
+    storeUrl: string;
+    brandName: string;
+    tagline: string;
+    targetAudience: string;
+    productCategories: string[];
+    ogImage: string;
 }
 
 const initialOnboardingState: OnboardingState = {
@@ -18,7 +25,13 @@ const initialOnboardingState: OnboardingState = {
     selectedCommunities: [],
     neverSay: [],
     completed: false,
-    oneMinuteBusinessPitch: ''
+    oneMinuteBusinessPitch: '',
+    storeUrl: '',
+    brandName: '',
+    tagline: '',
+    targetAudience: '',
+    productCategories: [],
+    ogImage: '',
 };
 
 const STORAGE_KEY_GUEST = "legitreach_onboarding_guest";
@@ -220,6 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
             return { ...prev, ...updates };
         });
+        syncOnboardingData();
     };
 
     const setMorningCache = (posts: any[], signature: string) => {
@@ -366,7 +380,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     selectedCommunities: cloud.subreddits || [],
                     neverSay: [],
                     completed: true,
-                    oneMinuteBusinessPitch: cloud.business_pitch || ""
+                    oneMinuteBusinessPitch: cloud.business_pitch || "",
+                    storeUrl: cloud.store_url || "",
+                    brandName: cloud.brand_name || "",
+                    tagline: cloud.tagline || "",
+                    targetAudience: cloud.target_audience || "",
+                    productCategories: cloud.product_categories || [],
+                    ogImage: cloud.og_image || "",
                 };
 
                 setOnboarding(cloudState);

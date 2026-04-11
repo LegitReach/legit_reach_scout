@@ -69,6 +69,12 @@ function OnboardingContent() {
                 keywords: data.keywords || [],
                 selectedCommunities: data.subreddits || [],
                 oneMinuteBusinessPitch: data.businessDescription || "",
+                storeUrl: data.storeUrl || "",
+                brandName: data.brandName || "",
+                tagline: data.tagline || "",
+                targetAudience: data.targetAudience || "",
+                productCategories: data.productCategories || [],
+                ogImage: data.ogImage || "",
                 completed: true,
             });
 

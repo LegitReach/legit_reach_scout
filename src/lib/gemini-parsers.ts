@@ -68,16 +68,17 @@ export function parseAIQueryResult(rawJson: string): AIQueryResult {
  * Throws {@link GeminiParseError} if the JSON is malformed or the shape is wrong.
  */
 export function parseCurateResponse(rawJson: string): CurateResponse {
+  const cleaned = rawJson.replace(/```json|```/g, "").trim();
   let parsed: unknown;
   try {
-    parsed = JSON.parse(rawJson);
+    parsed = JSON.parse(cleaned);
   } catch {
-    throw new GeminiParseError("Invalid JSON from Gemini", rawJson);
+    throw new GeminiParseError("Invalid JSON from Gemini", cleaned);
   }
   if (!isCurateResponse(parsed)) {
     throw new GeminiParseError(
       `Response did not match CurateResponse shape: ${JSON.stringify(parsed)}`,
-      rawJson,
+      cleaned,
     );
   }
   return parsed;

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
         // 2. Extract onboarding data from request body
         const body = await req.json();
-        const { oneMinuteBusinessPitch, keywords, selectedCommunities } = body;
+        const { oneMinuteBusinessPitch, keywords, selectedCommunities, storeUrl,  brandName, tagline, targetAudience, productCategories, ogImage} = body;
 
         // 3. Create a Supabase client bound to this user
         const supabase = getAuthenticatedClient(token);
@@ -40,7 +40,13 @@ export async function POST(req: NextRequest) {
                     business_pitch: oneMinuteBusinessPitch,
                     keywords: keywords,
                     subreddits: selectedCommunities,
-                    user_id: userId
+                    user_id: userId,
+                    store_url: storeUrl,
+                    brand_name: brandName,
+                    tagline, 
+                    target_audience: targetAudience,
+                    product_categories: productCategories, 
+                    og_image: ogImage
                 },
                 { onConflict: "user_id" }
             )
