@@ -213,18 +213,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const brandMetaPromise = fetchBrandMeta(targetUrl);
     const brandMeta = await brandMetaPromise;
 
-    const brandName =
-      providedBrandName || extractBrandName(targetUrl, brandMeta.title);
+    // Priority: 1. Extract from Meta Title, 2. provided brand name, 3. Extract from Domain
+    const extractedBrandName = extractBrandName(targetUrl, brandMeta.title);
+    const brandNameForDisplay = (extractedBrandName && extractedBrandName !== targetUrl) 
+      ? extractedBrandName 
+      : (providedBrandName || extractedBrandName);
 
     const [articles, trends] = await Promise.all([
-      fetchGoogleNews(brandName),
-      fetchGoogleTrends(brandName),
+      fetchGoogleNews(providedBrandName || brandNameForDisplay),
+      fetchGoogleTrends(providedBrandName || brandNameForDisplay),
     ]);
 
     return NextResponse.json({
       articles,
       trends,
-      brandMeta: { ...brandMeta, brandName },
+      brandMeta: { ...brandMeta, brandName: brandNameForDisplay },
     });
   } catch (err) {
     console.error("Newsletter API error:", err);
