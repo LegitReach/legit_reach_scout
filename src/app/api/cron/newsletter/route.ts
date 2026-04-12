@@ -88,22 +88,18 @@ export async function POST(req: NextRequest) {
       const result = await processGlobalNewsletterSearch(business_pitch, keywords);
 
       // Render email
-      const html = await render(
-        MorningLegitEmail({
+      // Send via Resend
+      await resend.emails.send({
+        from: "Morning Legit <manthan@legitreach.com>",
+        to: email,
+        subject: `Morning Legit — ${date}`,
+        react : MorningLegitEmail({
           brandName: brand_name || "Your Brand",
           briefing: result.briefing,
           topLeads: result.topLeads,
           totalAnalyzed: result.totalAnalyzed,
           date,
         })
-      );
-
-      // Send via Resend
-      await resend.emails.send({
-        from: "Morning Legit <legitreach.official@gmail.com>",
-        to: email,
-        subject: `Morning Legit — ${date}`,
-        html,
       });
 
       sent++;
