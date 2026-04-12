@@ -13,39 +13,33 @@ export async function searchRedditGlobal(
   sort: string = "relevance",
   limit: number = 25
 ): Promise<RedditPost[]> {
-  const encodedQuery = encodeURIComponent(query);
-  const redditUrl = `https://www.reddit.com/search.json?q=${encodedQuery}&t=${timeframe}&sort=${sort}&limit=${limit}&raw_json=1`;
-  
+  const apiKey = process.env.REDDIT_SCRAPE_API_KEY;
+  if (!apiKey) {
+    console.error("REDDIT_SCRAPE_API_KEY is not configured");
+    return [];
+  }
+
+  const url = `https://api.scrapecreators.com/v1/reddit/search?query=${encodeURIComponent(query)}&sort=${sort}&timeframe=${timeframe}`;
+
   try {
-    const redditResponse = await fetch(redditUrl, {
-      headers: { "User-Agent": "LegitReach/1.1" },
+    const res = await fetch(url, {
+      headers: { "x-api-key": apiKey },
     });
 
-    if (!redditResponse.ok) {
-      console.warn(`Reddit public search failed: ${redditResponse.status}`);
+    if (!res.ok) {
+      console.warn(`ScrapeCreators global search failed: ${res.status}`);
       return [];
     }
 
-    const redditData = await redditResponse.json();
-    const children = redditData?.data?.children || [];
-    
-    return children
-      .filter((child: any) => child.kind === "t3")
-      .map((child: any) => {
-        const p = child.data;
-        return {
-          id: p.id,
-          title: p.title,
-          subreddit: `r/${p.subreddit}`,
-          author: p.author,
-          score: p.score,
-          num_comments: p.num_comments,
-          created_utc: p.created_utc,
-          selftext: p.selftext || "",
-          permalink: `https://reddit.com${p.permalink}`,
-          url: p.url,
-        };
-      });
+    const data = await res.json();
+    return (data.posts || [])
+      .slice(0, limit)
+      .map((post: RedditPost) => ({
+        ...post,
+        permalink: post.permalink?.startsWith("http")
+          ? post.permalink
+          : `https://reddit.com${post.permalink}`,
+      }));
   } catch (error) {
     console.error("searchRedditGlobal error:", error);
     return [];

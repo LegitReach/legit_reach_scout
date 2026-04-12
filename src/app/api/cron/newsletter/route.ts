@@ -22,9 +22,6 @@ export async function POST(req: NextRequest) {
   // const signature = req.headers.get("Upstash-Signature") ?? "";
   // const body =  req.body
 
-  console.log("Headers: ",req.headers);
-  console.log("Body: ", await req.text());
-
   // const isValid = await receiver.verify({
   //   body,
   //   signature,
@@ -87,19 +84,23 @@ export async function POST(req: NextRequest) {
       // Run Reddit intelligence
       const result = await processGlobalNewsletterSearch(business_pitch, keywords);
 
-      // Render email
-      // Send via Resend
-      await resend.emails.send({
-        from: "Morning Legit <manthan@legitreach.com>",
-        to: email,
-        subject: `Morning Legit — ${date}`,
-        react : MorningLegitEmail({
+      const html = await render(
+        MorningLegitEmail({
           brandName: brand_name || "Your Brand",
           briefing: result.briefing,
           topLeads: result.topLeads,
           totalAnalyzed: result.totalAnalyzed,
           date,
         })
+      );
+
+      // Render email
+      // Send via Resend
+      await resend.emails.send({
+        from: "Morning Legit <manthan@legitreach.com>",
+        to: email,
+        subject: `Morning Legit — ${date}`,
+        html
       });
 
       sent++;
