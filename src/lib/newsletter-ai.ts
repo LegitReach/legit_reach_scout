@@ -1,7 +1,5 @@
 import { getGeminiModel } from "@/ai/gemini.model";
 
-const MODEL_NAME = "gemini-2.0-flash"; // Using reliable flash for fast query generation
-
 export interface SearchQuery {
   query: string;
   intent_category: "Pain Point" | "Advice" | "Competitive";
@@ -33,7 +31,8 @@ Generate queries that target these specific high-value intent buckets:
 3. COMPETITIVE PIVOT: Users looking for alternatives to major competitors (e.g., "alternative to [Competitor Name]", "vs [Competitor Name]").
 
 RULES:
-- Use Reddit's search syntax (quotes for phrases, OR for multiple terms).
+- DO NOT use complex boolean logic (avoid OR, NOT, or nested parentheses).
+- Keep queries FLAT and natural (e.g., "best marathon shoes" instead of "("best" OR "recommend") "marathon shoes"").
 - Keep queries tactical and realistic.
 - Avoid overly broad single-word searches.
 
@@ -50,14 +49,14 @@ Return ONLY a valid JSON array of objects with the following structure:
 `;
 
   try {
-    const model = getGeminiModel(MODEL_NAME);
+    const model = getGeminiModel();
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    
+
     // Clean potential markdown wrapping if Gemini includes it
     const cleanJson = responseText.replace(/```json|```/g, "").trim();
     const queries: SearchQuery[] = JSON.parse(cleanJson);
-    
+
     return queries;
   } catch (error) {
     console.error("Failed to generate search queries with Gemini:", error);
