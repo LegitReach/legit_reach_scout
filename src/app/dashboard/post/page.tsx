@@ -235,7 +235,7 @@ Return ONLY a valid JSON object — no markdown, no extra text:
                     <span>{data.score} pts</span>
                     <span>{data.num_comments} comments</span>
                     <a
-                        href={data.permalink}
+                        href={data.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={styles.redditLink}
@@ -279,7 +279,7 @@ Return ONLY a valid JSON object — no markdown, no extra text:
                             {copied ? "Copied!" : "Copy"}
                         </button>
                         <a
-                            href={data.permalink}
+                            href={data.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={styles.redditLinkBtn}
@@ -374,40 +374,3 @@ export default function PostPage() {
         </Suspense>
     );
 }
-
-/**
-
-
-            {/* <section className={styles.commentsSection}>
-                <h2>💬 Comments ({(data.comments || []).length})</h2>
-
-                <div className={styles.commentsList}>
-                    {(data.comments || []).map(comment => (
-                        <div key={comment.id} className={styles.comment}>
-                            <div className={styles.commentHeader}>
-                                <span className={styles.commentAuthor}>u/{comment.author}</span>
-                                <span className={styles.commentMeta}>
-                                    ⬆️ {comment.score} • {formatTime(comment.created_utc)}
-                                </span>
-                            </div>
-                            <p className={styles.commentBody}>{comment.body}</p>
-
-                            {comment.replies && comment.replies.length > 0 && (
-                                <div className={styles.replies}>
-                                    {comment.replies.map(reply:anhyh => (
-                                        <div key={reply.id} className={styles.reply}>
-                                            <div className={styles.commentHeader}>
-                                                <span className={styles.commentAuthor}>u/{reply.author}</span>
-                                                <span className={styles.commentMeta}>
-                                                    ⬆️ {reply.score}
-                                                </span>
-                                            </div>
-                                            <p className={styles.commentBody}>{reply.body}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </section> */

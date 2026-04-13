@@ -6,15 +6,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { processGlobalNewsletterSearch } from "@/lib/newsletter-orchestrator";
 import { MorningLegitEmail } from "@/emails/MorningLegitEmail";
 
-// ──────────────────────────────────────────────────────────
-// POST /api/cron/newsletter
-//
-// Triggered daily by QStash at 7:00 AM UTC.
-// Sends a personalized "Morning Legit" email to every user
-// with newsletter_enabled = true.
-//
-// Security: verified via QStash signature headers.
-// ──────────────────────────────────────────────────────────
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(req: NextRequest) {
@@ -86,7 +77,7 @@ export async function POST(req: NextRequest) {
 
       const html = await render(
         MorningLegitEmail({
-          brandName: brand_name || "Your Brand",
+          firstName: clerkUser.firstName || brand_name,
           briefing: result.briefing,
           topLeads: result.topLeads,
           totalAnalyzed: result.totalAnalyzed,
@@ -99,7 +90,7 @@ export async function POST(req: NextRequest) {
       await resend.emails.send({
         from: "Morning Legit <manthan@legitreach.com>",
         to: email,
-        subject: `Morning Legit — ${date}`,
+        subject: `Morning Legit - ${date}`,
         html
       });
 

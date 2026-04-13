@@ -13,7 +13,7 @@ import {
 import type { RedditPost } from "@/types";
 
 interface MorningLegitEmailProps {
-  brandName: string;
+  firstName: string;
   briefing: string;
   topLeads: RedditPost[];
   totalAnalyzed: number;
@@ -21,7 +21,7 @@ interface MorningLegitEmailProps {
 }
 
 export function MorningLegitEmail({
-  brandName,
+  firstName,
   briefing,
   topLeads,
   totalAnalyzed,
@@ -30,9 +30,8 @@ export function MorningLegitEmail({
   return (
     <Html>
       <Head />
-      <Preview>{`Your Morning Legit briefing for ${date} — ${totalAnalyzed} Reddit posts analyzed`}</Preview>
+      <Preview>{`Your Morning Legit briefing for ${date} - ${totalAnalyzed} Reddit posts analyzed`}</Preview>
       <Body style={body}>
-        {/* ── Header ── */}
         <Section style={header}>
           <Text style={headerLabel}>LEGITREACH SCOUT</Text>
           <Heading style={headerTitle}>Morning Legit</Heading>
@@ -40,10 +39,8 @@ export function MorningLegitEmail({
         </Section>
 
         <Container style={container}>
-          {/* ── Greeting ── */}
-          <Text style={greeting}>Good morning, {brandName}</Text>
+          <Text style={greeting}>Good morning, {firstName}</Text>
 
-          {/* ── Briefing ── */}
           <Section style={card}>
             <Text style={sectionLabel}>TODAY'S BRIEFING</Text>
             <Text style={briefingText}>{briefing}</Text>
@@ -52,7 +49,6 @@ export function MorningLegitEmail({
             </Text>
           </Section>
 
-          {/* ── Top Leads ── */}
           {topLeads.length > 0 && (
             <Section>
               <Text style={sectionLabel}>TOP REDDIT OPPORTUNITIES</Text>
@@ -63,7 +59,7 @@ export function MorningLegitEmail({
                   </Text>
                   <Text style={leadTitle}>{post.title}</Text>
                   <Link
-                    href={`https://reddit.com${post.permalink}`}
+                    href={`${post.url}`}
                     style={leadLink}
                   >
                     View on Reddit →
@@ -83,7 +79,6 @@ export function MorningLegitEmail({
 
           <Hr style={divider} />
 
-          {/* ── Footer ── */}
           <Text style={footer}>
             You're receiving this because your LegitReach newsletter is enabled.
             Visit your{" "}

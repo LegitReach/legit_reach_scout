@@ -2,11 +2,6 @@
 
 import type { RedditPost } from "@/types";
 
-/**
- * GLOBAL SEARCH: Searches across all subreddits based on an AI-generated query.
- * Timeframe: "day" (past 24h), "week", "month", "all".
- * Sort: "relevance", "top", "new".
- */
 export async function searchRedditGlobal(
   query: string,
   timeframe: string = "day",
@@ -14,41 +9,65 @@ export async function searchRedditGlobal(
   limit: number = 25
 ): Promise<RedditPost[]> {
   const apiKey = process.env.REDDIT_SCRAPE_API_KEY;
-  if (!apiKey) {
-    console.error("REDDIT_SCRAPE_API_KEY is not configured");
-    return [];
+
+  if (apiKey) {
+    try {
+      const url = `https://api.scrapecreators.com/v1/reddit/search?query=${encodeURIComponent(query)}&sort=${sort}&timeframe=${timeframe}`;
+      const res = await fetch(url, {
+        headers: { "x-api-key": apiKey },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return (data.posts || [])
+          .slice(0, limit)
+          .map((post: RedditPost) => ({
+            ...post
+          }));
+      }
+
+      console.warn(`ScrapeCreators global search failed: ${res.status} — falling back to Reddit`);
+    } catch (error) {
+      console.warn("ScrapeCreators global search threw an error — falling back to Reddit:", error);
+    }
   }
 
-  const url = `https://api.scrapecreators.com/v1/reddit/search?query=${encodeURIComponent(query)}&sort=${sort}&timeframe=${timeframe}`;
-
   try {
-    const res = await fetch(url, {
-      headers: { "x-api-key": apiKey },
+    const redditUrl = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&t=${timeframe}&sort=${sort}&limit=${limit}&raw_json=1`;
+    const res = await fetch(redditUrl, {
+      headers: { "User-Agent": "LegitReach/1.1" },
     });
 
     if (!res.ok) {
-      console.warn(`ScrapeCreators global search failed: ${res.status}`);
+      console.warn(`Reddit fallback search also failed: ${res.status}`);
       return [];
     }
 
     const data = await res.json();
-    return (data.posts || [])
-      .slice(0, limit)
-      .map((post: RedditPost) => ({
-        ...post,
-        permalink: post.permalink?.startsWith("http")
-          ? post.permalink
-          : `https://reddit.com${post.permalink}`,
-      }));
+    return (data?.data?.children || [])
+      .filter((child: any) => child.kind === "t3")
+      .map((child: any) => {
+        const p = child.data;
+        return {
+          id: p.id,
+          title: p.title,
+          subreddit: `r/${p.subreddit}`,
+          author: p.author,
+          score: p.score,
+          num_comments: p.num_comments,
+          created_utc: p.created_utc,
+          selftext: p.selftext || "",
+          permalink: `${p.permalink}`,
+          url: p.url,
+        };
+      });
   } catch (error) {
-    console.error("searchRedditGlobal error:", error);
+    console.error("Reddit fallback search error:", error);
     return [];
   }
 }
 
-/**
- * SUBREDDIT FETCH: Fetches posts from a specific subreddit.
- */
+
 export async function fetchRedditPosts(
   subreddit: string, 
   keywords: string, 
@@ -94,7 +113,7 @@ export async function fetchRedditPosts(
         };
       });
 
-    // If keywords are provided, score relevance and sort
+    
     if (keywordList.length > 0 && resultPosts.length > 0) {
       resultPosts = resultPosts.map((post) => {
         const text = `${post.title} ${post.selftext}`.toLowerCase();
