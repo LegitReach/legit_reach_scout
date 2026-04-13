@@ -80,10 +80,15 @@ TASK:
     console.log("[Newsletter] AI Synthesis Result:", result.response.text());
     const responseText = result.response.text();
     const cleanJson = responseText.replace(/```json|```/g, "").trim();
-    const { briefing, top_lead_ids } = JSON.parse(cleanJson);
+    const parsed = JSON.parse(cleanJson);
+    const briefing: string = parsed.briefing ?? "";
+    const top_lead_ids: string[] = Array.isArray(parsed.top_lead_ids) ? parsed.top_lead_ids : [];
 
     // Filter to get the actual post objects for the top leads
-    const topLeads = allPosts.filter(p => top_lead_ids.includes(p.id));
+    // Fall back to the first 5 posts if Gemini returned no IDs
+    const topLeads = top_lead_ids.length > 0
+      ? allPosts.filter(p => top_lead_ids.includes(p.id))
+      : allPosts.slice(0, 5);
 
     return {
       briefing,
