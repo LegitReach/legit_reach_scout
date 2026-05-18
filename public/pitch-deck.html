@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LegitReach Pitch Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #000; color: #fff; }
+  body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* ---------- deck design tokens ---------- */
+  deck-stage {
+    --ds-bg: #000;
+    --ds-fg: #fff;
+    --w: 1920px;
+    --h: 1080px;
+    --pad: 120px;
+    --eyebrow: 26px;
+    --h1: 132px;
+    --h2: 96px;
+    --h3: 64px;
+    --body: 32px;
+    --small: 26px;
+    --rule: rgba(255,255,255,0.10);
+  }
+
+  /* ---------- slide common ---------- */
+  .slide {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    padding: var(--pad);
+    box-sizing: border-box;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Inter', sans-serif;
+  }
+  .slide.center { justify-content: center; }
+  .slide .footer {
+    position: absolute;
+    left: var(--pad);
+    right: var(--pad);
+    bottom: 56px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 26px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+  }
+  .slide .header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 64px;
+  }
+  .eyebrow {
+    font-size: var(--eyebrow);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+  }
+  .brand {
+    font-size: 28px; font-weight: 600; letter-spacing: -0.03em;
+  }
+  h1.deck-title {
+    font-size: var(--h1);
+    font-weight: 300;
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+    margin: 0;
+  }
+  h2.deck-h2 {
+    font-size: var(--h2);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    margin: 0;
+  }
+  h3.deck-h3 {
+    font-size: var(--h3);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
+    margin: 0;
+  }
+  p.body, .body {
+    font-size: var(--body);
+    line-height: 1.45;
+    color: rgba(255,255,255,0.78);
+    margin: 0;
+    max-width: 1300px;
+  }
+  .body.dim { color: rgba(255,255,255,0.55); }
+  .strong-white { color: #fff; }
+  .rule { border-top: 1px solid var(--rule); margin: 56px 0; }
+  .stat { font-size: 200px; font-weight: 200; line-height: 0.95; letter-spacing: -0.06em; }
+  .stat-sub { font-size: var(--eyebrow); letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 20px; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 14px;
+    padding: 14px 24px; border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px;
+    font-size: var(--small);
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(255,255,255,0.8);
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 999px; background: #86efac; box-shadow: 0 0 10px #86efac; }
+
+  .glass {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 22px;
+    padding: 56px;
+  }
+
+  .row { display: flex; gap: 32px; }
+  .col { flex: 1; min-width: 0; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px; }
+
+  /* ---------- title slide downtown backdrop ---------- */
+  .scene { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .scene .bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 85%, #0a0a0a 0%, #000 60%);
+  }
+  .scene .floor {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 55%;
+    background:
+      linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.75) 80%, #000 100%),
+      repeating-linear-gradient(to right, rgba(255,255,255,0.05) 0 1px, transparent 1px 80px),
+      repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0 1px, transparent 1px 80px);
+    transform: perspective(1100px) rotateX(64deg);
+    transform-origin: bottom;
+  }
+  .scene svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .scene .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.6) 100%);
+  }
+  .scene-inner { position: relative; z-index: 1; }
+
+  /* hunting dog SVG */
+  .dog-row { display: flex; align-items: center; justify-content: center; gap: 64px; }
+  .dog-row .arrow { font-size: 64px; color: rgba(255,255,255,0.45); }
+
+  .cite {
+    font-size: 18px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+  }
+
+  /* speedrun mention */
+  .speedrun {
+    font-family: ui-monospace, Menlo, Monaco, monospace;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.45);
+  }
+
+  /* ascii block */
+  .ascii {
+    font-family: ui-monospace, Menlo, Monaco, monospace;
+    font-size: 26px;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.65);
+    white-space: pre;
+  }
+
+  /* page number */
+  .pageno {
+    font-family: ui-monospace, Menlo, Monaco, monospace;
+    font-size: 26px;
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+<deck-stage width="1920" height="1080" theme="dark" data-om-id="646863b0:8" style="--deck-rail-w: 188px;" data-cc-id="cc-3">
+
+  <!-- 1. Title -->
+  <section class="slide center" data-screen-label="01 Cover" data-om-id="646863b0:9" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="0">
+    <div class="scene" data-om-id="646863b0:10">
+      <div class="bg" data-om-id="646863b0:11"></div>
+      <div class="floor" data-om-id="646863b0:12"></div>
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" data-om-id="646863b0:13">
+        <defs data-om-id="646863b0:14">
+          <linearGradient id="bg-building" x1="0" y1="0" x2="0" y2="1" data-om-id="646863b0:15">
+            <stop offset="0%" stop-color="#161616" data-om-id="646863b0:16"></stop>
+            <stop offset="100%" stop-color="#000" data-om-id="646863b0:17"></stop>
+          </linearGradient>
+        </defs>
+        <g opacity="0.85" data-om-id="646863b0:18">
+          <rect x="-20" y="470" width="110" height="240" fill="url(#bg-building)" data-om-id="646863b0:19"></rect>
+          <rect x="90" y="430" width="80" height="280" fill="url(#bg-building)" data-om-id="646863b0:20"></rect>
+          <rect x="170" y="460" width="130" height="250" fill="url(#bg-building)" data-om-id="646863b0:21"></rect>
+          <rect x="300" y="410" width="90" height="300" fill="url(#bg-building)" data-om-id="646863b0:22"></rect>
+          <rect x="390" y="450" width="110" height="260" fill="url(#bg-building)" data-om-id="646863b0:23"></rect>
+          <rect x="500" y="400" width="80" height="310" fill="url(#bg-building)" data-om-id="646863b0:24"></rect>
+          <rect x="580" y="440" width="120" height="270" fill="url(#bg-building)" data-om-id="646863b0:25"></rect>
+          <rect x="720" y="300" width="180" height="500" fill="url(#bg-building)" data-om-id="646863b0:26"></rect>
+          <rect x="805" y="230" width="10" height="70" fill="url(#bg-building)" data-om-id="646863b0:27"></rect>
+          <rect x="950" y="380" width="150" height="420" fill="url(#bg-building)" data-om-id="646863b0:28"></rect>
+          <rect x="1130" y="420" width="90" height="290" fill="url(#bg-building)" data-om-id="646863b0:29"></rect>
+          <rect x="1220" y="460" width="110" height="250" fill="url(#bg-building)" data-om-id="646863b0:30"></rect>
+          <rect x="1330" y="410" width="100" height="300" fill="url(#bg-building)" data-om-id="646863b0:31"></rect>
+          <rect x="1430" y="440" width="90" height="270" fill="url(#bg-building)" data-om-id="646863b0:32"></rect>
+          <rect x="1520" y="470" width="110" height="240" fill="url(#bg-building)" data-om-id="646863b0:33"></rect>
+        </g>
+        <!-- scatter windows -->
+        <g data-om-id="646863b0:34">
+          <!-- placeholder: tiny dots -->
+        </g>
+        <rect x="0" y="540" width="1600" height="1" fill="#fff" opacity="0.12" data-om-id="646863b0:35"></rect>
+      </svg>
+      <div class="vignette" data-om-id="646863b0:36"></div>
+    </div>
+
+    <div class="scene-inner" style="padding-bottom: 120px;" data-om-id="646863b0:37">
+      <h1 class="deck-title" style="max-width: 1480px;" data-om-id="646863b0:38">World model for online communities.</h1>
+      <p class="body" style="margin-top: 56px; max-width: 1200px;" data-om-id="646863b0:39">A simulator to improve engagement.</p>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:40">
+      <div class="brand" data-om-id="646863b0:41">LegitReach</div>
+      <div class="pageno" data-om-id="646863b0:42">01 / 11</div>
+    </div>
+  </section>
+
+  <!-- 2. Problem -->
+  <section class="slide" data-screen-label="02 Problem" data-om-id="646863b0:43" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="1">
+    <div class="header" data-om-id="646863b0:44">
+      <span class="eyebrow" data-om-id="646863b0:45">02 · The Problem</span>
+      <span class="brand" data-om-id="646863b0:46">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" style="max-width: 1500px;" data-om-id="646863b0:47">
+      AI made content infinite.<br data-om-id="646863b0:48">
+      <span style="color: rgba(255,255,255,0.45)" data-om-id="646863b0:49">Attention stayed finite.</span>
+    </h2>
+
+    <div class="rule" data-om-id="646863b0:50"></div>
+
+    <div style="margin-top: 24px; max-width: 1600px;" data-om-id="646863b0:51">
+      <div class="eyebrow" style="margin-bottom: 28px;" data-om-id="646863b0:52">BRANDS PAIN POINT</div>
+      <h3 class="deck-h3" style="margin-bottom: 28px;" data-om-id="646863b0:53">Community is the answer.<br data-om-id="646863b0:54">Showing up is the cost.</h3>
+      <p class="body" data-om-id="646863b0:55">In our discovery, 35 of 63 lean teams said community outreach is a habit they cannot keep. Paid ads do not compound. CAC keeps rising. The teams that win are not outspending. They are outlistening.</p>
+      <p class="body" style="margin-top: 32px; color: rgba(255,255,255,0.55);" data-om-id="646863b0:56">
+</p>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:57">
+      <div data-om-id="646863b0:58" style="" data-cc-id="cc-2">HUMAN-Online interaction is the most valuable function on the internet.</div>
+      <div class="pageno" data-om-id="646863b0:59">02 / 11</div>
+    </div>
+  </section>
+
+  <!-- 3. Insight -->
+  <section class="slide center" data-screen-label="03 Insight" data-om-id="646863b0:60" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="2">
+    <div class="header" style="position: absolute; top: 120px; left: 120px; right: 120px;" data-om-id="646863b0:61">
+      <span class="eyebrow" data-om-id="646863b0:62">03 · The Insight</span>
+      <span class="brand" data-om-id="646863b0:63">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" style="max-width: 1600px;" data-om-id="646863b0:64">Nobody is modeling the
+online communities
+from first principles.</h2>
+
+    <p class="body" style="margin-top: 56px; max-width: 1400px;" data-om-id="646863b0:65">
+      Most companies use AI to <span class="strong-white" data-om-id="646863b0:66">make more slop</span>.<br data-om-id="646863b0:67">
+      We use AI to <span class="strong-white" data-om-id="646863b0:68">test and predict slop</span> before it ships, at scale.
+    </p>
+
+    <p class="body" style="margin-top: 36px; max-width: 1400px; color: rgba(255,255,255,0.55);" data-om-id="646863b0:69">Online communities are a platform for trading information. A trade of data for engagement as reward.</p>
+
+    <div class="footer" data-om-id="646863b0:70">
+      <div data-om-id="646863b0:71">OBSESSION: DRAW CAPITALISM WITH MATH.</div>
+      <div class="pageno" data-om-id="646863b0:72">03 / 11</div>
+    </div>
+  </section>
+
+  <!-- 4. Solution -->
+  <section class="slide" data-screen-label="04 Solution" data-om-id="646863b0:73" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="3">
+    <div class="header" data-om-id="646863b0:74">
+      <span class="eyebrow" data-om-id="646863b0:75">04 · What we are building</span>
+      <span class="brand" data-om-id="646863b0:76">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:77">A simulator for online communities.</h2>
+    <p class="body" style="margin-top: 36px; max-width: 1300px;" data-om-id="646863b0:78">Internally we call it the "Full Power" engine. It rehearses every post/comment/interaction, predicts every outcome, and only ships what works.</p>
+
+    <div class="grid-3" style="margin-top: 80px; align-items: stretch;" data-om-id="646863b0:79">
+      <div class="glass" style="padding: 44px; display: flex; flex-direction: column; gap: 20px;" data-om-id="646863b0:80">
+        <div class="eyebrow" data-om-id="646863b0:81">01 · Listen</div>
+        <h3 class="deck-h3" data-om-id="646863b0:82">Find high-intent threads.</h3>
+        <p class="body" style="font-size: 26px; margin-top: auto;" data-om-id="646863b0:83">Match buyers to your products in real time, across every community that matters.</p>
+      </div>
+      <div class="glass" style="padding: 44px; display: flex; flex-direction: column; gap: 20px;" data-om-id="646863b0:84">
+        <div class="eyebrow" data-om-id="646863b0:85">02 · Rehearse</div>
+        <h3 class="deck-h3" data-om-id="646863b0:86">Predict what lands.</h3>
+        <p class="body" style="font-size: 26px; margin-top: auto;" data-om-id="646863b0:87">Draft, simulate, score before a single character is posted.
+Quality &gt; Quantity</p>
+      </div>
+      <div class="glass" style="padding: 44px; display: flex; flex-direction: column; gap: 20px;" data-om-id="646863b0:88">
+        <div class="eyebrow" data-om-id="646863b0:89">03 · Ship</div>
+        <h3 class="deck-h3" data-om-id="646863b0:90">Human approved</h3>
+        <p class="body" style="font-size: 26px; margin-top: auto;" data-om-id="646863b0:91">You hit approve. The agent posts at human pace. Revenue attributed via UTM.</p>
+      </div>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:92">
+      <div data-om-id="646863b0:93">REHEARSE BEFORE POSTING.</div>
+      <div class="pageno" data-om-id="646863b0:94">04 / 11</div>
+    </div>
+  </section>
+
+  <!-- 5. How it works -->
+  <section class="slide" data-screen-label="05 How" data-om-id="646863b0:95" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="4">
+    <div class="header" data-om-id="646863b0:96">
+      <span class="eyebrow" data-om-id="646863b0:97">05 · How it works</span>
+      <span class="brand" data-om-id="646863b0:98">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:99">AI is the hunting dog.<br data-om-id="646863b0:100"><span style="color: rgba(255,255,255,0.45)" data-om-id="646863b0:101">Not the hunter.</span></h2>
+
+    <p class="body" style="margin-top: 56px; max-width: 1500px;" data-om-id="646863b0:102">Our outreach agent runs on a reinforcement learning loop. The agent acts in a sandbox first, learns from feedback, and only ships moves that win.</p>
+
+    <div class="grid-3" style="margin-top: 64px; align-items: stretch;" data-om-id="646863b0:103">
+      <div class="glass" style="padding: 44px; display: flex; flex-direction: column; gap: 18px;" data-om-id="646863b0:104">
+        <div class="eyebrow" data-om-id="646863b0:105">01 · Observe</div>
+        <h3 class="deck-h3" style="font-size: 48px;" data-om-id="646863b0:106">State = a real thread.</h3>
+        <p class="body" style="font-size: 24px; margin-top: auto;" data-om-id="646863b0:107">Subreddit, intent, product fit, your past voice. All vectorized.</p>
+      </div>
+      <div class="glass" style="padding: 44px; display: flex; flex-direction: column; gap: 18px;" data-om-id="646863b0:108">
+        <div class="eyebrow" data-om-id="646863b0:109">02 · Rehearse</div>
+        <h3 class="deck-h3" style="font-size: 48px;" data-om-id="646863b0:110">Many agents, one stage.</h3>
+        <p class="body" style="font-size: 24px; margin-top: auto;" data-om-id="646863b0:111">Authentic community responses. Predicted upvotes, replies, conversion.</p>
+      </div>
+      <div class="glass" style="padding: 44px; display: flex; flex-direction: column; gap: 18px;" data-om-id="646863b0:112">
+        <div class="eyebrow" data-om-id="646863b0:113">03 · Reward</div>
+        <h3 class="deck-h3" style="font-size: 48px;" data-om-id="646863b0:114">Human is the reward signal.</h3>
+        <p class="body" style="font-size: 24px; margin-top: auto;" data-om-id="646863b0:115">You approve. The model learns your tone.</p>
+      </div>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:116">
+      <div data-om-id="646863b0:117">Humans always in the loop. We do not flood. We do not fake.</div>
+      <div class="pageno" data-om-id="646863b0:118">05 / 11</div>
+    </div>
+  </section>
+
+  <!-- 6. Product live -->
+  <section class="slide" data-screen-label="06 Product" data-om-id="646863b0:119" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="5">
+    <div class="header" data-om-id="646863b0:120">
+      <span class="eyebrow" data-om-id="646863b0:121">06 · Product · Live today</span>
+      <span class="brand" data-om-id="646863b0:122">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:123">Reddit, mapped to your buyer.</h2>
+    <p class="body" style="margin-top: 36px; max-width: 1300px;" data-om-id="646863b0:124">Live feed of high-intent interaction threads. Agent drafts at superhuman pace. You ship at human pace. Five minutes per day per brand.</p>
+
+    <div class="glass" style="margin-top: 72px; padding: 40px;" data-om-id="646863b0:125">
+      <pre class="ascii" style="margin: 0;" data-om-id="646863b0:126">┌──────────────────────────────  CONTROL ROOM  ──────────────────────────────┐
+│  r/SkincareAddiction · 14m   match 92%      Approve · Skip · Open thread   │
+│  r/30PlusSkinCare    · 38m   match 88%      Approve · Skip · Open thread   │
+│  r/SkincareAddicts   · 3h    match 84%      Approve · Skip · Open thread   │
+│  ─────────────────────────────────────────────────────────────────────     │
+│  AGENT QUEUE   3 to review     · Drafted with your tone · UTM attached     │
+└────────────────────────────────────────────────────────────────────────────┘
+      </pre>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:127">
+      <div data-om-id="646863b0:128"></div>
+      <div class="pageno" data-om-id="646863b0:129">06 / 11</div>
+    </div>
+  </section>
+
+  <!-- 7. Traction -->
+  <section class="slide" data-screen-label="09 Market" data-om-id="646863b0:170" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="8" data-deck-active="">
+    <div class="header" data-om-id="646863b0:171">
+      <span class="eyebrow" data-om-id="646863b0:172">09 · Market</span>
+      <span class="brand" data-om-id="646863b0:173">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:174">Three concentric markets.</h2>
+
+    <div class="grid-3" style="margin-top: 96px;" data-om-id="646863b0:175">
+      <div class="glass" data-om-id="646863b0:176">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:177">Wedge · Now</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:178">D2C brands.</h3>
+        <p class="body" style="font-size: 26px;" data-om-id="646863b0:179">$200/seat. Replace one performance marketer with the agent + a human approver.</p>
+      </div>
+      <div class="glass" data-om-id="646863b0:180">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:181">Layer · 12 mo</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:182">Agencies</h3>
+        <p class="body" style="font-size: 26px;" data-om-id="646863b0:183">Multi-brand mode. The "Full Power" engine licensed to teams running ten clients at once.</p>
+      </div>
+      <div class="glass" data-om-id="646863b0:184">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:185">Platform · 24 mo</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:186">World model.</h3>
+        <p class="body" style="margin-top: 0; font-size: 26px;" data-om-id="646863b0:187">API + simulator. Educators teach with it. Researchers query it. Buyers and sellers rehearse on it.</p>
+      </div>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:188">
+      <div data-om-id="646863b0:189">BECOME THE SUBSTRATE FOR ONLINE INTERACTIONS.</div>
+      <div class="pageno" data-om-id="646863b0:190">09 / 11</div>
+    </div>
+  </section><section class="slide" data-screen-label="07 Traction" data-om-id="646863b0:130" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="6" data-cc-id="cc-5">
+    <div class="header" data-om-id="646863b0:131">
+      <span class="eyebrow" data-om-id="646863b0:132">07 · Traction</span>
+      <span class="brand" data-om-id="646863b0:133">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:134">Beta users.</h2>
+
+    <div class="grid-3" style="margin-top: 120px;" data-om-id="646863b0:135">
+      <div data-om-id="646863b0:136">
+        <div class="stat" data-om-id="646863b0:137">3</div>
+        <div class="stat-sub" data-om-id="646863b0:138" style="" data-cc-id="cc-6">Paying customers</div>
+      </div>
+      <div data-om-id="646863b0:139">
+        <div class="stat" data-om-id="646863b0:140">$600</div>
+        <div class="stat-sub" data-om-id="646863b0:141">MRR · $200 / seat</div>
+      </div>
+      <div data-om-id="646863b0:142">
+        <div class="stat" data-om-id="646863b0:143">5<span style="font-size: 110px; margin-left: 14px; color: rgba(255,255,255,0.55);" data-om-id="646863b0:144">min</span></div>
+        <div class="stat-sub" data-om-id="646863b0:145">Per day / brand</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 80px;" data-om-id="646863b0:146">
+      <p class="body dim" style="font-size: 26px;" data-om-id="646863b0:147" data-cc-id="cc-4">LOI's signed with two e-commerce agencies managing digital out-reach of multiple D2C brands&nbsp;</p>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:148">
+      <div data-om-id="646863b0:149">BUILT SOLO. VALIDATED SOLO. NOW SCALING TEAM &amp; DISTRIBUTION.</div>
+      <div class="pageno" data-om-id="646863b0:150">07 / 11</div>
+    </div>
+  </section>
+
+  <!-- 8. Why now -->
+  <section class="slide" data-screen-label="08 Why now" data-om-id="646863b0:151" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="7">
+    <div class="header" data-om-id="646863b0:152">
+      <span class="eyebrow" data-om-id="646863b0:153">08 · Why now</span>
+      <span class="brand" data-om-id="646863b0:154">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:155" style="" data-cc-id="cc-7">The window is 12 months.</h2>
+
+    <div class="grid-2" style="margin-top: 96px;" data-om-id="646863b0:156">
+      <div class="glass" data-om-id="646863b0:157">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:158">Cost</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:159">Inference fell 90%.</h3>
+        <p class="body" style="font-size: 28px;" data-om-id="646863b0:160">Per-post simulation is finally cheap enough to run on every brand, every day.</p>
+      </div>
+      <div class="glass" data-om-id="646863b0:161">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:162">Behavior</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:163">Buyers fled to communities.</h3>
+        <p class="body" style="font-size: 28px;" data-om-id="646863b0:164">High-intent conversations now happen on Reddit, Discord, niche forums. Not on Meta.</p>
+      </div>
+    </div>
+
+    <p class="body" style="margin-top: 72px; max-width: 1500px;" data-om-id="646863b0:165" data-cc-id="cc-8">
+      Every approved post becomes <span class="strong-white" data-om-id="646863b0:166">labeled training data</span>. The world model compounds. The flywheel can ship in 6 months.
+    </p>
+
+    <div class="footer" data-om-id="646863b0:167">
+      <div data-om-id="646863b0:168">Whoever maps online communities first owns the next decade of commerce.</div>
+      <div class="pageno" data-om-id="646863b0:169">08 / 11</div>
+    </div>
+  </section>
+
+  <!-- 9. Market & vision -->
+  
+
+  <!-- 10. Team -->
+  <section class="slide" data-screen-label="10 Team" data-om-id="646863b0:191" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="9">
+    <div class="header" data-om-id="646863b0:192">
+      <span class="eyebrow" data-om-id="646863b0:193">10 · Team</span>
+      <span class="brand" data-om-id="646863b0:194">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" data-om-id="646863b0:195">Long-term games.<br data-om-id="646863b0:196"><span style="color: rgba(255,255,255,0.45)" data-om-id="646863b0:197">Long-term people.</span></h2>
+
+    <div class="grid-3" style="margin-top: 80px;" data-om-id="646863b0:198">
+      <div class="glass" style="padding: 44px;" data-om-id="646863b0:199">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:200">Founder · CEO</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:201">Manthan Admane</h3>
+        <p class="body" style="font-size: 24px;" data-om-id="646863b0:202">Software developer turned marketing manager at Applied Materials. 2× D2C founder. Owns product, fundraising, and customer development.</p>
+      </div>
+      <div class="glass" style="padding: 44px;" data-om-id="646863b0:203">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:204">Founding Engineer</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:205">Manas Kalangan</h3>
+        <p class="body" style="font-size: 24px;" data-om-id="646863b0:206">Builds the data pipeline, the inference layer, and the Chrome extension that powers the world model.</p>
+      </div>
+      <div class="glass" style="padding: 44px;" data-om-id="646863b0:207">
+        <div class="eyebrow" style="margin-bottom: 24px;" data-om-id="646863b0:208">Research Advisor</div>
+        <h3 class="deck-h3" style="margin-bottom: 16px;" data-om-id="646863b0:209">MIT-WPU Computer Dept.</h3>
+        <p class="body" style="font-size: 24px;" data-om-id="646863b0:210">Co-authored research on AI in marketing. Advises on model architecture and academic validation.</p>
+      </div>
+    </div>
+
+    <div class="footer" data-om-id="646863b0:211">
+      <div data-om-id="646863b0:212">BUILDERS ON A MISSION.</div>
+      <div class="pageno" data-om-id="646863b0:213">10 / 11</div>
+    </div>
+  </section>
+
+  <!-- 11. Ask -->
+  <section class="slide center" data-screen-label="11 Ask" data-om-id="646863b0:214" data-om-validate="no_overflowing_text,no_overlapping_text,slide_sized_text" data-deck-slide="10" data-deck-last-visible="">
+    <div class="header" style="position: absolute; top: 120px; left: 120px; right: 120px;" data-om-id="646863b0:215">
+      <span class="eyebrow" data-om-id="646863b0:216">11 · The Ask</span>
+      <span class="brand" data-om-id="646863b0:217">LegitReach</span>
+    </div>
+
+    <h2 class="deck-h2" style="margin-bottom: 56px;" data-om-id="646863b0:218">$500k for 10%.</h2>
+
+    <div class="grid-3" style="margin-top: 24px; max-width: 1500px;" data-om-id="646863b0:219">
+      <div data-om-id="646863b0:220">
+        <div class="eyebrow" style="margin-bottom: 18px;" data-om-id="646863b0:221">Instrument</div>
+        <p class="body" style="font-size: 28px;" data-om-id="646863b0:222">YC-style SAFE.</p>
+      </div>
+      <div data-om-id="646863b0:223">
+        <div class="eyebrow" style="margin-bottom: 18px;" data-om-id="646863b0:224">Closing</div>
+        <p class="body" style="font-size: 28px;" data-om-id="646863b0:225">06 / 06 / 2026.</p>
+      </div>
+      <div data-om-id="646863b0:226">
+        <div class="eyebrow" style="margin-bottom: 18px;" data-om-id="646863b0:227">Burn</div>
+        <p class="body" style="font-size: 28px;" data-om-id="646863b0:228">2 engineers, 18 months.</p>
+      </div>
+    </div>
+
+    <div class="rule" style="margin-top: 64px; max-width: 1500px;" data-om-id="646863b0:229"></div>
+
+    <p class="body" style="margin-top: 56px; max-width: 1500px;" data-om-id="646863b0:230">Ship the multi-brand console. API license the engine. Every approved post compounds the model.</p>
+
+    <p class="body" style="margin-top: 56px; font-size: 28px; color: #fff;" data-om-id="646863b0:231">
+      manthan@legitreach.com&nbsp; · &nbsp;legitreach.com
+    </p>
+
+    <div class="footer" data-om-id="646863b0:232">
+      <div data-om-id="646863b0:233"></div>
+      <div class="pageno" data-om-id="646863b0:234">11 / 11</div>
+    </div>
+  </section>
+
+</deck-stage>
+
+<!-- Download / print bar (shown only when opened standalone, hidden inside an iframe + on print) -->
+<div id="deck-toolbar" style="
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  display: none; gap: 10px; z-index: 1000;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  padding: 8px; border-radius: 999px;
+  font-family: 'Inter', sans-serif;
+">
+  <a href="index.html#/invest" style="
+    background: transparent; color: #fff;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 13px; text-decoration: none;
+    transition: background 160ms ease, color 160ms ease;
+  ">← Back to site</a>
+  <button onclick="window.print()" style="
+    background: #fff; color: #000;
+    border: none; padding: 8px 22px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+  ">Download PDF</button>
+</div>
+<script>
+  // Show toolbar only when this page is opened directly (not embedded in an iframe)
+  try {
+    if (window.self === window.top) {
+      document.getElementById('deck-toolbar').style.display = 'flex';
+    }
+  } catch (e) { /* cross-origin = embedded; leave hidden */ }
+</script>
+<style>
+  @media print { #deck-toolbar { display: none !important; } }
+  /* Hide toolbar in presenting mode */
+  deck-stage[presenting] ~ #deck-toolbar { display: none; }
+</style>
+
+<script src="deck-stage.js"></script>
+</body>
+</html>
