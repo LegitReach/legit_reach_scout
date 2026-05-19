@@ -6,6 +6,7 @@ import { TopBar } from "./_chrome";
 import { Step1Persona, Step2Website, Step3Agent } from "./_steps";
 import { Step4Dashboard } from "./_dashboard";
 import type { AgentStats } from "./_agents";
+import type { ScanResult, CurationResult } from "./_steps";
 
 export default function A16zOnboarding() {
   const [step, setStep] = useState(1);
@@ -14,6 +15,8 @@ export default function A16zOnboarding() {
   const [manualDesc, setManualDesc] = useState("");
   const [agentId, setAgentId] = useState("classic");
   const [custom, setCustom] = useState<AgentStats | null>(null);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [curationResult, setCurationResult] = useState<CurationResult | null>(null);
 
   const total = 3;
 
@@ -42,6 +45,7 @@ export default function A16zOnboarding() {
             setWebsite={setWebsite}
             manualDesc={manualDesc}
             setManualDesc={setManualDesc}
+            onScanComplete={setScanResult}
             onNext={() => setStep(3)}
           />
         )}
@@ -51,11 +55,18 @@ export default function A16zOnboarding() {
             setAgentId={setAgentId}
             custom={custom}
             setCustom={setCustom}
+            scanResult={scanResult}
+            onCurationComplete={setCurationResult}
             onNext={() => setStep(4)}
           />
         )}
         {step === 4 && (
-          <Step4Dashboard agentId={agentId} setAgentId={setAgentId} />
+          <Step4Dashboard
+            agentId={agentId}
+            setAgentId={setAgentId}
+            curationResult={curationResult}
+            businessDescription={scanResult?.businessDescription ?? ""}
+          />
         )}
       </main>
       <footer

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FadeIn, AnimatedHeading } from "@/components/lr-design/visuals";
 import { Modal, BackgroundIndexer } from "./_chrome";
 import { AGENTS, Agent, AgentSilhouette, AgentStats } from "./_agents";
@@ -209,6 +209,32 @@ function PersonaCard({
   );
 }
 
+// ─── Shared types ─────────────────────────────────────────────
+export interface ScanResult {
+  tagline: string;
+  businessDescription: string;
+  targetAudience: string;
+  productCategories: string[];
+  keywords: string[];
+  subreddits: string[];
+  brandName: string;
+  storeUrl: string;
+  ogImage: string;
+}
+
+export interface CurationResult {
+  posts: Record<string, unknown>[];
+  curated_posts: Array<{
+    id: string;
+    ai_relevance_score: number;
+    ai_opportunity_score: number;
+    ai_reasoning: string;
+    recommended_action: "engage" | "monitor" | "skip";
+  }>;
+  summary: string;
+  total_analyzed: number;
+}
+
 // ─── Step 2: Website / Description ─────────────────────────────
 export function Step2Website({
   onNext,
@@ -216,18 +242,46 @@ export function Step2Website({
   setWebsite,
   manualDesc,
   setManualDesc,
+  onScanComplete,
 }: {
   onNext: () => void;
   website: string;
   setWebsite: (v: string) => void;
   manualDesc: string;
   setManualDesc: (v: string) => void;
+  onScanComplete: (result: ScanResult) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
   const [draft, setDraft] = useState(manualDesc);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
 
   const canContinue =
-    website.trim().length > 4 || manualDesc.trim().length > 10;
+    website.trim().length > 4 || manualDesc.trim().length >= 150;
+
+  async function handleContinue() {
+    if (website.trim().length > 4) {
+      setScanning(true);
+      setScanError("");
+      try {
+        const res = await fetch("/api/onboarding/magic-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: website.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Scan failed");
+        onScanComplete(data as ScanResult);
+        onNext();
+      } catch (err) {
+        setScanError(err instanceof Error ? err.message : "Could not scan site. Try manual description.");
+      } finally {
+        setScanning(false);
+      }
+    } else {
+      onNext();
+    }
+  }
 
   return (
     <div
@@ -345,19 +399,23 @@ export function Step2Website({
             style={{ gap: "1rem" }}
           >
             <button
-              onClick={onNext}
-              disabled={!canContinue}
+              onClick={handleContinue}
+              disabled={!canContinue || scanning}
               className="lr-btn-primary"
               style={{
-                opacity: canContinue ? 1 : 0.4,
-                cursor: canContinue ? "pointer" : "not-allowed",
+                opacity: canContinue && !scanning ? 1 : 0.4,
+                cursor: canContinue && !scanning ? "pointer" : "not-allowed",
               }}
             >
-              Continue
+              {scanning ? "Scanning…" : "Continue"}
             </button>
-            <span className="text-sm" style={{ color: "#9ca3af" }}>
-              We never post or change anything on your site.
-            </span>
+            {scanError ? (
+              <span className="text-sm" style={{ color: "#f87171" }}>{scanError}</span>
+            ) : (
+              <span className="text-sm" style={{ color: "#9ca3af" }}>
+                We never post or change anything on your site.
+              </span>
+            )}
           </div>
         </FadeIn>
       </div>
@@ -390,7 +448,10 @@ export function Step2Website({
               resize: "vertical",
             }}
           />
-          <div className="flex justify-end mt-6" style={{ gap: "0.75rem" }}>
+          <div className="text-xs mt-2 text-right" style={{ color: draft.length >= 150 ? "#9ca3af" : "#f87171" }}>
+            {draft.length < 150 ? "Atleast 150 characters required" : ""}
+          </div>
+          <div className="flex justify-end mt-4" style={{ gap: "0.75rem" }}>
             <button
               onClick={() => setShowModal(false)}
               style={{
@@ -409,7 +470,9 @@ export function Step2Website({
                 setManualDesc(draft);
                 setShowModal(false);
               }}
+              disabled={draft.length < 150}
               className="lr-btn-nav"
+              style={{ opacity: draft.length < 150 ? 0.4 : 1, cursor: draft.length < 150 ? "not-allowed" : "pointer" }}
             >
               Save
             </button>
@@ -427,17 +490,38 @@ export function Step3Agent({
   setAgentId,
   custom,
   setCustom,
+  scanResult,
+  onCurationComplete,
 }: {
   onNext: () => void;
   agentId: string;
   setAgentId: (id: string) => void;
   custom: AgentStats | null;
   setCustom: (s: AgentStats) => void;
+  scanResult: ScanResult | null;
+  onCurationComplete: (r: CurationResult) => void;
 }) {
   const agent: Agent = AGENTS.find((a) => a.id === agentId) || AGENTS[1];
   const view: AgentStats = custom ?? agent.stats;
   const update = (patch: Partial<AgentStats>) =>
     setCustom({ ...view, ...patch });
+
+  useEffect(() => {
+    if (!scanResult?.subreddits?.length || !scanResult?.keywords?.length) return;
+    fetch("/api/a16z/curate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subreddits: scanResult.subreddits,
+        keywords: scanResult.keywords,
+        businessDescription: scanResult.businessDescription,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => onCurationComplete(data as CurationResult))
+      .catch((err) => console.error("Curation failed:", err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div

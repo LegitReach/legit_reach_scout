@@ -35,6 +35,30 @@ async function scrapeWithJina(url: string): Promise<JinaScrapeResult> {
   };
 }
 
+function cleanScrapedContent(raw: string): string {
+  return raw
+    // remove fenced code blocks (JS/CSS/JSON embedded in page)
+    .replace(/```[\s\S]*?```/g, "")
+    // remove lines that are purely markdown links (nav items, breadcrumbs)
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      // skip lines where >60% of non-space chars are inside markdown link syntax
+      const linkChars = (trimmed.match(/\[.*?\]\(.*?\)/g) ?? []).join("").length;
+      if (linkChars / trimmed.length > 0.6) return false;
+      // skip cookie/legal/footer noise
+      if (/cookie|privacy policy|terms of service|all rights reserved|©|\bGDPR\b|accept all|unsubscribe/i.test(trimmed)) return false;
+      // skip lines that are just punctuation or single words (nav separators)
+      if (/^[|•\-–—\/\\]+$/.test(trimmed)) return false;
+      return true;
+    })
+    .join("\n")
+    // collapse 3+ blank lines down to one
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 async function handler(request: NextRequest): Promise<NextResponse> {
   const { url } = await request.json();
 
@@ -61,7 +85,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 Analyze it and extract the full brand profile needed to configure an AI agent to find customers on Reddit.
 
 STORE CONTENT:
-${pageContent}
+${cleanScrapedContent(pageContent)}
 
 Return ONLY a valid JSON object with this exact structure:
 {

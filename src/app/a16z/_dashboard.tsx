@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FadeIn, AnimatedHeading } from "@/components/lr-design/visuals";
 import {
@@ -14,20 +14,15 @@ import { AGENTS, AgentSilhouette } from "./_agents";
 type FeedPost = {
   sub: string;
   title: string;
+  postBody: string;
   age: string;
   up: number;
   comments: number;
   intent: "high" | "medium";
   match: number;
+  businessDescription: string;
+  url: string;
 };
-
-const FEED_POSTS: FeedPost[] = [
-  { sub: "r/SkincareAddiction", title: "Anyone else find retinol harsh in winter? Looking for a gentle nightly alt.", age: "14m", up: 132, comments: 47, intent: "high", match: 92 },
-  { sub: "r/30PlusSkinCare", title: "Best vitamin C serum that does not pill under sunscreen?", age: "38m", up: 84, comments: 21, intent: "high", match: 88 },
-  { sub: "r/AsianBeauty", title: "Niacinamide and copper peptides, actually a problem?", age: "1h", up: 210, comments: 96, intent: "medium", match: 71 },
-  { sub: "r/EntrepreneurRideAlong", title: "Anyone here scaled a skincare DTC past $1M without paid ads?", age: "2h", up: 64, comments: 33, intent: "medium", match: 58 },
-  { sub: "r/SkincareAddicts", title: "Sensitive skin routine for someone in Phoenix, heat is killing me", age: "3h", up: 41, comments: 18, intent: "high", match: 84 },
-];
 
 type RedditItem = {
   subreddit: string;
@@ -49,6 +44,13 @@ const REDDIT_HISTORY: RedditItem[] = [
   { subreddit: "ecommerce", body: "Ok boss, edits incoming.", created_utc: 1773734044, url: "https://www.reddit.com/r/ecommerce/comments/1rvzfqr/i_spent_40_hours_reading_reddit_threads_about/oaw78vj/" },
 ];
 
+function timeAgo(utc: number): string {
+  const diff = Math.floor(Date.now() / 1000) - utc;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
+}
+
 function formatRedditDate(unix: number) {
   const d = new Date(unix * 1000);
   return d.toLocaleDateString(undefined, {
@@ -63,48 +65,60 @@ const STATS = [
   { label: "Interactions achieved", value: "12.4k" },
 ];
 
-type QueueItem = {
+type ApprovedItem = {
   sub: string;
-  summary: string;
-  action: string;
-  status: "draft" | "review" | "approved" | "skipped";
-  confidence: number;
+  title: string;
+  draft: string;
+  url: string;
+  posted: boolean;
 };
 
-const QUEUE: QueueItem[] = [
-  { sub: "r/SkincareAddiction", summary: "Asks for a gentle winter retinol alternative.", action: "Reply with bakuchiol context + your Calm Serum link via UTM.", status: "draft", confidence: 0.92 },
-  { sub: "r/30PlusSkinCare", summary: "Wants vitamin C that does not pill under SPF.", action: "Reply citing 10% ascorbic vs ascorbyl glucoside, mention your Daylight C.", status: "review", confidence: 0.88 },
-  { sub: "r/SkincareAddicts", summary: "Phoenix heat, sensitive skin routine.", action: "Share a 4-step gentle routine; soft mention of your Gel Cleanser.", status: "draft", confidence: 0.84 },
-];
+import type { CurationResult } from "./_steps";
 
 export function Step4Dashboard({
   agentId,
   setAgentId,
+  curationResult,
+  businessDescription,
 }: {
   agentId: string;
   setAgentId: (id: string) => void;
+  curationResult: CurationResult | null;
+  businessDescription: string;
 }) {
-  const [queue, setQueue] = useState<QueueItem[]>(QUEUE);
+  const [approvedItems, setApprovedItems] = useState<ApprovedItem[]>([]);
   const [feedLoaded, setFeedLoaded] = useState(false);
-  const [queueLoaded, setQueueLoaded] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [tokens, setTokens] = useState(87);
   const [redditUsername, setRedditUsername] = useState("");
   const [showMoreFeed, setShowMoreFeed] = useState(false);
 
-  useEffect(() => {
-    const t1 = setTimeout(() => setFeedLoaded(true), 1600);
-    const t2 = setTimeout(() => setQueueLoaded(true), 2400);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, []);
+  const liveFeed: FeedPost[] = curationResult
+    ? curationResult.curated_posts
+        .filter((c) => c.recommended_action !== "skip")
+        .map((c) => {
+          const post = curationResult.posts.find((p) => (p as Record<string, unknown>).id === c.id) as Record<string, unknown> | undefined;
+          return {
+            sub: `${post?.subreddit ?? "reddit"}`,
+            title: String(post?.title ?? ""),
+            postBody: String(post?.selftext ?? ""),
+            age: timeAgo(Number(post?.created_utc ?? 0)),
+            up: Number(post?.score ?? 0),
+            comments: Number(post?.num_comments ?? 0),
+            intent: c.ai_opportunity_score >= 70 ? "high" : "medium",
+            match: c.ai_opportunity_score,
+            businessDescription,
+            url: post?.url
+              ? `${post.url}`
+              : `https://reddit.com/r/${post?.subreddit ?? ""}`,
+          } satisfies FeedPost;
+        })
+    : [];
 
-  const remainingToReview = queue.filter(
-    (q) => q.status === "draft" || q.status === "review"
-  ).length;
+  useEffect(() => {
+    if (curationResult) setFeedLoaded(true);
+  }, [curationResult]);
 
   return (
     <div
@@ -214,8 +228,14 @@ export function Step4Dashboard({
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {feedLoaded ? (
-                  (showMoreFeed ? FEED_POSTS : FEED_POSTS.slice(0, 2)).map(
-                    (p, i) => <FeedRow key={i} post={p} />
+                  (showMoreFeed ? liveFeed : liveFeed.slice(0, 2)).map(
+                    (p, i) => (
+                      <FeedRow
+                        key={i}
+                        post={p}
+                        onApprove={(item) => setApprovedItems((prev) => [...prev, item])}
+                      />
+                    )
                   )
                 ) : (
                   <PanelLoading
@@ -224,7 +244,7 @@ export function Step4Dashboard({
                   />
                 )}
               </div>
-              {feedLoaded && FEED_POSTS.length > 2 && (
+              {feedLoaded && liveFeed.length > 2 && (
                 <div style={{ marginTop: "auto", paddingTop: "1.25rem" }}>
                   <button
                     onClick={() => setShowMoreFeed((v) => !v)}
@@ -241,14 +261,14 @@ export function Step4Dashboard({
                   >
                     {showMoreFeed
                       ? "Show fewer matches ↑"
-                      : `Show ${FEED_POSTS.length - 2} more matches →`}
+                      : `Show ${liveFeed.length - 2} more matches →`}
                   </button>
                 </div>
               )}
             </div>
           </FadeIn>
 
-          {/* Agent action queue */}
+          {/* Reply queue */}
           <FadeIn delay={500} duration={700} style={{ display: "flex" }}>
             <div
               className="liquid-glass rounded-2xl p-6"
@@ -265,63 +285,60 @@ export function Step4Dashboard({
                     className="text-xs uppercase tracking-widest mb-1"
                     style={{ color: "#9ca3af" }}
                   >
-                    Agent actions
+                    Reply queue
                   </div>
                   <div className="text-lg font-medium">
-                    Outreach drafts awaiting you
+                    Approved drafts
                   </div>
                 </div>
-                <div
-                  className="text-xs"
-                  style={{ color: queueLoaded ? "#fde68a" : "#cbd5e1" }}
-                >
-                  {queueLoaded ? `${remainingToReview} to review` : "drafting…"}
-                </div>
+                {approvedItems.length > 0 && (
+                  <div
+                    className="text-xs"
+                    style={{
+                      color: "#fde68a",
+                      background: "rgba(253,230,138,0.1)",
+                      border: "1px solid rgba(253,230,138,0.25)",
+                      borderRadius: 999,
+                      padding: "2px 10px",
+                    }}
+                  >
+                    {approvedItems.filter((i) => !i.posted).length} ready
+                  </div>
+                )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {queueLoaded ? (
-                  queue.slice(0, 2).map((q, i) => (
-                    <ActionRow
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1 }}>
+                {approvedItems.length === 0 ? (
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.5rem",
+                      padding: "2rem 1rem",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 28, opacity: 0.2 }}>✦</div>
+                    <div className="text-sm" style={{ color: "#6b7280", lineHeight: 1.5 }}>
+                      Approve a post from the feed to generate a reply draft
+                    </div>
+                  </div>
+                ) : (
+                  approvedItems.map((item, i) => (
+                    <ReplyQueueItem
                       key={i}
-                      q={q}
-                      onApprove={() =>
-                        setQueue((qs) =>
-                          qs.map((x, j) =>
-                            j === i ? { ...x, status: "approved" } : x
-                          )
-                        )
-                      }
-                      onSkip={() =>
-                        setQueue((qs) =>
-                          qs.map((x, j) =>
-                            j === i ? { ...x, status: "skipped" } : x
-                          )
+                      item={item}
+                      onDone={() =>
+                        setApprovedItems((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, posted: true } : x))
                         )
                       }
                     />
                   ))
-                ) : (
-                  <PanelLoading label="Composing on-brand drafts…" rows={2} />
                 )}
               </div>
-              {queueLoaded && queue.length > 2 && (
-                <div style={{ marginTop: "auto", paddingTop: "1.25rem" }}>
-                  <button
-                    style={{
-                      background: "transparent",
-                      color: "#d1d5db",
-                      fontSize: 13,
-                      textDecoration: "underline",
-                      textUnderlineOffset: 4,
-                      padding: 0,
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Show {queue.length - 2} more drafts →
-                  </button>
-                </div>
-              )}
             </div>
           </FadeIn>
         </div>
@@ -411,8 +428,30 @@ export function Step4Dashboard({
   );
 }
 
-function FeedRow({ post }: { post: FeedPost }) {
+function FeedRow({ post, onApprove }: { post: FeedPost; onApprove: (item: ApprovedItem) => void }) {
   const intentColor = post.intent === "high" ? "#86efac" : "#fde68a";
+  const [plan, setPlan] = useState<import("@/app/api/a16z/draft-comment/route").EngagementPlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(true);
+  const [action, setAction] = useState<"approved" | "skipped" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/a16z/draft-comment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        postTitle: post.title,
+        postBody: post.postBody,
+        subreddit: post.sub,
+        businessDescription: post.businessDescription,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => setPlan(data.plan ?? null))
+      .catch(() => setPlan(null))
+      .finally(() => setPlanLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div
       className="rounded-xl p-4"
@@ -504,112 +543,232 @@ function FeedRow({ post }: { post: FeedPost }) {
           }}
         />
       </div>
+
+      <div
+        style={{
+          marginTop: 12,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          paddingTop: 10,
+        }}
+      >
+        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: "#6b7280" }}>
+          Engagement plan
+        </div>
+        {planLoading ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: 999,
+                border: "1.5px solid rgba(255,255,255,0.15)",
+                borderTopColor: "#fff",
+                animation: "spin 0.8s linear infinite",
+                flexShrink: 0,
+              }}
+            />
+            <span className="text-xs" style={{ color: "#6b7280" }}>analysing…</span>
+          </div>
+        ) : plan ? (
+          <>
+            <PlanCard plan={plan} />
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: "0.5rem",
+              }}
+            >
+              {action ? (
+                <span
+                  className="text-xs"
+                  style={{
+                    color: action === "approved" ? "#86efac" : "#fca5a5",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 999,
+                      background: action === "approved" ? "#86efac" : "#fca5a5",
+                      flexShrink: 0,
+                    }}
+                  />
+                  {action === "approved" ? "Queued to post" : "Skipped"}
+                </span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setAction("skipped")}
+                    style={{
+                      background: "transparent",
+                      color: "#d1d5db",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      borderRadius: 8,
+                      padding: "0.3rem 0.85rem",
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAction("approved");
+                      onApprove({ sub: post.sub, title: post.title, draft: plan.draft ?? "", url: post.url, posted: false });
+                    }}
+                    style={{
+                      background: "#fff",
+                      color: "#000",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "0.3rem 0.85rem",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Approve
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function ActionRow({
-  q,
-  onApprove,
-  onSkip,
-}: {
-  q: QueueItem;
-  onApprove: () => void;
-  onSkip: () => void;
-}) {
-  const isDone = q.status === "approved" || q.status === "skipped";
-  const badgeColor =
-    q.status === "approved"
-      ? "#86efac"
-      : q.status === "skipped"
-      ? "#fca5a5"
-      : q.status === "review"
-      ? "#fde68a"
-      : "#cbd5e1";
-  const badgeLabel: Record<QueueItem["status"], string> = {
-    approved: "queued to post",
-    skipped: "skipped",
-    review: "needs review",
-    draft: "drafted",
-  };
+function PlanCard({ plan }: { plan: import("@/app/api/a16z/draft-comment/route").EngagementPlan }) {
+  const riskColor = plan.riskLevel === "Low" ? "#86efac" : plan.riskLevel === "Medium" ? "#fde68a" : "#fca5a5";
+
+  const rows: { label: string; value: string; accent?: string }[] = [
+    { label: "Intent", value: plan.intent },
+    { label: "Angle", value: plan.angle },
+    { label: "Tone", value: plan.tone },
+    {
+      label: "Product",
+      value: plan.mentionProduct
+        ? `Yes — ${plan.mentionHow}`
+        : "No",
+      accent: plan.mentionProduct ? "#fde68a" : "#6b7280",
+    },
+    { label: "Risk", value: `${plan.riskLevel} — ${plan.riskReason}`, accent: riskColor },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+      {rows.map(({ label, value, accent }) => (
+        <div key={label} className="flex" style={{ gap: "0.5rem", alignItems: "flex-start" }}>
+          <span
+            style={{
+              minWidth: 48,
+              fontSize: 10,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "#6b7280",
+              paddingTop: 2,
+              flexShrink: 0,
+            }}
+          >
+            {label}
+          </span>
+          <span style={{ fontSize: 12, lineHeight: 1.5, color: accent ?? "#d1d5db" }}>
+            {value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReplyQueueItem({ item, onDone }: { item: ApprovedItem; onDone: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    navigator.clipboard.writeText(item.draft).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
     <div
       className="rounded-xl p-4"
       style={{
         background: "rgba(255,255,255,0.03)",
         border: "1px solid rgba(255,255,255,0.08)",
-        opacity: isDone ? 0.7 : 1,
+        opacity: item.posted ? 0.5 : 1,
         transition: "opacity 200ms ease",
       }}
     >
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs" style={{ color: "#9ca3af" }}>
-          {q.sub}
-        </div>
-        <div className="flex items-center" style={{ gap: "0.5rem" }}>
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              background: badgeColor,
-            }}
-          />
-          <span className="text-xs" style={{ color: badgeColor }}>
-            {badgeLabel[q.status]}
-          </span>
-        </div>
-      </div>
-      <div
-        className="text-sm leading-snug mb-1"
-        style={{ color: "#f3f4f6" }}
-      >
-        {q.summary}
-      </div>
-      <div
-        className="text-xs mb-3"
-        style={{ fontStyle: "italic", color: "#9ca3af" }}
-      >
-        Plan: {q.action}
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="text-xs" style={{ color: "#9ca3af" }}>
-          Confidence {(q.confidence * 100).toFixed(0)}%
-        </div>
-        {!isDone && (
-          <div className="flex" style={{ gap: "0.5rem" }}>
-            <button
-              onClick={onSkip}
-              style={{
-                background: "transparent",
-                color: "#d1d5db",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: 8,
-                padding: "0.35rem 0.9rem",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              Skip
-            </button>
-            <button
-              onClick={onApprove}
-              style={{
-                background: "#fff",
-                color: "#000",
-                border: "none",
-                borderRadius: 8,
-                padding: "0.35rem 0.9rem",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-            >
-              Approve
-            </button>
-          </div>
+        <div className="text-xs" style={{ color: "#9ca3af" }}>{item.sub}</div>
+        {item.posted && (
+          <span className="text-xs" style={{ color: "#86efac" }}>posted ✓</span>
         )}
       </div>
+      <div className="text-xs mb-3" style={{ color: "#d1d5db", fontWeight: 500, lineHeight: 1.4 }}>
+        {item.title.length > 80 ? item.title.slice(0, 80) + "…" : item.title}
+      </div>
+      <div
+        className="text-xs rounded-lg p-3 mb-3"
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#e5e7eb",
+          lineHeight: 1.6,
+          fontStyle: "italic",
+        }}
+      >
+        {item.draft}
+      </div>
+      {!item.posted && (
+        <div className="flex justify-end" style={{ gap: "0.5rem" }}>
+          <button
+            onClick={copy}
+            style={{
+              background: "transparent",
+              color: copied ? "#86efac" : "#d1d5db",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 8,
+              padding: "0.3rem 0.85rem",
+              fontSize: 12,
+              cursor: "pointer",
+              transition: "color 150ms ease",
+            }}
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(item.draft).then(() => {
+                window.open(item.url, "_blank", "noopener,noreferrer");
+                onDone();
+              });
+            }}
+            style={{
+              background: "#fff",
+              color: "#000",
+              border: "none",
+              borderRadius: 8,
+              padding: "0.3rem 0.85rem",
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Post it →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
