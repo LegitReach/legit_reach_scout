@@ -12,7 +12,6 @@ export default function BuildingPage() {
 
   const stats = [
     { num: "3", label: "paying customers" },
-    { num: "$600", label: "MRR" },
     { num: "5 min", label: "per day / brand" },
   ];
 
@@ -78,7 +77,7 @@ export default function BuildingPage() {
 
             <Reveal delay={560}>
               <div
-                className="md:grid md:grid-cols-3 gap-6"
+                className="md:grid md:grid-cols-2 gap-6"
                 style={{ marginBottom: "2.5rem" }}
               >
                 {stats.map((s, i) => (
@@ -173,7 +172,12 @@ export default function BuildingPage() {
           gap: "0.5rem",
         }}
       >
-        <div>LegitReach. Manage real online presence with ease.</div>
+        <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
+          <span>LegitReach. Manage real online presence with ease.</span>
+          <a href="/policy" style={{ transition: "color 200ms ease" }}>
+            Policy
+          </a>
+        </div>
         <a
           href="mailto:manthan@legitreach.com"
           style={{ transition: "color 200ms ease" }}

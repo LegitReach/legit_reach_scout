@@ -5,6 +5,7 @@ import {
   AnimatedHeading,
   DigitalDowntown,
   FadeIn,
+  Reveal,
 } from "@/components/lr-design/visuals";
 import Nav from "@/components/lr-design/Nav";
 
@@ -42,19 +43,23 @@ export default function Home() {
           >
             <div style={{ maxWidth: "52rem" }} className="text-shadow-soft">
               <AnimatedHeading
-                text={"Build your authentic\ndigital outreach clone."}
+                text={"Search engine for\ncommunity managers."}
                 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal mb-6"
               />
               <FadeIn delay={1000} duration={1000}>
                 <p
                   className="text-base md:text-lg mb-8"
                   style={{
-                    maxWidth: "38rem",
+                    maxWidth: "40rem",
                     color: "#d1d5db",
                   }}
                 >
-                  Your conversations & identity stitched into one calm system
-                  that runs while you sleep.
+                  Everything a community manager needs to run a brand online.
+                  Listen, research, draft & post: One platform.
+                  <br />
+                  <br />
+                  Compound your brand voice without a single dollar in paid
+                  media.
                 </p>
               </FadeIn>
               <FadeIn delay={1400} duration={1000}>
@@ -81,6 +86,71 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Problem section */}
+        <section
+          className="px-6 md:px-12 lg:px-16 py-32"
+          style={{
+            minHeight: "100vh",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div className="max-w-5xl" style={{ paddingTop: "4rem" }}>
+            <Reveal>
+              <div
+                className="text-xs uppercase mb-8"
+                style={{ letterSpacing: "0.15em", color: "#9ca3af" }}
+              >
+                Problem
+              </div>
+            </Reveal>
+            <Reveal delay={120}>
+              <h2
+                className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal mb-10 leading-tight"
+                style={{ letterSpacing: "-0.04em" }}
+              >
+                Online community management is broken.
+              </h2>
+            </Reveal>
+            <Reveal delay={220}>
+              <p
+                className="text-lg md:text-xl mb-10 leading-relaxed"
+                style={{ maxWidth: "46rem", color: "#d1d5db" }}
+              >
+                It takes consistency, time, effort, and taste. Most brands are
+                struggling to show up legitimately online. They go silent,
+                outsource badly, default to ads or worse: use bot armies for
+                posting.
+              </p>
+            </Reveal>
+            <Reveal delay={320}>
+              <div
+                className="flex flex-wrap"
+                style={{ gap: "0.625rem" }}
+              >
+                {[
+                  "Consistency",
+                  "Time",
+                  "Effort",
+                  "Taste",
+                  "Legitimacy",
+                ].map((t) => (
+                  <div
+                    key={t}
+                    className="text-sm"
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      padding: "0.5rem 1rem",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
       </main>
 
       <footer
@@ -93,7 +163,12 @@ export default function Home() {
           gap: "0.5rem",
         }}
       >
-        <div>LegitReach. Manage real online presence with ease.</div>
+        <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
+          <span>LegitReach. Manage real online presence with ease.</span>
+          <Link href="/policy" style={{ transition: "color 200ms ease" }}>
+            Policy
+          </Link>
+        </div>
         <a
           href="mailto:manthan@legitreach.com"
           style={{ transition: "color 200ms ease" }}
