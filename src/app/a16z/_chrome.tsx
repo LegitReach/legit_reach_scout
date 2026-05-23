@@ -25,7 +25,7 @@ export function TopBar({
           </Link>
           <span style={{ color: "rgba(255,255,255,0.25)" }}>/</span>
           <span className="text-xs uppercase tracking-widest" style={{ color: "#d1d5db" }}>
-            CREATE AUTHENTIC DIGITAL PERSONAS
+            CREATE AUTHENTIC CONTENT FOR COMMUNITY
           </span>
         </div>
         {!onDashboard && <Steps step={step} total={total} />}

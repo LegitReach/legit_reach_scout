@@ -1,10 +1,12 @@
-# LegitReach — E-Commerce Management System (EMS)
+# LegitReach — Search Engine for Community Managers
 
-An advanced Bloomberg-style terminal designed for modern ecommerce brands. Enter your store URL and immediately launch a real-time command center loaded with brand intelligence, growth metrics, and autonomous AI agents designed to scout opportunities across the web.
+Everything a community manager needs to run a brand online — listen, research, draft, and post — in one platform, without a single dollar in paid media. AI agents draft a brand's authentic voice at superhuman pace; a human approves every post, so brands show up legitimately in ~5 minutes a day instead of going silent, outsourcing badly, or deploying bot armies.
+
+**Traction:** 3 paying brands · 67 customer-discovery calls · 2 signed LOIs (a Boston political/social strategist and an education institute). Live at [legitreach.com](https://legitreach.com).
 
 ## What It Does
 
-LegitReach analyzes your ecommerce store URL and automatically provisions a personalized EMS terminal featuring three dynamic intelligence panels:
+LegitReach analyzes your store or brand URL and provisions a personalized command center for community management, featuring three dynamic intelligence panels:
 
 | Panel | Description | Status |
 |---|---|---|
@@ -110,4 +112,4 @@ The Reddit Agent is the first active agent in the EMS:
 
 ## License
 
-Proprietary — LegitReach © 2025
+Proprietary — LegitReach © 2026

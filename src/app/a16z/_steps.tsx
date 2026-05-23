@@ -31,7 +31,7 @@ export function Step1Persona({
           </div>
         </FadeIn>
         <AnimatedHeading
-          text="Create a digital clone for?"
+          text="Start managing online-communities for?"
           className="text-3xl md:text-5xl lg:text-6xl font-normal mb-4"
         />
         <FadeIn delay={400} duration={700}>

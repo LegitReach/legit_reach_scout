@@ -16,19 +16,19 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "LegitReach | E-Commerce Management System",
-  description: "A Bloomberg-style terminal for your ecommerce brand. AI agents for Reddit engagement, brand intelligence, and growth — all in one dashboard. Free to start.",
+  title: "LegitReach | Search Engine for Community Managers",
+  description: "Simple automations to manage your online community. Listen, research, respond, and report — all in one platform. Compound your brand voice without a single dollar in paid media.",
   openGraph: {
-    title: "LegitReach | E-Commerce Management System",
-    description: "A Bloomberg-style EMS terminal that connects your brand data, scans Reddit for opportunities, and delivers real-time brand intelligence. Built for modern ecommerce.",
+    title: "LegitReach | Search Engine for Community Managers",
+    description: "Everything a community manager does to run a brand online: listen, research, respond, and report. Compound your brand voice without a single dollar in paid media.",
     images: ["https://legitreach.com/og-image.png"],
     url: "https://legitreach.com",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LegitReach | E-Commerce Management System",
-    description: "Bloomberg-style terminal for your ecommerce brand. AI agents, brand intelligence, and growth tools. Free.",
+    title: "LegitReach | Search Engine for Community Managers",
+    description: "Simple automations to manage your online community. Listen, research, respond, and report. Zero ad spend.",
     images: ["https://legitreach.com/og-image.png"],
   },
   icons: {
