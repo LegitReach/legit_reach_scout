@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Exa from "exa-js";
 import { getGeminiModel } from "@/ai/gemini.model";
+import { ProxyAgent, fetch as proxyFetch } from "undici";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Exa parallel ~3s + rules parallel ~3s + Gemini ~4s
 export const maxDuration = 45;
@@ -215,22 +216,43 @@ async function discoverCommunities(
 // works fine with a browser-style User-Agent from our own server IP.
 
 async function fetchSubredditRules(subreddit: string): Promise<{ subreddit: string; rulesText: string }> {
+  const apifyToken = process.env.APIFY_API_TOKEN;
   const rulesUrl = `https://www.reddit.com/r/${subreddit}/about/rules.json`;
 
   try {
-    const res = await fetch(rulesUrl, {
-      headers: {
-        "User-Agent": "NotReddit/1.1 (community-discovery;)",
-        "Accept": "application/json",
-      },
-    });
+    let res: Response;
+
+    const proxyUser = process.env.APIFY_PROXY_USERNAME;
+    const proxyPass = process.env.APIFY_PROXY_PASSWORD;
+
+    if (apifyToken && proxyUser && proxyPass) {
+      // Route through Apify's residential proxy pool to bypass Reddit's IP block
+      // on Vercel/AWS. No actor overhead — just a plain HTTP proxy. ~500ms per call.
+      const dispatcher = new ProxyAgent(
+        `http://${proxyUser}:${proxyPass}@proxy.apify.com:8000`
+      );
+      res = await proxyFetch(rulesUrl, {
+        dispatcher,
+        headers: {
+          "User-Agent": "NotReddit/1.1",
+          "Accept": "application/json",
+        },
+      }) as unknown as Response;
+    } else {
+      // Local dev — residential IP works fine without proxy
+      res = await fetch(rulesUrl, {
+        headers: {
+          "User-Agent": "NotReddit/1.1",
+          "Accept": "application/json",
+        },
+      });
+    }
 
     if (!res.ok) {
       console.warn(`[magic-scan] rules fetch failed for r/${subreddit}: HTTP ${res.status}`);
       return { subreddit, rulesText: "No rules found." };
     }
 
-    // Reddit returns { rules: [...], site_rules: [...] } directly — no Jina envelope
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json = await res.json() as { rules?: any[] };
 
