@@ -109,8 +109,8 @@ export async function processCuration(params: CurationParams) {
 
     } catch (error) {
         console.error(`Worker failed for jobId ${jobId}:`, error);
-        // We cast the channel call to 'any' for now or rely on the global type from redis.ts
-        await realtime.channel(`curate_${jobId}`).emit("curation.update.data", {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (realtime.channel(`curate_${jobId}`) as any).emit("curation.update.data", {
             status: "failed",
             error: "Internal processing error"
         });
@@ -118,13 +118,13 @@ export async function processCuration(params: CurationParams) {
 }
 
 async function publishAndCache(jobId: string, data: any) {
-    // Explicitly casting the channel to bypass the SDK's internal N extends string constraint
-    // while the global T is still being inferred in the background.
-    await realtime.channel(`curate_${jobId}`).emit("curation.update.data", {
+    // Cast channel to any — the CurationEvents generic causes "type instantiation excessively deep"
+    // in tsc even though the runtime emit is correct.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (realtime.channel(`curate_${jobId}`) as any).emit("curation.update.data", {
         status: "completed",
         data
-    }
-    );
+    });
 }
 
 function buildCuratePrompt(
