@@ -216,7 +216,6 @@ async function discoverCommunities(
 // works fine with a browser-style User-Agent from our own server IP.
 
 async function fetchSubredditRules(subreddit: string): Promise<{ subreddit: string; rulesText: string }> {
-  const apifyToken = process.env.APIFY_API_TOKEN;
   const rulesUrl = `https://www.reddit.com/r/${subreddit}/about/rules.json`;
 
   try {
@@ -224,8 +223,11 @@ async function fetchSubredditRules(subreddit: string): Promise<{ subreddit: stri
 
     const proxyUser = process.env.APIFY_PROXY_USERNAME;
     const proxyPass = process.env.APIFY_PROXY_PASSWORD;
+    const usingProxy = !!(proxyUser && proxyPass);
 
-    if (apifyToken && proxyUser && proxyPass) {
+    console.log(`[magic-scan] rules r/${subreddit} — proxy: ${usingProxy} user: ${!!proxyUser} pass: ${!!proxyPass}`);
+
+    if (usingProxy) {
       // Route through Apify's residential proxy pool to bypass Reddit's IP block
       // on Vercel/AWS. No actor overhead — just a plain HTTP proxy. ~500ms per call.
       const dispatcher = new ProxyAgent(
@@ -249,7 +251,7 @@ async function fetchSubredditRules(subreddit: string): Promise<{ subreddit: stri
     }
 
     if (!res.ok) {
-      console.warn(`[magic-scan] rules fetch failed for r/${subreddit}: HTTP ${res.status}`);
+      console.warn(`[magic-scan] rules HTTP ${res.status} for r/${subreddit} (proxy: ${usingProxy})`);
       return { subreddit, rulesText: "No rules found." };
     }
 
