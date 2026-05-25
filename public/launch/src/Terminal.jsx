@@ -13,7 +13,16 @@ const VIEW_TABS = [
 
 function Terminal({ initialHost, onExit }) {
   const [activeHost, setActiveHost] = useStateT(initialHost);
-  const site = useMemoT(() => window.getSite(activeHost), [activeHost]);
+  // Real API state — populated by magic-scan + curate calls.
+  // null = still loading, use mock getSite() as visual placeholder.
+  const [realSiteData, setRealSiteData] = useStateT(null);
+  const [apiPhase, setApiPhase] = useStateT("scanning"); // scanning | curating | done | error
+  const [apiError, setApiError] = useStateT(null);
+
+  const site = useMemoT(
+    () => realSiteData || window.getSite(activeHost),
+    [activeHost, realSiteData]
+  );
   const [communityIdx, setCommunityIdx] = useStateT(0);
   const [viewTab, setViewTab] = useStateT("terminal");
   const [siteMenuOpen, setSiteMenuOpen] = useStateT(false);
@@ -70,10 +79,70 @@ function Terminal({ initialHost, onExit }) {
     return () => {cancelled = true;cancelAnimationFrame(raf);};
   }, [activeHost]);
 
-  const overall = useMemoT(
-    () => Math.min(1, (loadIdx + stageProgress) / STAGES.length),
-    [loadIdx, stageProgress]
-  );
+  // ─── Real API calls ──────────────────────────────────────────────────────
+  // Sequence: magic-scan (brand + community) → curate (posts + blueprint)
+  // apiPhase drives the ready flags; the animation above is purely visual.
+  useEffectT(() => {
+    setApiPhase("scanning");
+    setRealSiteData(null);
+    setApiError(null);
+    setCommunityIdx(0); // reset to first community when host changes
+    var cancelled = false;
+
+    async function run() {
+      try {
+        // Step 1 — magic-scan (~24 s with Apify proxy)
+        var scanRes = await fetch("/api/tech-week/magic-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: activeHost })
+        });
+        if (cancelled) return;
+        if (!scanRes.ok) throw new Error("magic-scan HTTP " + scanRes.status);
+        var scanData = await scanRes.json();
+        if (cancelled) return;
+
+        // Partial update — show real community name + keyword cloud immediately
+        var partialSite = window.mapApiDataToSite(activeHost, scanData, null);
+        setRealSiteData(partialSite);
+        setApiPhase("curating");
+
+        // Step 2 — curate (~10-15 s)
+        var curateRes = await fetch("/api/tech-week/curate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brandProfile: scanData.brandProfile, community: scanData.community })
+        });
+        if (cancelled) return;
+        if (!curateRes.ok) throw new Error("curate HTTP " + curateRes.status);
+        var curateData = await curateRes.json();
+        if (cancelled) return;
+
+        var fullSite = window.mapApiDataToSite(activeHost, scanData, curateData);
+        setRealSiteData(fullSite);
+        setApiPhase("done");
+      } catch (err) {
+        if (!cancelled) {
+          console.error("[Terminal] API error:", err);
+          setApiError(err.message);
+          setApiPhase("error");
+        }
+      }
+    }
+
+    run();
+    return function() { cancelled = true; };
+  }, [activeHost]);
+
+  const overall = useMemoT(function() {
+    // API-phase-aware progress: blend timer animation within each phase
+    var t = Math.min(1, (loadIdx + stageProgress) / STAGES.length);
+    if (apiPhase === "scanning")  return t * 0.45;
+    if (apiPhase === "curating")  return 0.5 + t * 0.40;
+    if (apiPhase === "done")      return 1;
+    if (apiPhase === "error")     return 0;
+    return t * 0.10;
+  }, [apiPhase, loadIdx, stageProgress]);
 
   function subFor(stageIdx) {
     if (stageIdx < loadIdx) return null;
@@ -82,15 +151,22 @@ function Terminal({ initialHost, onExit }) {
     return { ...s, stage: STAGES[stageIdx] };
   }
 
+  // ready flags are driven by real API completion, not the visual timer.
+  // scanning   → nothing ready (all tabs blurred)
+  // curating   → site name + community + keyword cloud are ready
+  // done       → everything ready
+  var readyAfterScan = apiPhase === "curating" || apiPhase === "done";
   const ready = {
-    site: loadIdx >= 1,
-    sentiment: loadIdx >= 2,
-    engagement: loadIdx >= 3,
-    blueprint: loadIdx >= 4,
-    terminal: loadIdx >= 2 // overview ready once first data section is in
+    site:       readyAfterScan,
+    sentiment:  readyAfterScan,
+    engagement: apiPhase === "done",
+    blueprint:  apiPhase === "done",
+    terminal:   apiPhase === "done"
   };
 
-  const community = site.communities[communityIdx];
+  // Guard: if the site changed and no longer has the selected community, reset to 0
+  var safeIdx = Math.min(communityIdx, site.communities.length - 1);
+  const community = site.communities[safeIdx] || site.communities[0];
   const allSites = Object.values(window.SITES_DB);
 
   useEffectT(() => {
@@ -105,7 +181,7 @@ function Terminal({ initialHost, onExit }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const loaded = loadIdx >= STAGES.length;
+  const loaded = apiPhase === "done";
   const currentStage = STAGES[Math.min(loadIdx, STAGES.length - 1)];
   const siteSub = subFor(0);
 
@@ -222,12 +298,27 @@ function Terminal({ initialHost, onExit }) {
 
       {/* BODY — single panel that switches by tab */}
       <main style={termStyles.body} className="lr-term-body">
-        <Section ready={tabReady} status={tabSub}>
-          {viewTab === "terminal" && <TerminalOverview community={community} ready={ready} subFor={subFor} onJump={setViewTab} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} onAction={(kind) => setActionModal({ kind, community })} />}
-          {viewTab === "sentiment" && <SentimentView community={community} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} />}
-          {viewTab === "engagement" && <EngagementView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.engagement} />}
-          {viewTab === "blueprint" && <BlueprintView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.blueprint} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} />}
-        </Section>
+        {apiPhase === "error" ? (
+          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:32 }}>
+            <div className="mono" style={{ fontSize:10, color:"#e07b7b", letterSpacing:"0.22em" }}>PIPELINE ERROR</div>
+            <div style={{ fontSize:15, color:"#fff", fontWeight:600, textAlign:"center", maxWidth:420 }}>
+              Could not fetch community data
+            </div>
+            <div className="mono" style={{ fontSize:11, color:"#555", textAlign:"center", maxWidth:380, lineHeight:1.55 }}>
+              {apiError || "An unknown error occurred."}
+            </div>
+            <button onClick={() => onExit && onExit()} style={{ marginTop:8, background:"transparent", border:"1px solid #2a2a2a", color:"#aaa", padding:"10px 18px", fontSize:11, letterSpacing:"0.12em", cursor:"pointer" }}>
+              ← try a different URL
+            </button>
+          </div>
+        ) : (
+          <Section ready={tabReady} status={tabSub}>
+            {viewTab === "terminal" && <TerminalOverview community={community} ready={ready} subFor={subFor} onJump={setViewTab} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} onAction={(kind) => setActionModal({ kind, community })} />}
+            {viewTab === "sentiment" && <SentimentView community={community} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} />}
+            {viewTab === "engagement" && <EngagementView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.engagement} />}
+            {viewTab === "blueprint" && <BlueprintView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.blueprint} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} />}
+          </Section>
+        )}
       </main>
 
       {/* FOOTER */}

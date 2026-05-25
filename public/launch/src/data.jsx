@@ -297,4 +297,136 @@ const LOADING_STAGES = [
   { label: "Generating community insights",   detail: "human-in-loop ready",                      ms: 900 },
 ];
 
-Object.assign(window, { SITES_DB, getSite, LOADING_STAGES, LOAD_STAGES });
+// ─── Map raw API responses → the site data shape Terminal expects ───────────
+//
+// scanData  = POST /api/tech-week/magic-scan response
+// curateData = POST /api/tech-week/curate response (may be null while curating)
+//
+function mapApiDataToSite(host, scanData, curateData) {
+  // magic-scan returns "brandProfile" as the key
+  const { brandProfile: brand, community } = scanData;
+  const { sentiment: sResult, engagement, creation } = curateData || {};
+
+  function formatAge(utc) {
+    if (!utc) return "—";
+    const diff = Math.floor(Date.now() / 1000 - utc);
+    if (diff < 3600)  return Math.floor(diff / 60)   + "m";
+    if (diff < 86400) return Math.floor(diff / 3600)  + "h";
+    return Math.floor(diff / 86400) + "d";
+  }
+
+  const sub = community.subreddit || "";
+  const communityName = sub.startsWith("r/") ? sub : "r/" + sub;
+
+  // Keyword cloud from brand.keywords (available after magic-scan)
+  const cloud = (brand.keywords || []).slice(0, 16).map(function(kw, i) {
+    return { t: kw, w: Math.max(11, 56 - i * 3) };
+  });
+
+  // Sentiment — placeholder until we add it to the curate response
+  const sentimentData = [
+    { label: "Positive", value: 45, color: "#5cd197" },
+    { label: "Neutral",  value: 30, color: "#888"    },
+    { label: "Curious",  value: 16, color: "#f0c054" },
+    { label: "Critical", value: 9,  color: "#e07b7b" },
+  ];
+
+  // Posts — from the 2 curated posts (sentiment + engagement)
+  var posts = [];
+  if (sResult && sResult.post) {
+    posts.push({
+      id: sResult.post.id || "sr1",
+      author: "u/" + (sResult.post.author || "unknown"),
+      title: sResult.post.title || "",
+      score: sResult.post.score || 0,
+      comments: sResult.post.num_comments || 0,
+      age: formatAge(sResult.post.created_utc),
+      rel: 0.94, hot: 0.62, top: 0.81, new: 0.45,
+      flair: "Read",
+      permalink: sResult.post.permalink || ""
+    });
+  }
+  if (engagement && engagement.post) {
+    posts.push({
+      id: engagement.post.id || "er1",
+      author: "u/" + (engagement.post.author || "unknown"),
+      title: engagement.post.title || "",
+      score: engagement.post.score || 0,
+      comments: engagement.post.num_comments || 0,
+      age: formatAge(engagement.post.created_utc),
+      rel: 0.89, hot: 0.92, top: 0.74, new: 0.38,
+      flair: "Hot",
+      permalink: engagement.post.permalink || ""
+    });
+  }
+
+  // Blueprint cards — read / join / give
+  var blueprint = [
+    {
+      kind: "read",
+      title: "A post worth reading",
+      line: (sResult && sResult.communityInsight) ||
+            "Read this thread to understand what this community cares about.",
+      postRef: (sResult && sResult.post && sResult.post.title) || "",
+      cta: "Open thread"
+    },
+    {
+      kind: "join",
+      title: "Join the conversation",
+      line: (engagement && engagement.whyThisPost) ||
+            "This post is ready for a thoughtful, value-adding reply.",
+      postRef: (engagement && engagement.post && engagement.post.title) || "",
+      cta: "Draft reply"
+    },
+    {
+      kind: "give",
+      title: "Give back to the community",
+      line: (creation && (creation.postingTips ||
+             (creation.contentOutline || []).slice(0, 2).join(" "))) ||
+            "Share your expertise with an original post.",
+      postRef: (creation && creation.suggestedTitle) || "Write an original post",
+      cta: "Write post"
+    }
+  ];
+
+  // trending = engagement post (drives ActionModal upvote/comment targets)
+  var trending = {
+    author: (engagement && engagement.post)
+      ? "u/" + (engagement.post.author || "unknown") : "",
+    title:    (engagement && engagement.post && engagement.post.title) || "",
+    score:    (engagement && engagement.post && engagement.post.score)    || 0,
+    comments: (engagement && engagement.post && engagement.post.num_comments) || 0,
+    age:      (engagement && engagement.post)
+      ? formatAge(engagement.post.created_utc) : ""
+  };
+
+  // nicheScore is on brandProfile: 1=niche 2=mid 3=commodity
+  // niche → tight overlap (high), commodity → broad (lower)
+  var overlap = brand.nicheScore
+    ? Math.max(0.30, Math.round((4 - brand.nicheScore) / 3 * 100) / 100)
+    : 0.65;
+
+  return {
+    name:  host,
+    label: brand.tagline || brand.businessDescription || host,
+    communities: [{
+      id:      "c1",
+      name:    communityName,
+      members: community.size || "—",
+      active:  "Live",
+      overlap: overlap,
+      sentiment: sentimentData,
+      cloud:     cloud,
+      posts:     posts,
+      blueprint: blueprint,
+      trending:  trending,
+      suggestedComment: (engagement && engagement.draftComment) || "Share your thoughts here…",
+      suggestedPost: {
+        title: (creation && creation.suggestedTitle) || "",
+        body:  (creation && (creation.contentOutline || []).join("\n\n")) || ""
+      }
+    }]
+  };
+}
+
+Object.assign(window, { SITES_DB, getSite, LOADING_STAGES, LOAD_STAGES, mapApiDataToSite });
