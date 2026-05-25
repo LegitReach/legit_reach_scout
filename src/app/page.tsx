@@ -67,9 +67,9 @@ export default function Home() {
                   className="flex flex-wrap"
                   style={{ gap: "1rem", marginBottom: "1rem" }}
                 >
-                  <Link href="/a16z" className="lr-btn-primary">
+                  <a href="/launch" className="lr-btn-primary">
                     Create now!
-                  </Link>
+                  </a>
                 </div>
               </FadeIn>
               <FadeIn delay={1700} duration={1000}>
