@@ -402,7 +402,7 @@ function Terminal({ initialHost, onExit }) {
             {viewTab === "terminal" && <TerminalOverview community={community} ready={ready} subFor={subFor} onJump={setViewTab} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} onAction={(kind) => setActionModal({ kind, community })} liveLog={liveLog} scanInsights={scanInsights} apiPhase={apiPhase} />}
             {viewTab === "sentiment" && <SentimentView community={community} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} />}
             {viewTab === "engagement" && <EngagementView community={community} disabled={!ready.engagement} />}
-            {viewTab === "blueprint" && <BlueprintView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.blueprint} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} />}
+            {viewTab === "blueprint" && <BlueprintView community={community} onAction={(kind, post) => setActionModal({ kind, community, post })} disabled={!ready.blueprint} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} />}
           </Section>
         )}
       </main>
@@ -1532,10 +1532,11 @@ function BlueprintView({ community, onAction, disabled, streakDays, onStreakClic
                   </div>
                 }
               </div>
-              {/* read / join → open Reddit URL directly in new tab.
-                  give       → no existing post; open ActionModal for drafting. */}
-              {ins.postUrl
-                ? <a href={ins.postUrl} target="_blank" rel="noopener noreferrer"
+              {/* read   → open Reddit URL directly.
+                  join    → open ActionModal with draft comment (copies + redirects on Post).
+                  give    → open ActionModal for writing a new post. */}
+              {ins.kind === "read"
+                ? <a href={ins.postUrl || "#"} target="_blank" rel="noopener noreferrer"
                      style={{...bpStyles.cardCta, textDecoration:"none",
                              opacity: disabled ? 0.35 : 1,
                              pointerEvents: disabled ? "none" : "auto"}}
@@ -1544,7 +1545,12 @@ function BlueprintView({ community, onAction, disabled, streakDays, onStreakClic
                     <span style={bpStyles.cardCtaArrow}>↗</span>
                   </a>
                 : <button style={bpStyles.cardCta} className="lr-blueprint-cta" disabled={disabled}
-                    onClick={() => onAction && onAction(cfg.actionKind)}>
+                    onClick={() => onAction && onAction(
+                      cfg.actionKind,
+                      ins.kind === "join"
+                        ? { title: ins.postRef, url: ins.postUrl }
+                        : undefined
+                    )}>
                     <span>{ins.cta}</span>
                     <span style={bpStyles.cardCtaArrow}>→</span>
                   </button>
