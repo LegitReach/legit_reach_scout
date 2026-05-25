@@ -35,6 +35,7 @@ export interface TechWeekMagicScanResponse {
     brandName: string;
     storeUrl: string;
     ogImage: string;
+    communityRulesSummary: string[]; // short rule titles for the selected community
   };
 }
 
@@ -147,18 +148,18 @@ async function discoverCommunitiesViaExa(
     exa.search(`${problemQuery} advice reddit`, {
       type: "neural",
       includeDomains: ["reddit.com"],
-      numResults: 15,
+      numResults: 5,
     }),
     exa.search(`best ${categoryQuery} recommendations reddit`, {
       type: "neural",
       includeDomains: ["reddit.com"],
-      numResults: 10,
+      numResults: 5,
     }),
     // Store URL as semantic anchor — finds Reddit content similar to the brand
     exa.search(storeUrl, {
       type: "neural",
       includeDomains: ["reddit.com"],
-      numResults: 10,
+      numResults: 5,
     }),
   ]);
 
@@ -329,87 +330,171 @@ Return ONLY a valid JSON object:
   return JSON.parse(raw) as SelectedCommunity;
 }
 
-// ─── Handler ─────────────────────────────────────────────────────────────────
+// ─── Parse rules text → array of short rule titles (max 6) ──────────────────
+
+function parseRulesSummary(rulesText: string): string[] {
+  if (!rulesText || rulesText === "No rules found." || rulesText === "Could not fetch rules.") {
+    return [];
+  }
+  return rulesText
+    .split(/\n\n+/)
+    .map((block) => block.split("\n")[0].trim().replace(/^Rule \d+:\s*/i, "").trim())
+    .filter((s) => s.length > 0 && s.length < 120)
+    .slice(0, 6);
+}
+
+// ─── Handler (SSE streaming) ──────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { url } = body as { url?: string };
+  let body: { url?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
+  const { url } = body;
   if (!url) {
     return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
 
   const storeUrl = url.startsWith("http") ? url : `https://${url}`;
+  const encoder = new TextEncoder();
 
-  try {
-    // ── 1. Scrape store URL ──────────────────────────────────────────────────
-    console.log("[magic-scan] Step 1 — Jina scraping:", storeUrl);
-    const { content: pageContent, title: brandName, ogImage } = await scrapeWithJina(storeUrl);
-    console.log("[magic-scan] Step 1 done — content length:", pageContent.length, "title:", brandName);
+  const stream = new ReadableStream({
+    async start(controller) {
+      const emit = (event: object) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch { /* controller already closed */ }
+      };
 
-    if (!pageContent) {
-      return NextResponse.json(
-        { error: "Could not extract content from this URL." },
-        { status: 422 }
-      );
-    }
+      try {
+        // ── 1. Scrape ────────────────────────────────────────────────────────
+        emit({ type: "step", step: 1, status: "start", msg: `Scraping ${storeUrl}…` });
+        console.log("[magic-scan] Step 1 — Jina scraping:", storeUrl);
 
-    // ── 2. Gemini: extract enriched brand profile ────────────────────────────
-    console.log("[magic-scan] Step 2 — Gemini brand extraction...");
-    const brandProfile = await extractBrandProfile(pageContent);
-    console.log("[magic-scan] Step 2 done — brandProfile:", JSON.stringify(brandProfile, null, 2));
+        let pageContent: string, brandName: string, ogImage: string;
+        try {
+          ({ content: pageContent, title: brandName, ogImage } = await scrapeWithJina(storeUrl));
+        } catch (err) {
+          emit({ type: "step", step: 1, status: "error", msg: `Fetch failed: ${err instanceof Error ? err.message : String(err)}` });
+          emit({ type: "fatal", msg: "Could not fetch the store URL. Is it publicly accessible?" });
+          return;
+        }
+        if (!pageContent) {
+          emit({ type: "step", step: 1, status: "error", msg: "Site returned empty content" });
+          emit({ type: "fatal", msg: "Could not extract any content from this URL." });
+          return;
+        }
+        emit({ type: "step", step: 1, status: "done", msg: `${pageContent.length.toLocaleString()} chars · "${brandName}"` });
+        console.log("[magic-scan] Step 1 done — content:", pageContent.length, "title:", brandName);
 
-    // ── 3. Exa: discover real active communities ─────────────────────────────
-    console.log("[magic-scan] Step 3 — Exa community discovery...");
-    const candidateNames = await discoverCommunities(brandProfile, storeUrl);
-    console.log("[magic-scan] Step 3 done — candidates:", candidateNames);
+        // ── 2. Brand profile ─────────────────────────────────────────────────
+        emit({ type: "step", step: 2, status: "start", msg: "Extracting brand profile…" });
+        console.log("[magic-scan] Step 2 — Gemini brand extraction...");
 
-    if (candidateNames.length === 0) {
-      return NextResponse.json(
-        { error: "Could not discover relevant Reddit communities for this store. Try a different URL." },
-        { status: 422 }
-      );
-    }
+        let brandProfile: BrandProfile;
+        try {
+          brandProfile = await extractBrandProfile(pageContent);
+        } catch (err) {
+          emit({ type: "step", step: 2, status: "error", msg: `Brand extraction failed: ${err instanceof Error ? err.message : String(err)}` });
+          emit({ type: "fatal", msg: "Could not extract brand profile. Please try again." });
+          return;
+        }
 
-    // ── 4. Fetch rules for each candidate (parallel) ─────────────────────────
-    console.log("[magic-scan] Step 4 — fetching rules for:", candidateNames);
-    const candidatesWithRules = await Promise.all(
-      candidateNames.map((sub) => fetchSubredditRules(sub))
-    );
-    console.log("[magic-scan] Step 4 done — rules fetched for:", candidatesWithRules.map(c => c.subreddit));
+        const snippet = (brandProfile.tagline || brandProfile.businessDescription).slice(0, 72);
+        emit({ type: "step", step: 2, status: "done", msg: `"${snippet}"`, data: { brandProfile } });
+        console.log("[magic-scan] Step 2 done");
 
-    // ── 5. Gemini: pick ONE community with promotion stance ───────────────────
-    console.log("[magic-scan] Step 5 — Gemini community selection...");
-    const community = await selectCommunity(brandProfile, candidatesWithRules);
-    console.log("[magic-scan] Step 5 done — selected:", community.subreddit, "| stance:", community.promotionStance);
+        // ── 3. Community discovery ────────────────────────────────────────────
+        emit({ type: "step", step: 3, status: "start", msg: "Discovering Reddit communities…" });
+        console.log("[magic-scan] Step 3 — community discovery...");
 
-    const response: TechWeekMagicScanResponse & { _debug: object } = {
-      brandProfile,
-      community,
-      meta: { brandName, storeUrl, ogImage },
-      _debug: {
-        step1_scrape: {
-          contentLength: pageContent.length,
-          title: brandName,
-          ogImage,
-        },
-        step2_brandProfile: brandProfile,
-        step3_exaCandidates: candidateNames,
-        step4_rulesPerCandidate: candidatesWithRules,
-        step5_selectedCommunity: community,
-      },
-    };
+        let candidateNames: string[];
+        try {
+          candidateNames = await discoverCommunities(brandProfile, storeUrl);
+        } catch (err) {
+          emit({ type: "step", step: 3, status: "error", msg: `Discovery failed: ${err instanceof Error ? err.message : String(err)}` });
+          emit({ type: "fatal", msg: "Could not discover relevant Reddit communities." });
+          return;
+        }
+        if (candidateNames.length === 0) {
+          emit({ type: "step", step: 3, status: "error", msg: "No communities found" });
+          emit({ type: "fatal", msg: "Could not find relevant communities for this store. Try a different URL." });
+          return;
+        }
+        emit({ type: "step", step: 3, status: "done", msg: `${candidateNames.length} candidates: ${candidateNames.map((s) => "r/" + s).join(" · ")}` });
+        console.log("[magic-scan] Step 3 done — candidates:", candidateNames);
 
-    return NextResponse.json(response);
+        // ── 4. Fetch rules ────────────────────────────────────────────────────
+        emit({ type: "step", step: 4, status: "start", msg: `Fetching rules for ${candidateNames.length} communities…` });
+        console.log("[magic-scan] Step 4 — fetching rules for:", candidateNames);
 
-  } catch (err) {
-    console.error("[tech-week/magic-scan] Error:", err);
-    return NextResponse.json(
-      {
-        error: "Magic scan failed.",
-        details: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 }
-    );
-  }
+        // fetchSubredditRules handles per-subreddit errors gracefully
+        const candidatesWithRules = await Promise.all(
+          candidateNames.map((sub) => fetchSubredditRules(sub))
+        );
+        const ruleSummary = candidatesWithRules
+          .map((c) => `r/${c.subreddit} (${parseRulesSummary(c.rulesText).length} rules)`)
+          .join(" · ");
+        emit({ type: "step", step: 4, status: "done", msg: `Rules fetched — ${ruleSummary}` });
+        console.log("[magic-scan] Step 4 done");
+
+        // ── 5. Select community ───────────────────────────────────────────────
+        emit({ type: "step", step: 5, status: "start", msg: "Selecting best community…" });
+        console.log("[magic-scan] Step 5 — Gemini community selection...");
+
+        let community: SelectedCommunity;
+        try {
+          community = await selectCommunity(brandProfile, candidatesWithRules);
+        } catch (err) {
+          emit({ type: "step", step: 5, status: "error", msg: `Selection failed: ${err instanceof Error ? err.message : String(err)}` });
+          emit({ type: "fatal", msg: "Could not select a community. Please try again." });
+          return;
+        }
+
+        // Build rules summary for the winning subreddit
+        const cleanSub = community.subreddit.replace(/^r\//, "").toLowerCase();
+        const selectedEntry = candidatesWithRules.find((c) => c.subreddit.toLowerCase() === cleanSub);
+        const communityRulesSummary = parseRulesSummary(selectedEntry?.rulesText ?? "");
+
+        emit({
+          type: "step", step: 5, status: "done",
+          msg: `Selected ${community.subreddit} · ${community.promotionStance} stance`,
+          data: { community, communityRulesSummary },
+        });
+        console.log("[magic-scan] Step 5 done — selected:", community.subreddit, "| stance:", community.promotionStance);
+
+        // ── Result ────────────────────────────────────────────────────────────
+        const result: TechWeekMagicScanResponse & { _debug: object } = {
+          brandProfile,
+          community,
+          meta: { brandName, storeUrl, ogImage, communityRulesSummary },
+          _debug: {
+            step1_scrape:            { contentLength: pageContent.length, title: brandName, ogImage },
+            step2_brandProfile:      brandProfile,
+            step3_candidates:        candidateNames,
+            step4_rulesPerCandidate: candidatesWithRules,
+            step5_selectedCommunity: community,
+          },
+        };
+        emit({ type: "result", data: result });
+
+      } catch (err) {
+        console.error("[tech-week/magic-scan] Unexpected error:", err);
+        emit({ type: "fatal", msg: err instanceof Error ? err.message : String(err) });
+      } finally {
+        try { controller.close(); } catch { /* already closed */ }
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

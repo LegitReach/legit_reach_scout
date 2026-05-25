@@ -4,6 +4,34 @@ const { useState: useStateT, useEffect: useEffectT, useRef: useRefT, useMemo: us
 
 const STAGES = window.LOAD_STAGES;
 
+// ─── SSE stream parser ────────────────────────────────────────────────────────
+// Reads a fetch Response body as a text/event-stream and yields parsed events.
+async function* parseSSEStream(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+      for (const part of parts) {
+        const trimmed = part.trim();
+        if (trimmed.startsWith("data: ")) {
+          const jsonStr = trimmed.slice(6);
+          if (jsonStr) {
+            try { yield JSON.parse(jsonStr); } catch(e) { console.warn("[SSE] parse error:", e, jsonStr); }
+          }
+        }
+      }
+    }
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+}
+
 const VIEW_TABS = [
 { id: "terminal",   label: "Terminal",   stageIdx: null, num: null },
 { id: "sentiment",  label: "Sentiment",  stageIdx: 1,    num: "01" },
@@ -19,10 +47,22 @@ function Terminal({ initialHost, onExit }) {
   const [apiPhase, setApiPhase] = useStateT("scanning"); // scanning | curating | done | error
   const [apiError, setApiError] = useStateT(null);
 
-  const site = useMemoT(
-    () => realSiteData || window.getSite(activeHost),
-    [activeHost, realSiteData]
-  );
+  // Neutral placeholder while scanning — no fake community names from SITES_DB.
+  // Real data arrives in two stages: after magic-scan (community name + cloud),
+  // then after curate (posts, blueprint, sentiment breakdown).
+  const site = useMemoT(function() {
+    if (realSiteData) return realSiteData;
+    return {
+      name: activeHost,
+      label: "",
+      communities: [{
+        id: "c0", name: "—", members: "—", active: "—", overlap: 0.65,
+        sentiment: [], posts: [], blueprint: [],
+        trending: { author: "", title: "", score: 0, comments: 0, age: "" },
+        suggestedComment: "", suggestedPost: { title: "", body: "" }
+      }]
+    };
+  }, [activeHost, realSiteData]);
   const [communityIdx, setCommunityIdx] = useStateT(0);
   const [viewTab, setViewTab] = useStateT("terminal");
   const [siteMenuOpen, setSiteMenuOpen] = useStateT(false);
@@ -36,6 +76,12 @@ function Terminal({ initialHost, onExit }) {
   const [upload, setUpload] = useStateT(null);
   const personalized = upload?.stage === "ready";
   const [actionModal, setActionModal] = useStateT(null);
+  // Live pipeline log — accumulates SSE step events from both routes
+  const [liveLog, setLiveLog] = useStateT([]);
+  // Scan insights — fills in progressively as SSE events arrive:
+  //   { brandProfile }           ← after step 2 done
+  //   { brandProfile, community, communityRulesSummary }  ← after step 5 done
+  const [scanInsights, setScanInsights] = useStateT(null);
   const [tone, setTone] = useStateT({
     voice: "Founder", formality: 35, enthusiasm: 60, technicality: 50, selfPromo: 18,
     bio: "We are LegitReach. We help brands listen and reply in communities, without paid media."
@@ -79,48 +125,88 @@ function Terminal({ initialHost, onExit }) {
     return () => {cancelled = true;cancelAnimationFrame(raf);};
   }, [activeHost]);
 
-  // ─── Real API calls ──────────────────────────────────────────────────────
-  // Sequence: magic-scan (brand + community) → curate (posts + blueprint)
-  // apiPhase drives the ready flags; the animation above is purely visual.
+  // ─── Real API calls (SSE streaming) ─────────────────────────────────────
+  // Both routes now stream server-sent events so the UI can show live progress.
+  // apiPhase still drives ready flags; animation timer runs independently.
   useEffectT(() => {
     setApiPhase("scanning");
     setRealSiteData(null);
     setApiError(null);
-    setCommunityIdx(0); // reset to first community when host changes
+    setCommunityIdx(0);
+    setLiveLog([]);
+    setScanInsights(null);
     var cancelled = false;
 
     async function run() {
       try {
-        // Step 1 — magic-scan (~24 s with Apify proxy)
+        // ── Phase 1: magic-scan (SSE) ──────────────────────────────────────
         var scanRes = await fetch("/api/tech-week/magic-scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: activeHost })
         });
-        if (cancelled) return;
         if (!scanRes.ok) throw new Error("magic-scan HTTP " + scanRes.status);
-        var scanData = await scanRes.json();
         if (cancelled) return;
 
-        // Partial update — show real community name + keyword cloud immediately
+        var scanData = null;
+        for await (const event of parseSSEStream(scanRes)) {
+          if (cancelled) break;
+          if (event.type === "step") {
+            setLiveLog(function(prev) { return [...prev, { step: event.step, status: event.status, msg: event.msg }]; });
+            // Brand profile arrives at step 2 — start showing brand column
+            if (event.step === 2 && event.status === "done" && event.data && event.data.brandProfile) {
+              setScanInsights(function(prev) { return Object.assign({}, prev, { brandProfile: event.data.brandProfile }); });
+            }
+            // Community selected at step 5 — show full insights card
+            if (event.step === 5 && event.status === "done" && event.data && event.data.community) {
+              setScanInsights(function(prev) {
+                return Object.assign({}, prev, {
+                  community: event.data.community,
+                  communityRulesSummary: event.data.communityRulesSummary || []
+                });
+              });
+            }
+          } else if (event.type === "fatal") {
+            throw new Error(event.msg);
+          } else if (event.type === "result") {
+            scanData = event.data;
+          }
+        }
+        if (cancelled) return;
+        if (!scanData) throw new Error("Scan completed but no result was received");
+
+        // Partial site update — real community name + keyword cloud
         var partialSite = window.mapApiDataToSite(activeHost, scanData, null);
         setRealSiteData(partialSite);
         setApiPhase("curating");
 
-        // Step 2 — curate (~10-15 s)
+        // ── Phase 2: curate (SSE) ──────────────────────────────────────────
         var curateRes = await fetch("/api/tech-week/curate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ brandProfile: scanData.brandProfile, community: scanData.community })
         });
-        if (cancelled) return;
         if (!curateRes.ok) throw new Error("curate HTTP " + curateRes.status);
-        var curateData = await curateRes.json();
         if (cancelled) return;
+
+        var curateData = null;
+        for await (const event of parseSSEStream(curateRes)) {
+          if (cancelled) break;
+          if (event.type === "step") {
+            setLiveLog(function(prev) { return [...prev, { step: event.step, status: event.status, msg: event.msg }]; });
+          } else if (event.type === "fatal") {
+            throw new Error(event.msg);
+          } else if (event.type === "result") {
+            curateData = event.data;
+          }
+        }
+        if (cancelled) return;
+        if (!curateData) throw new Error("Curate completed but no result was received");
 
         var fullSite = window.mapApiDataToSite(activeHost, scanData, curateData);
         setRealSiteData(fullSite);
         setApiPhase("done");
+
       } catch (err) {
         if (!cancelled) {
           console.error("[Terminal] API error:", err);
@@ -313,9 +399,9 @@ function Terminal({ initialHost, onExit }) {
           </div>
         ) : (
           <Section ready={tabReady} status={tabSub}>
-            {viewTab === "terminal" && <TerminalOverview community={community} ready={ready} subFor={subFor} onJump={setViewTab} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} onAction={(kind) => setActionModal({ kind, community })} />}
+            {viewTab === "terminal" && <TerminalOverview community={community} ready={ready} subFor={subFor} onJump={setViewTab} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} onAction={(kind) => setActionModal({ kind, community })} liveLog={liveLog} scanInsights={scanInsights} apiPhase={apiPhase} />}
             {viewTab === "sentiment" && <SentimentView community={community} personalized={personalized} onPersonalize={() => openSettingsWithHighlight("upload")} />}
-            {viewTab === "engagement" && <EngagementView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.engagement} />}
+            {viewTab === "engagement" && <EngagementView community={community} disabled={!ready.engagement} />}
             {viewTab === "blueprint" && <BlueprintView community={community} onAction={(kind) => setActionModal({ kind, community })} disabled={!ready.blueprint} streakDays={streakDays} onStreakClick={() => setStreaksOpen(true)} />}
           </Section>
         )}
@@ -550,15 +636,216 @@ const statusStyles = {
   dot: { width: 6, height: 6, borderRadius: "50%", transition: "background .2s, opacity .2s" }
 };
 
+// ════════════════════════ SCAN STATUS PANEL ════════════════════════
+// Live pipeline log during scanning; transitions to brand+community
+// insights card once the community has been selected (step 5 done).
+
+const scanStyles = {
+  wrap:        { border: "1px solid #141414", background: "#040404" },
+  header:      { padding: "9px 16px", borderBottom: "1px solid #0e0e0e", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  headerLeft:  { display: "flex", alignItems: "center", gap: 10 },
+  statusDot:   { width: 6, height: 6, borderRadius: "50%", flexShrink: 0 },
+  statusLabel: { fontSize: 10, letterSpacing: "0.2em" },
+  collapseBtn: { background: "transparent", border: "none", color: "#444", fontSize: 10, letterSpacing: "0.16em", cursor: "pointer", padding: "2px 0" },
+
+  // Pipeline log
+  logWrap:  { padding: "12px 16px", display: "flex", flexDirection: "column", gap: 5 },
+  logRow:   { display: "grid", gridTemplateColumns: "14px 24px 1fr", gap: 8, alignItems: "baseline" },
+  logIcon:  { fontSize: 10, textAlign: "center", lineHeight: 1 },
+  logStep:  { fontSize: 9, color: "#333", letterSpacing: "0.16em", paddingTop: 1 },
+  logMsg:   { fontSize: 11, lineHeight: 1.45, letterSpacing: "-0.005em" },
+
+  // Insights two-column layout
+  insightsGrid: { display: "grid", gridTemplateColumns: "1fr 1fr" },
+  col:          { padding: "16px 18px", display: "flex", flexDirection: "column", gap: 9 },
+  colRight:     { padding: "16px 18px", display: "flex", flexDirection: "column", gap: 9, borderLeft: "1px solid #0e0e0e" },
+  colHead:      { fontSize: 9, color: "#3a3a3a", letterSpacing: "0.26em", marginBottom: 2 },
+  tagline:      { fontSize: 13, fontWeight: 600, color: "#ccc", letterSpacing: "-0.01em", lineHeight: 1.35, fontStyle: "italic" },
+  desc:         { fontSize: 11, color: "#555", lineHeight: 1.55, letterSpacing: "-0.005em" },
+  sectionHead:  { fontSize: 9, color: "#2e2e2e", letterSpacing: "0.22em", marginTop: 4 },
+  pillRow:      { display: "flex", flexWrap: "wrap", gap: 5 },
+  pill:         { fontSize: 10, color: "#666", border: "1px solid #1a1a1a", padding: "2px 8px", letterSpacing: "0.02em" },
+  bullet:       { fontSize: 11, color: "#4a4a4a", lineHeight: 1.4 },
+  communityName:{ fontSize: 15, fontWeight: 600, color: "#eee", letterSpacing: "-0.01em" },
+  stanceBadge:  { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 10px", border: "1px solid", width: "fit-content" },
+  stanceDot:    { width: 6, height: 6, borderRadius: "50%", flexShrink: 0 },
+  stanceLabel:  { fontSize: 10, fontWeight: 600, letterSpacing: "0.18em" },
+  stanceReason: { fontSize: 11, color: "#4a4a4a", lineHeight: 1.5, letterSpacing: "-0.005em" },
+  ruleRow:      { display: "flex", gap: 7, alignItems: "flex-start" },
+  ruleNum:      { fontSize: 9, color: "#2e2e2e", letterSpacing: "0.1em", minWidth: 14, paddingTop: 2, flexShrink: 0 },
+  ruleText:     { fontSize: 11, color: "#4a4a4a", lineHeight: 1.4 },
+  footer:       { padding: "8px 16px", borderTop: "1px solid #0e0e0e", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  footerText:   { fontSize: 10, color: "#444", letterSpacing: "0.08em" },
+};
+
+// Colour helpers for promotion stance
+function stanceTheme(stance) {
+  return {
+    friendly: { color: "#5cd197", border: "#1a4030", bg: "rgba(92,209,151,0.04)" },
+    neutral:  { color: "#f0c054", border: "#4a3a16", bg: "rgba(240,192,84,0.04)"  },
+    strict:   { color: "#e07b7b", border: "#4a1e1e", bg: "rgba(224,123,123,0.04)" },
+  }[stance] || { color: "#888", border: "#1a1a1a", bg: "transparent" };
+}
+
+function PipelineLogPanel({ events, apiPhase }) {
+  const endRef = useRefT(null);
+  useEffectT(() => {
+    if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [events.length]);
+
+  const icon  = { start: "◌", done: "✓", warn: "!", error: "✗" };
+  const color = { start: "#444", done: "#5cd197", warn: "#f0c054", error: "#e07b7b" };
+  const isRunning = apiPhase === "scanning" || apiPhase === "curating";
+
+  return (
+    <div style={scanStyles.logWrap}>
+      {events.map((e, i) => (
+        <div key={i} style={scanStyles.logRow} className="mono">
+          <span style={{ ...scanStyles.logIcon, color: color[e.status] || "#444" }}>{icon[e.status] || "·"}</span>
+          <span style={{ ...scanStyles.logStep }}>{String(e.step).padStart(2, "0")}</span>
+          <span style={{ ...scanStyles.logMsg, color: e.status === "done" ? "#666" : color[e.status] || "#555" }}>{e.msg}</span>
+        </div>
+      ))}
+      {isRunning && (
+        <div style={{ ...scanStyles.logRow, opacity: 0.5 }} className="mono">
+          <Spinner />
+          <span style={scanStyles.logStep}>···</span>
+          <span style={{ ...scanStyles.logMsg, color: "#444" }}>
+            {apiPhase === "curating" ? "analysing community posts…" : "running pipeline…"}
+          </span>
+        </div>
+      )}
+      <div ref={endRef} />
+    </div>
+  );
+}
+
+function ScanInsightsContent({ insights, curateEvents, apiPhase }) {
+  const bp    = insights.brandProfile;
+  const comm  = insights.community;
+  const rules = insights.communityRulesSummary || [];
+  const theme = stanceTheme(comm && comm.promotionStance);
+  const isCurating = apiPhase === "curating";
+  const lastCurateEvent = curateEvents.length > 0 ? curateEvents[curateEvents.length - 1] : null;
+
+  return (
+    <>
+      <div style={scanStyles.insightsGrid}>
+        {/* ── Left: brand ── */}
+        <div style={scanStyles.col}>
+          <div className="mono" style={scanStyles.colHead}>BRAND SIGNALS</div>
+          {bp && bp.tagline && <div style={scanStyles.tagline}>"{bp.tagline}"</div>}
+          {bp && bp.businessDescription && <div style={scanStyles.desc}>{bp.businessDescription}</div>}
+
+          {bp && bp.keywords && bp.keywords.length > 0 && <>
+            <div className="mono" style={scanStyles.sectionHead}>KEYWORDS</div>
+            <div style={scanStyles.pillRow}>
+              {bp.keywords.slice(0, 4).map((k) => <span key={k} style={scanStyles.pill}>{k}</span>)}
+            </div>
+          </>}
+
+          {bp && bp.buyerProblems && bp.buyerProblems.length > 0 && <>
+            <div className="mono" style={scanStyles.sectionHead}>BUYER PAIN</div>
+            {bp.buyerProblems.slice(0, 2).map((p, i) => <div key={i} style={scanStyles.bullet}>· {p}</div>)}
+          </>}
+        </div>
+
+        {/* ── Right: community ── */}
+        <div style={scanStyles.colRight}>
+          <div className="mono" style={scanStyles.colHead}>SELECTED COMMUNITY</div>
+          {comm && <>
+            <div style={scanStyles.communityName}>{comm.subreddit}</div>
+            {comm.selectionReason && <div style={scanStyles.desc}>{comm.selectionReason}</div>}
+
+            <div style={{ ...scanStyles.stanceBadge, borderColor: theme.border, background: theme.bg }}>
+              <span style={{ ...scanStyles.stanceDot, background: theme.color }} />
+              <span className="mono" style={{ ...scanStyles.stanceLabel, color: theme.color }}>
+                {comm.promotionStance ? comm.promotionStance.toUpperCase() + " STANCE" : "STANCE"}
+              </span>
+            </div>
+            {comm.promotionStanceReason && <div style={scanStyles.stanceReason}>{comm.promotionStanceReason}</div>}
+
+            {rules.length > 0 && <>
+              <div className="mono" style={scanStyles.sectionHead}>COMMUNITY RULES</div>
+              {rules.slice(0, 4).map((r, i) => (
+                <div key={i} style={scanStyles.ruleRow}>
+                  <span className="mono" style={scanStyles.ruleNum}>{i + 1}.</span>
+                  <span style={scanStyles.ruleText}>{r}</span>
+                </div>
+              ))}
+            </>}
+          </>}
+        </div>
+      </div>
+
+      {/* Curate progress footer — visible while curating or when events have arrived */}
+      {(isCurating || curateEvents.length > 0) && (
+        <div style={scanStyles.footer}>
+          {isCurating
+            ? <Spinner />
+            : <span style={{ color: "#5cd197", fontSize: 10 }}>✓</span>
+          }
+          <span className="mono" style={scanStyles.footerText}>
+            {lastCurateEvent
+              ? lastCurateEvent.msg
+              : comm ? `connecting to ${comm.subreddit}…` : "connecting…"
+            }
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ScanStatusPanel({ liveLog, scanInsights, apiPhase }) {
+  const [collapsed, setCollapsed] = useStateT(false);
+  if (!liveLog || liveLog.length === 0) return null;
+
+  const hasCommunity = !!(scanInsights && scanInsights.community);
+  const scanEvents   = liveLog.filter((e) => e.step <= 5);
+  const curateEvents = liveLog.filter((e) => e.step >= 6);
+
+  const stateColor = hasCommunity ? "#5cd197" : "#f0c054";
+
+  return (
+    <div style={scanStyles.wrap}>
+      <div style={scanStyles.header}>
+        <div style={scanStyles.headerLeft}>
+          {hasCommunity
+            ? <span style={{ ...scanStyles.statusDot, background: "#5cd197" }} />
+            : <Spinner />
+          }
+          <span className="mono" style={{ ...scanStyles.statusLabel, color: stateColor }}>
+            {hasCommunity ? "SITE SCANNED" : "SCANNING"}
+          </span>
+          {hasCommunity && scanInsights.community && (
+            <span className="mono" style={{ fontSize: 10, color: "#333", letterSpacing: "0.12em" }}>
+              · {scanInsights.community.subreddit}
+            </span>
+          )}
+        </div>
+        {hasCommunity && (
+          <button className="mono" style={scanStyles.collapseBtn} onClick={() => setCollapsed((c) => !c)}>
+            {collapsed ? "▾ show" : "▴ hide"}
+          </button>
+        )}
+      </div>
+
+      {!collapsed && (
+        hasCommunity
+          ? <ScanInsightsContent insights={scanInsights} curateEvents={curateEvents} apiPhase={apiPhase} />
+          : <PipelineLogPanel events={scanEvents} apiPhase={apiPhase} />
+      )}
+    </div>
+  );
+}
+
 // ════════════════════════ TERMINAL OVERVIEW ════════════════════════
 // First-screen view: condensed sentiment + engagement + blueprint in one
 // scroll. Each panel has a "Show more →" button that jumps to that tab.
 
-function TerminalOverview({ community, ready, subFor, onJump, personalized, onPersonalize, streakDays, onStreakClick, onAction }) {
+function TerminalOverview({ community, ready, subFor, onJump, personalized, onPersonalize, streakDays, onStreakClick, onAction, liveLog, scanInsights, apiPhase }) {
   const sentiment = community.sentiment || [];
-  const cloud = (community.cloud || []).slice().sort((a, b) => b.w - a.w);
-  const cloudTop = cloud.slice(0, 5);
-  const maxW = Math.max(...cloud.map((c) => c.w), 1);
 
   const posts = (community.posts || []).slice().sort((a, b) => (b.rel ?? 0) - (a.rel ?? 0));
   const postsTop = posts.slice(0, 2);
@@ -601,6 +888,9 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
         }
       </div>
 
+      {/* Live pipeline log → scan insights card (appears once community is identified) */}
+      <ScanStatusPanel liveLog={liveLog || []} scanInsights={scanInsights} apiPhase={apiPhase} />
+
       <div style={overviewStyles.grid} className="lr-overview-grid">
 
         {/* SENTIMENT PANEL */}
@@ -627,21 +917,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
                     <span style={{...overviewStyles.swatch, background:sentiment[0]?.color}}/>
                     <span style={overviewStyles.mobileSummaryStrong}>{sentiment[0]?.value}% {sentiment[0]?.label}</span>
                   </div>
-                  <div style={overviewStyles.mobileSummarySub}>top keyword: <strong style={{color:"#fff"}}>{cloudTop[0]?.t}</strong></div>
                 </div>
-              </div>
-              <div style={overviewStyles.divider} className="lr-overview-bulk" />
-              <div style={overviewStyles.miniKeywords} className="lr-overview-bulk">
-                <span className="mono" style={overviewStyles.miniLabel}>top keywords</span>
-                {cloudTop.map((c, i) =>
-              <div key={c.t} style={overviewStyles.kwRow}>
-                    <span style={overviewStyles.kwTerm}>{c.t}</span>
-                    <div style={overviewStyles.kwTrack}>
-                      <div style={{ ...overviewStyles.kwFill, width: `${c.w / maxW * 100}%` }} />
-                    </div>
-                    <span className="mono" style={overviewStyles.kwVal}>{c.w}</span>
-                  </div>
-              )}
               </div>
               {!personalized &&
             <button onClick={onPersonalize} style={overviewStyles.personalizeHint} className="lr-personalize-hint lr-overview-bulk"
@@ -677,7 +953,8 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
               </div>
               <div style={overviewStyles.postList} className="lr-overview-bulk">
                 {postsTop.map((p, i) =>
-              <button key={p.id} style={overviewStyles.miniPost} disabled={!ready.engagement} onClick={() => onAction && onAction("comment")}
+              <button key={p.id} style={overviewStyles.miniPost} disabled={!ready.engagement}
+              onClick={() => p.url && window.open(p.url, "_blank", "noopener,noreferrer")}
               onMouseEnter={(e) => {e.currentTarget.style.background = "#080808";}}
               onMouseLeave={(e) => {e.currentTarget.style.background = "transparent";}}>
                     <span className="mono" style={overviewStyles.postIdx}>{String(i + 1).padStart(2, "0")}</span>
@@ -692,6 +969,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
                         ▲ {p.score.toLocaleString()} · {p.comments} comments
                       </div>
                     </div>
+                    <span style={{ fontSize: 11, color: "#444" }}>↗</span>
                   </button>
               )}
               </div>
@@ -705,32 +983,62 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
           {tourHighlight(1) && <TourHighlight step={1} total={3} onNext={() => setTourStep((s) => s + 1)} onSkip={() => setTourStep(3)} />}
         </div>
 
-        {/* BLUEPRINT PANEL */}
+        {/* BLUEPRINT PANEL — shows the actual 3 curated posts, not generic labels.
+            "Show playbook →" jumps to the Blueprint tab for read/join/give guidance. */}
         <div style={{...overviewStyles.panel, ...(tourHighlight(2) ? overviewStyles.panelTour : null)}} className="lr-overview-panel" data-tour-active={tourHighlight(2) || undefined}>
           {ready.blueprint ?
           <>
               <div style={overviewStyles.panelHead}>
                 <span className="mono" style={overviewStyles.eyebrow}>03 · blueprint</span>
-                <span className="mono" style={overviewStyles.eyebrowMeta}>3 moves</span>
+                <span className="mono" style={overviewStyles.eyebrowMeta}>3 posts</span>
               </div>
+
+              {/* Mobile: one-liner summary */}
               <div style={overviewStyles.mobileSummary} className="lr-overview-mobile-summary">
                 <div style={overviewStyles.mobileSummaryLine}>
-                  <span className="mono" style={{...overviewStyles.bpKind, padding:0, border:"none"}}>{items[0]?.kind}</span>
-                  <span style={overviewStyles.mobileSummaryStrong}>{items[0]?.title}</span>
+                  <span className="mono" style={{...overviewStyles.bpKind, padding:0, border:"none"}}>read</span>
+                  <span style={overviewStyles.mobileSummaryStrong}>{items[0]?.postRef || "—"}</span>
                 </div>
                 <div style={overviewStyles.mobileSummarySub}>3 moves ready in {community.name}</div>
               </div>
+
+              {/* Desktop: 3 blueprint items — read / join / give.
+                  Uses community.blueprint directly so it always shows the AI-selected
+                  blueprint posts, independent of the engagement posts list. */}
               <div style={overviewStyles.bpList} className="lr-overview-bulk">
-                {items.map((ins, i) =>
-              <div key={i} style={overviewStyles.bpMini}>
-                    <span className="mono" style={overviewStyles.bpKind}>{ins.kind}</span>
-                    <div style={overviewStyles.bpTitle}>{ins.title}</div>
+                {items[0] && items[0].postRef &&
+                <div style={overviewStyles.bpMini}>
+                    <span className="mono" style={overviewStyles.bpKind}>read</span>
+                    <div style={overviewStyles.bpTitle}>{items[0].postRef}</div>
+                    <div className="mono" style={overviewStyles.postMetaBot}>
+                      {items[0].score > 0 && <>▲ {(items[0].score || 0).toLocaleString()} · {items[0].comments} comments · {items[0].age}</>}
+                    </div>
                   </div>
-              )}
+                }
+                {items[1] && items[1].postRef &&
+                <div style={overviewStyles.bpMini}>
+                    <span className="mono" style={overviewStyles.bpKind}>join</span>
+                    <div style={overviewStyles.bpTitle}>{items[1].postRef}</div>
+                    <div className="mono" style={overviewStyles.postMetaBot}>
+                      {items[1].score > 0 && <>▲ {(items[1].score || 0).toLocaleString()} · {items[1].comments} comments · {items[1].age}</>}
+                    </div>
+                  </div>
+                }
+                {community.suggestedPost && community.suggestedPost.title &&
+                <div style={{...overviewStyles.bpMini, borderColor:"#111"}}>
+                    <span className="mono" style={overviewStyles.bpKind}>give</span>
+                    <div style={{...overviewStyles.bpTitle, color:"#777", fontStyle:"italic"}}>
+                      {community.suggestedPost.title}
+                    </div>
+                    <div className="mono" style={{...overviewStyles.postMetaBot, color:"#444"}}>
+                      draft · your original post
+                    </div>
+                  </div>
+                }
               </div>
-              <span className="lr-overview-bulk"><StreakBadge days={streakDays} onClick={onStreakClick} /></span>
+
               <button onClick={() => onJump("blueprint")} style={overviewStyles.showMore} className="mono lr-overview-more">
-                show more <span>→</span>
+                open playbook <span>→</span>
               </button>
             </> :
 
@@ -870,15 +1178,6 @@ const overviewStyles = {
   miniLegendLabel: { fontSize: 11, color: "#ccc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   miniLegendVal: { fontSize: 10, color: "#fff", textAlign: "right", fontVariantNumeric: "tabular-nums" },
 
-  divider: { height: 1, background: "#0e0e0e" },
-  miniKeywords: { display: "flex", flexDirection: "column", gap: 4 },
-  miniLabel: { fontSize: 9, color: "#555", letterSpacing: "0.2em", marginBottom: 4 },
-  kwRow: { display: "grid", gridTemplateColumns: "1fr 60px 28px", alignItems: "center", gap: 8, padding: "3px 0" },
-  kwTerm: { fontSize: 12, color: "#ccc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  kwTrack: { width: "100%", height: 2, background: "#111" },
-  kwFill: { height: "100%", background: "#fff" },
-  kwVal: { fontSize: 10, color: "#666", textAlign: "right", fontVariantNumeric: "tabular-nums" },
-
   personalizeHint: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", border: "1px dashed #2a2418", background: "rgba(240,166,87,0.04)", marginTop: 4, width:"100%", cursor:"pointer", transition:"all .15s", textAlign:"left", color:"inherit" },
   hintText: { fontSize: 10, color: "#bb9560", letterSpacing: "0.14em" },
   hintArrow: { fontSize: 12, color: "#e6cd8d" },
@@ -985,16 +1284,13 @@ const streakModalStyles = {
 };
 
 // ════════════════════════ SENTIMENT VIEW ════════════════════════
-// Pie chart (community sentiment) + bar chart of trending keywords to engage.
+// Pie chart showing community sentiment breakdown.
 
 function SentimentView({ community, personalized, onPersonalize }) {
   const sentiment = community.sentiment || [];
-  const cloud = (community.cloud || []).slice().sort((a, b) => b.w - a.w).slice(0, 12);
-  const maxW = Math.max(...cloud.map((c) => c.w), 1);
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
     <div style={sentimentStyles.wrap} className="lr-sentiment-wrap">
-      {/* Pie */}
       <div style={sentimentStyles.panel} className="lr-sentiment-panel">
         <div style={colStyles.eyebrowRow}>
           <span className="mono" style={colStyles.eyebrow}>community sentiment · 24h</span>
@@ -1013,32 +1309,6 @@ function SentimentView({ community, personalized, onPersonalize }) {
           </div>
         </div>
       </div>
-
-      {/* Bar chart */}
-      <div style={sentimentStyles.panel} className="lr-sentiment-panel">
-        <div style={colStyles.eyebrowRow}>
-          <span className="mono" style={colStyles.eyebrow}>trending keywords to engage</span>
-          <span className="mono" style={colStyles.eyebrowMeta}>{cloud.length} terms · descending</span>
-        </div>
-        <div style={chartStyles.list}>
-          {cloud.map((c, i) => {
-              const rel = c.w / maxW;
-              const top = i < 3;
-              return (
-                <div key={c.t} style={chartStyles.row} className="lr-term-cloud-row"
-                onMouseEnter={(e) => {e.currentTarget.style.background = "#080808";}}
-                onMouseLeave={(e) => {e.currentTarget.style.background = "transparent";}}>
-                <span className="mono" style={{ ...chartStyles.rank, color: top ? "#666" : "#333" }}>{String(i + 1).padStart(2, "0")}</span>
-                <span style={{ ...chartStyles.term, color: top ? "#fff" : "#888", fontWeight: top ? 600 : 400 }}>{c.t}</span>
-                <div style={chartStyles.track}>
-                  <div style={{ ...chartStyles.fill, width: `${rel * 100}%`, background: top ? "#fff" : "#444" }} />
-                </div>
-                <span className="mono" style={{ ...chartStyles.val, color: top ? "#fff" : "#555" }}>{c.w}</span>
-              </div>);
-
-            })}
-        </div>
-      </div>
     </div>
     {!personalized && <PersonalizeGate onClick={onPersonalize} />}
     </div>);
@@ -1054,7 +1324,7 @@ function PersonalizeGate({ onClick }) {
         <span className="mono" style={gateStyles.eyebrow}>locked · until you connect</span>
         <div style={gateStyles.title}>Personalize this view to your voice</div>
         <div style={gateStyles.sub}>
-          Sentiment scoring and keyword surfacing improve dramatically once we have your past Reddit comments to anchor on. Processed on-device, never uploaded.
+          Sentiment scoring improves dramatically once we have your past Reddit comments to anchor on. Processed on-device, never uploaded.
         </div>
         <button style={gateStyles.btn} onClick={onClick} className="lr-personalize-btn">
           Personalize writing style <span style={{ marginLeft: 8 }}>→</span>
@@ -1103,8 +1373,8 @@ function SentimentPie({ data }) {
 }
 
 const sentimentStyles = {
-  wrap: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: 0, height: "100%", overflow: "hidden" },
-  panel: { padding: "24px 28px", borderRight: "1px solid #0e0e0e", display: "flex", flexDirection: "column", overflow: "hidden" },
+  wrap: { display: "flex", flexDirection: "column", padding: 0, height: "100%", overflow: "hidden" },
+  panel: { padding: "24px 28px", display: "flex", flexDirection: "column", overflow: "hidden" },
   pieRow: { display: "flex", alignItems: "center", gap: 32, flex: 1 },
   legend: { display: "flex", flexDirection: "column", gap: 10, flex: 1 },
   legendRow: { display: "grid", gridTemplateColumns: "14px 1fr 48px", alignItems: "center", gap: 12, padding: "6px 0", borderBottom: "1px solid #0d0d0d" },
@@ -1123,7 +1393,7 @@ const SORTS = [
 { id: "new", label: "New" }];
 
 
-function EngagementView({ community, onAction, disabled }) {
+function EngagementView({ community, disabled }) {
   const [sort, setSort] = useStateT("rel");
   const [showAll, setShowAll] = useStateT(false);
   const posts = useMemoT(() => {
@@ -1160,7 +1430,7 @@ function EngagementView({ community, onAction, disabled }) {
         onMouseEnter={(e) => {e.currentTarget.style.background = "#080808";}}
         onMouseLeave={(e) => {e.currentTarget.style.background = "transparent";}}
         disabled={disabled}
-        onClick={() => onAction && onAction("comment")}>
+        onClick={() => !disabled && p.url && window.open(p.url, "_blank", "noopener,noreferrer")}>
             <span className="mono" style={engStyles.postIdx}>{String(i + 1).padStart(2, "0")}</span>
             <div style={engStyles.postBody}>
               <div style={engStyles.postMetaTop} className="mono">
@@ -1179,7 +1449,7 @@ function EngagementView({ community, onAction, disabled }) {
                 <span style={engStyles.relScore}>{sort.toUpperCase()} {(p[sort] * 100).toFixed(0)}</span>
               </div>
             </div>
-            <span style={engStyles.postArrow}>→</span>
+            <span style={engStyles.postArrow}>↗</span>
           </button>
         )}
       </div>
@@ -1252,15 +1522,33 @@ function BlueprintView({ community, onAction, disabled, streakDays, onStreakClic
                 {ins.postRef &&
                 <div style={bpStyles.cardRef} className="mono">
                     <span style={bpStyles.cardRefLabel}>↳ post</span>
-                    <span style={bpStyles.cardRefText}>{ins.postRef}</span>
+                    {ins.postUrl
+                      ? <a href={ins.postUrl} target="_blank" rel="noopener noreferrer"
+                           style={{...bpStyles.cardRefText, textDecoration:"none", color:"#aaa"}}>
+                          {ins.postRef}
+                        </a>
+                      : <span style={bpStyles.cardRefText}>{ins.postRef}</span>
+                    }
                   </div>
                 }
               </div>
-              <button style={bpStyles.cardCta} className="lr-blueprint-cta" disabled={disabled}
-              onClick={() => onAction && onAction(cfg.actionKind)}>
-                <span>{ins.cta}</span>
-                <span style={bpStyles.cardCtaArrow}>→</span>
-              </button>
+              {/* read / join → open Reddit URL directly in new tab.
+                  give       → no existing post; open ActionModal for drafting. */}
+              {ins.postUrl
+                ? <a href={ins.postUrl} target="_blank" rel="noopener noreferrer"
+                     style={{...bpStyles.cardCta, textDecoration:"none",
+                             opacity: disabled ? 0.35 : 1,
+                             pointerEvents: disabled ? "none" : "auto"}}
+                     className="lr-blueprint-cta">
+                    <span>{ins.cta}</span>
+                    <span style={bpStyles.cardCtaArrow}>↗</span>
+                  </a>
+                : <button style={bpStyles.cardCta} className="lr-blueprint-cta" disabled={disabled}
+                    onClick={() => onAction && onAction(cfg.actionKind)}>
+                    <span>{ins.cta}</span>
+                    <span style={bpStyles.cardCtaArrow}>→</span>
+                  </button>
+              }
             </div>);
 
         })}
@@ -1453,7 +1741,7 @@ const creditsStyles = {
 // ════════════════════════ ACTION MODAL (unchanged) ════════════════════════
 
 function ActionModal({ modal, tone, onClose }) {
-  const { kind, community } = modal;
+  const { kind, community, post } = modal;
   const [stage, setStage] = useStateT("review");
   const [draft, setDraft] = useStateT(
     kind === "comment" ? community.suggestedComment :
@@ -1461,7 +1749,34 @@ function ActionModal({ modal, tone, onClose }) {
   );
   const [title, setTitle] = useStateT(kind === "post" ? community.suggestedPost.title : "");
 
+  // Resolve the target URL: specific post passed from EngagementView → community.trending.url fallback
+  const targetUrl = (post && post.url) || (community.trending && community.trending.url) || null;
+  // Resolve which post title to show in the comment modal
+  const commentPostTitle = (post && post.title) || community.trending.title || "";
+
   function ship() {
+    if (kind === "comment" || kind === "post") {
+      // Copy draft to clipboard
+      var textToCopy = kind === "post" ? (title ? title + "\n\n" + draft : draft) : draft;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).catch(function() {});
+      } else {
+        // Fallback for older browsers
+        var ta = document.createElement("textarea");
+        ta.value = textToCopy;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand("copy"); } catch(e) {}
+        document.body.removeChild(ta);
+      }
+      // Open the Reddit post URL in a new tab
+      if (targetUrl) {
+        window.open(targetUrl, "_blank", "noopener,noreferrer");
+      }
+    }
     setStage("sending");
     setTimeout(() => setStage("done"), 900);
     setTimeout(onClose, 2000);
@@ -1492,7 +1807,7 @@ function ActionModal({ modal, tone, onClose }) {
 
         {kind === "comment" &&
         <div style={modalStyles.body} className="lr-modal-body">
-            <div className="mono" style={modalStyles.postMeta}>↳ {community.trending.title}</div>
+            <div className="mono" style={modalStyles.postMeta}>↳ {commentPostTitle}</div>
             <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={modalStyles.textarea} rows={5} />
           </div>
         }
@@ -1729,16 +2044,6 @@ const colStyles = {
   eyebrow: { fontSize: 10, color: "#555", letterSpacing: "0.22em", whiteSpace: "nowrap" },
   eyebrowRow: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14, gap: 12 },
   eyebrowMeta: { fontSize: 10, color: "#333", letterSpacing: "0.16em", whiteSpace: "nowrap" }
-};
-
-const chartStyles = {
-  list: { flex: 1, display: "flex", flexDirection: "column", gap: 0, overflow: "auto" },
-  row: { display: "grid", gridTemplateColumns: "24px 1fr 100px 36px", gap: 14, alignItems: "center", padding: "8px 8px", borderBottom: "1px solid #0d0d0d", transition: "background .15s", cursor: "default" },
-  rank: { fontSize: 10, letterSpacing: "0.16em" },
-  term: { fontSize: 13, letterSpacing: "-0.005em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  track: { width: "100%", height: 2, background: "#111", overflow: "hidden" },
-  fill: { height: "100%", transition: "width .4s ease" },
-  val: { fontSize: 11, textAlign: "right", fontVariantNumeric: "tabular-nums" }
 };
 
 const modalStyles = {

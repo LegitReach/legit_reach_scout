@@ -15,6 +15,8 @@ export interface RedditPost {
   selftext: string;
   permalink: string;
   url: string;
+  upvote_ratio?: number;     // 0.0–1.0, e.g. 0.93 means 93% upvoted
+  link_flair_text?: string;  // subreddit flair tag, e.g. "Win", "Question"
   relevance_score?: number;
   opportunity_type?: string;
 }
