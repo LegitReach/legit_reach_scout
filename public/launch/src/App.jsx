@@ -66,43 +66,64 @@ function App() {
         .lr-term-tab-name { font-size: 13px !important; }
         .lr-term-tabbar-filler { display: none !important; }
 
-        /* Body — single panel, mobile padding tighter */
-        .lr-term-body { overflow-y: auto !important; }
+        /* Body scrolls on mobile (the whole workspace becomes one scroll page) */
+        .lr-term-body { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+
+        /* The loaded content is wrapped by BlurFade in absolutely-positioned
+           layers (height:100%), which blocks the page from growing/scrolling on
+           a phone. Relax those layers so each view flows at its natural height. */
+        .lr-term-section { height: auto !important; min-height: 0 !important; overflow: visible !important; }
+        .lr-term-section > div:first-child { position: relative !important; height: auto !important; }
+        .lr-term-section > div:first-child > div { position: relative !important; inset: auto !important; }
+
         .lr-term-col { padding: 18px 16px !important; height: auto !important; min-height: 360px; }
         .lr-term-cloud-row { grid-template-columns: 22px 1fr 60px 32px !important; gap: 10px !important; }
 
         /* Community sub-selector */
         .lr-term-community-bar { padding: 10px 14px !important; flex-wrap: wrap !important; gap: 10px !important; }
         .lr-term-community-meta { display: none !important; }
-        .lr-term-community-pills { gap: 4px !important; }
+        .lr-term-community-pills { gap: 6px !important; }
+        .lr-term-community-bar .lr-term-pill { font-size: 13px !important; }
 
         /* Credits button — keep number, hide label on small screens */
         .lr-term-credits { padding: 6px 10px !important; }
 
-        /* Sentiment view stacks */
-        .lr-sentiment-wrap { grid-template-columns: 1fr !important; overflow-y: auto !important; }
+        /* Top nav tabs — spread evenly, no numbers, fit 4 across one row */
+        .lr-term-tabbar { overflow-x: visible !important; }
+        .lr-term-tab { flex: 1 1 0 !important; min-width: 0 !important; justify-content: center !important; padding: 13px 4px !important; gap: 0 !important; }
+        .lr-term-tab .lr-term-tab-name { font-size: 13px !important; }
+        .lr-term-tab .mono { display: none !important; }  /* hide 01/02/03 prefixes */
+        .lr-term-tabbar-filler { display: none !important; }
+
+        /* Scan box: stack brand signals + community as two boxes on mobile */
+        .lr-scan-insights { grid-template-columns: 1fr !important; }
+        .lr-scan-insights > div + div { border-left: none !important; border-top: 1px solid #0e0e0e !important; }
+
+        /* Sentiment view stacks + scrolls */
+        .lr-sentiment-wrap { grid-template-columns: 1fr !important; height: auto !important; overflow: visible !important; }
         .lr-sentiment-panel { border-right: none !important; border-bottom: 1px solid #0e0e0e !important; padding: 18px 16px !important; }
-        .lr-sentiment-pie-row { flex-direction: column !important; gap: 18px !important; align-items: flex-start !important; }
+        .lr-sentiment-pie-row { flex-direction: row !important; gap: 16px !important; align-items: center !important; flex-wrap: wrap !important; }
 
-        /* Terminal overview stacks — mobile hyper-compact, must fit one screen */
-        .lr-overview-wrap { padding: 14px 14px !important; gap: 10px !important; overflow: hidden !important; }
-        .lr-overview-grid { grid-template-columns: 1fr !important; gap: 8px !important; flex: 1; min-height: 0; }
-        .lr-overview-panel { min-height: 0 !important; padding: 10px 12px !important; gap: 6px !important; }
+        /* Engagement + blueprint flow naturally on mobile */
+        .lr-engagement-wrap, .lr-blueprint-wrap { height: auto !important; overflow: visible !important; }
 
-        /* Reveal compact summaries; hide bulky chunks */
-        .lr-overview-bulk { display: none !important; }
-        .lr-overview-mobile-summary { display: flex !important; }
+        /* Terminal overview = one scrollable page of stacked, full boxes */
+        .lr-overview-wrap { padding: 16px 14px !important; gap: 12px !important; height: auto !important; overflow: visible !important; }
+        .lr-overview-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+        .lr-overview-panel { min-height: 0 !important; padding: 16px 16px !important; gap: 10px !important; }
 
-        /* Tighter typography for the title row */
-        .lr-overview-wrap > div:first-child > div > div:first-child { font-size: 15px !important; }
-        .lr-overview-wrap > div:first-child > div > div:last-child  { font-size: 9px !important; margin-top: 2px !important; }
+        /* Show the full panels as proper boxes; drop the cramped one-liners */
+        .lr-overview-bulk { display: flex !important; }
+        .lr-overview-mobile-summary { display: none !important; }
 
-        /* Shrink sentiment pie on mobile */
-        .lr-overview-panel svg[width="180"] { width: 64px !important; height: 64px !important; }
-        .lr-overview-panel svg[width="180"] text { display: none; }
+        /* Title row stays readable */
+        .lr-overview-wrap > div:first-child > div > div:first-child { font-size: 18px !important; }
+        .lr-overview-wrap > div:first-child > div > div:last-child  { font-size: 10px !important; margin-top: 3px !important; }
 
-        /* Show-more button slightly smaller */
-        .lr-overview-more { padding: 7px 10px !important; font-size: 10px !important; }
+        /* Keep the sentiment pie compact in its box */
+        .lr-overview-panel svg[width="180"] { width: 96px !important; height: 96px !important; }
+
+        .lr-overview-more { padding: 10px 12px !important; font-size: 12px !important; }
 
         /* Engagement view */
         .lr-engagement-wrap { padding: 18px 16px !important; }

@@ -195,7 +195,7 @@ Return ONLY a valid JSON object with this exact structure:
   },
   "engagement": {
     "postIndex": <1-based index of a DIFFERENT post — best opportunity to add value with a comment RIGHT NOW>,
-    "draftComment": "A ready-to-post comment. Respect the promotionStance rule above exactly.",
+    "draftComment": "A ready-to-post comment. Respect the promotionStance rule above exactly. Keep it SHORT (1-2 sentences, max ~40 words), casual, and genuinely engaging like a real person typing fast. Do NOT use em dashes (—). Do NOT sound like AI or marketing copy. Prioritise sparking a reply over sounding polished.",
     "whyThisPost": "One sentence: why this is the best engagement opportunity right now."
   },
   "creation": {
