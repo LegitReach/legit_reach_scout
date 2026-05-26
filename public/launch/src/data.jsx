@@ -19,24 +19,6 @@ const SITES_DB = {
           { label: "Curious",   value: 16, color: "#f0c054" },
           { label: "Critical",  value: 9,  color: "#e07b7b" },
         ],
-        cloud: [
-          { t: "organic reach",     w: 56 },
-          { t: "founder voice",     w: 48 },
-          { t: "ads fatigue",       w: 41 },
-          { t: "community-led",     w: 39 },
-          { t: "PMF",               w: 34 },
-          { t: "cold outreach",     w: 31 },
-          { t: "AI slop",           w: 28 },
-          { t: "B2B reddit",        w: 26 },
-          { t: "audience",          w: 24 },
-          { t: "distribution",      w: 22 },
-          { t: "warm intro",        w: 19 },
-          { t: "low CAC",           w: 17 },
-          { t: "newsletter",        w: 16 },
-          { t: "Y-Combinator",      w: 14 },
-          { t: "founder-led sales", w: 13 },
-          { t: "MRR",               w: 11 },
-        ],
         posts: [
           { id: "p1", author: "u/dispatch_co",  title: "I killed our $40k/mo ad budget and our pipeline actually grew", score: 1247, comments: 318, age: "3h",  rel: 0.94, hot: 0.91, top: 0.99, new: 0.42, flair: "Discussion" },
           { id: "p2", author: "u/main_st_h",    title: "Founder voice > AI replies — 12 month case study with numbers", score:  642, comments: 184, age: "6h",  rel: 0.89, hot: 0.74, top: 0.82, new: 0.34, flair: "Case Study" },
@@ -86,21 +68,6 @@ const SITES_DB = {
           { label: "Curious",   value: 14, color: "#f0c054" },
           { label: "Critical",  value: 14, color: "#e07b7b" },
         ],
-        cloud: [
-          { t: "google reviews",   w: 52 },
-          { t: "local SEO",        w: 44 },
-          { t: "DM spam",          w: 38 },
-          { t: "brand voice",      w: 34 },
-          { t: "review farming",   w: 31 },
-          { t: "social manager",   w: 28 },
-          { t: "automation",       w: 26 },
-          { t: "reputation",       w: 24 },
-          { t: "facebook groups",  w: 22 },
-          { t: "agency churn",     w: 20 },
-          { t: "retainer",         w: 17 },
-          { t: "ROI",              w: 14 },
-          { t: "trust signals",    w: 12 },
-        ],
         posts: [
           { id: "p1", author: "u/main_st_bakery",  title: "Our 'social media manager' was just running ChatGPT on autopilot — feel betrayed", score: 892, comments: 241, age: "5h",  rel: 0.96, hot: 0.93, top: 0.92, new: 0.41, flair: "Vent" },
           { id: "p2", author: "u/corner_florist",  title: "Killed our agency retainer. 4 months later: more leads, less spend.",                score: 612, comments: 178, age: "9h",  rel: 0.88, hot: 0.68, top: 0.84, new: 0.22, flair: "Win" },
@@ -148,20 +115,6 @@ const SITES_DB = {
           { label: "Neutral",   value: 31, color: "#888"    },
           { label: "Curious",   value: 18, color: "#f0c054" },
           { label: "Critical",  value: 10, color: "#e07b7b" },
-        ],
-        cloud: [
-          { t: "attribution",      w: 49 },
-          { t: "dark social",      w: 42 },
-          { t: "LinkedIn fatigue", w: 38 },
-          { t: "reddit ads",       w: 34 },
-          { t: "GTM motion",       w: 31 },
-          { t: "creator economy",  w: 28 },
-          { t: "first-touch",      w: 26 },
-          { t: "intent data",      w: 22 },
-          { t: "content engine",   w: 20 },
-          { t: "brand lift",       w: 17 },
-          { t: "B2B SaaS",         w: 15 },
-          { t: "podcast funnel",   w: 12 },
         ],
         posts: [
           { id: "p1", author: "u/cmo_diaries",     title: "Reddit is the most under-priced B2B channel of 2026. Change my mind.", score: 1842, comments: 487, age: "7h",  rel: 0.97, hot: 0.92, top: 0.98, new: 0.32, flair: "Hot Take" },
@@ -225,13 +178,12 @@ const SITES_DB = {
 // reuse legitreach insights but adapt names lightly.
 function getSite(host) {
   const base = SITES_DB[host] || SITES_DB["legitreach.com"];
-  if (base.communities[0].cloud) return base;
+  if (base.communities[0].sentiment) return base;
   const ref = SITES_DB["legitreach.com"];
   return {
     ...base,
     communities: base.communities.map((c, i) => ({
       ...c,
-      cloud:     ref.communities[i].cloud,
       sentiment: ref.communities[i].sentiment,
       posts:     ref.communities[i].posts,
       blueprint: ref.communities[i].blueprint,
@@ -297,4 +249,183 @@ const LOADING_STAGES = [
   { label: "Generating community insights",   detail: "human-in-loop ready",                      ms: 900 },
 ];
 
-Object.assign(window, { SITES_DB, getSite, LOADING_STAGES, LOAD_STAGES });
+// ─── Map raw API responses → the site data shape Terminal expects ───────────
+//
+// scanData  = POST /api/tech-week/magic-scan response
+// curateData = POST /api/tech-week/curate response (may be null while curating)
+//
+function mapApiDataToSite(host, scanData, curateData) {
+  // magic-scan returns "brandProfile" as the key
+  const { brandProfile: brand, community } = scanData;
+  const { sentiment: sResult, engagement, creation } = curateData || {};
+
+  function formatAge(utc) {
+    if (!utc) return "—";
+    const diff = Math.floor(Date.now() / 1000 - utc);
+    if (diff < 3600)  return Math.floor(diff / 60)   + "m";
+    if (diff < 86400) return Math.floor(diff / 3600)  + "h";
+    return Math.floor(diff / 86400) + "d";
+  }
+
+  const sub = community.subreddit || "";
+  const communityName = sub.startsWith("r/") ? sub : "r/" + sub;
+
+  // Sentiment — real breakdown from Gemini (based on actual upvote_ratio + post content)
+  // Falls back to placeholder while curate is still loading (curateData null)
+  const bd = curateData && curateData.sentimentBreakdown;
+  const sentimentData = [
+    { label: "Positive", value: bd ? bd.positive : 45, color: "#5cd197" },
+    { label: "Neutral",  value: bd ? bd.neutral  : 30, color: "#888"    },
+    { label: "Curious",  value: bd ? bd.curious  : 16, color: "#f0c054" },
+    { label: "Critical", value: bd ? bd.critical :  9, color: "#e07b7b" },
+  ];
+
+  // Posts for the Engagement tab.
+  // Primary: engagementPosts from curate — the top hot posts that are NOT in
+  // the blueprint. Gives the user fresh material to respond to.
+  // Fallback: the 2 blueprint-selected posts (old behaviour, used while curate
+  // is still loading or if engagementPosts is absent).
+  var posts = [];
+  var rawEngPosts = curateData && curateData.engagementPosts;
+  if (rawEngPosts && rawEngPosts.length > 0) {
+    // Compute sort scores from real Reddit data
+    var maxScore = Math.max.apply(null, rawEngPosts.map(function(p) { return p.score || 1; }));
+    var nowSec = Math.floor(Date.now() / 1000);
+    var times = rawEngPosts.map(function(p) { return p.created_utc || nowSec; });
+    var oldestTime = Math.min.apply(null, times);
+    var newestTime = Math.max.apply(null, times);
+    var timeSpan = Math.max(newestTime - oldestTime, 1);
+
+    rawEngPosts.forEach(function(p) {
+      var scoreNorm  = Math.min(1, (p.score || 0) / maxScore);
+      var upvote     = p.upvote_ratio != null ? p.upvote_ratio : 0.75;
+      var recency    = ((p.created_utc || oldestTime) - oldestTime) / timeSpan;
+      posts.push({
+        id:       p.id,
+        author:   "u/" + (p.author || "unknown"),
+        title:    p.title || "",
+        score:    p.score || 0,
+        comments: p.num_comments || 0,
+        age:      formatAge(p.created_utc),
+        rel:  Math.round((0.6 * scoreNorm + 0.4 * upvote) * 100) / 100,
+        hot:  Math.round(upvote * 100) / 100,
+        top:  Math.round(scoreNorm * 100) / 100,
+        new:  Math.round(recency * 100) / 100,
+        flair: p.link_flair_text || "",
+        url:      p.url || null,
+        permalink: p.permalink || ""
+      });
+    });
+  } else {
+    // Fallback while curate hasn't resolved yet
+    if (sResult && sResult.post) {
+      posts.push({
+        id: sResult.post.id || "sr1",
+        author: "u/" + (sResult.post.author || "unknown"),
+        title: sResult.post.title || "",
+        score: sResult.post.score || 0,
+        comments: sResult.post.num_comments || 0,
+        age: formatAge(sResult.post.created_utc),
+        rel: 0.94, hot: 0.62, top: 0.81, new: 0.45,
+        flair: "Read",
+        url: sResult.post.url || null,
+        permalink: sResult.post.permalink || ""
+      });
+    }
+    if (engagement && engagement.post) {
+      posts.push({
+        id: engagement.post.id || "er1",
+        author: "u/" + (engagement.post.author || "unknown"),
+        title: engagement.post.title || "",
+        score: engagement.post.score || 0,
+        comments: engagement.post.num_comments || 0,
+        age: formatAge(engagement.post.created_utc),
+        rel: 0.89, hot: 0.92, top: 0.74, new: 0.38,
+        flair: "Hot",
+        url: engagement.post.url || null,
+        permalink: engagement.post.permalink || ""
+      });
+    }
+  }
+
+  // Blueprint cards — read / join / give
+  // postUrl present on read/join so the CTA button opens Reddit directly.
+  // give has no existing post URL (it's an original post suggestion).
+  var blueprint = [
+    {
+      kind: "read",
+      title: "A post worth reading",
+      line: (sResult && sResult.communityInsight) ||
+            "Read this thread to understand what this community cares about.",
+      postRef:  (sResult && sResult.post && sResult.post.title) || "",
+      postUrl:  (sResult && sResult.post && sResult.post.url) || null,
+      score:    (sResult && sResult.post && sResult.post.score) || 0,
+      comments: (sResult && sResult.post && sResult.post.num_comments) || 0,
+      age:      (sResult && sResult.post) ? formatAge(sResult.post.created_utc) : "—",
+      cta: "Open thread"
+    },
+    {
+      kind: "join",
+      title: "Join the conversation",
+      line: (engagement && engagement.whyThisPost) ||
+            "This post is ready for a thoughtful, value-adding reply.",
+      postRef:  (engagement && engagement.post && engagement.post.title) || "",
+      postUrl:  (engagement && engagement.post && engagement.post.url) || null,
+      score:    (engagement && engagement.post && engagement.post.score) || 0,
+      comments: (engagement && engagement.post && engagement.post.num_comments) || 0,
+      age:      (engagement && engagement.post) ? formatAge(engagement.post.created_utc) : "—",
+      cta: "Draft reply"
+    },
+    {
+      kind: "give",
+      title: "Give back to the community",
+      line: (creation && (creation.postingTips ||
+             (creation.contentOutline || []).slice(0, 2).join(" "))) ||
+            "Share your expertise with an original post.",
+      postRef: (creation && creation.suggestedTitle) || "Write an original post",
+      postUrl:  null,
+      cta: "Write post"
+    }
+  ];
+
+  // trending = engagement post (drives ActionModal upvote/comment targets)
+  var trending = {
+    author: (engagement && engagement.post)
+      ? "u/" + (engagement.post.author || "unknown") : "",
+    title:    (engagement && engagement.post && engagement.post.title) || "",
+    score:    (engagement && engagement.post && engagement.post.score)    || 0,
+    comments: (engagement && engagement.post && engagement.post.num_comments) || 0,
+    age:      (engagement && engagement.post)
+      ? formatAge(engagement.post.created_utc) : "",
+    url:      (engagement && engagement.post && engagement.post.url) || null
+  };
+
+  // nicheScore is on brandProfile: 1=niche 2=mid 3=commodity
+  // niche → tight overlap (high), commodity → broad (lower)
+  var overlap = brand.nicheScore
+    ? Math.max(0.30, Math.round((4 - brand.nicheScore) / 3 * 100) / 100)
+    : 0.65;
+
+  return {
+    name:  host,
+    label: brand.tagline || brand.businessDescription || host,
+    communities: [{
+      id:      "c1",
+      name:    communityName,
+      members: (curateData && curateData.communityStats && curateData.communityStats.subscribers) || community.size || "—",
+      active:  (curateData && curateData.communityStats && curateData.communityStats.activeUsers)  || "Live",
+      overlap: overlap,
+      sentiment: sentimentData,
+      posts:     posts,
+      blueprint: blueprint,
+      trending:  trending,
+      suggestedComment: (engagement && engagement.draftComment) || "Share your thoughts here…",
+      suggestedPost: {
+        title: (creation && creation.suggestedTitle) || "",
+        body:  (creation && (creation.contentOutline || []).join("\n\n")) || ""
+      }
+    }]
+  };
+}
+
+Object.assign(window, { SITES_DB, getSite, LOADING_STAGES, LOAD_STAGES, mapApiDataToSite });

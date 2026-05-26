@@ -358,7 +358,7 @@ export default function TerminalPage() {
   useRealtime({
     enabled: !!currentJobId,
     channels: [`curate_${currentJobId}`],
-    events: ["curation.update.data"],
+    events: ["curation.update.data._any"],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onData: ({ data }: any) => {
       if (data.status === "completed") {

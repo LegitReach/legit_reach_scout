@@ -54,7 +54,7 @@ export default function DashboardPage() {
   useRealtime({
     enabled: !!currentJobId,
     channels: [`curate_${currentJobId}`],
-    events: ["curation.update.data"],
+    events: ["curation.update.data._any"],
     onData: ({ data }: any) => {
       if (data.status === "completed") {
         const finalData = data.data;
