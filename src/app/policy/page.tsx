@@ -61,6 +61,14 @@ const SECTIONS: Section[] = [
   },
   {
     num: "07",
+    title: "AI-generated matches can be wrong",
+    body: [
+      "Mapping your website or brand to the right communities, scoring sentiment, ranking posts, and drafting replies are performed by our own AI agents on the back end. AI can and does make mistakes — it may surface an irrelevant subreddit, mis-read the tone of a thread, or draft a suggestion that does not fit. Treat every match and draft as a starting point to review, not a verified fact.",
+      "Because a human reviews and approves before anything is published, you are responsible for checking that the community, context, and content are correct before you act. To the maximum extent permitted by law, we are not liable for losses, missed opportunities, or platform actions arising from AI mapping, scoring, or drafting mistakes.",
+    ],
+  },
+  {
+    num: "08",
     title: "Limitation of liability",
     body: [
       "To the maximum extent permitted by law, LegitReach is provided on an \"as is\" and \"as available\" basis. We are not liable for indirect, incidental, or consequential damages, lost profits, lost data, or platform enforcement actions arising from your use of the product.",
@@ -68,7 +76,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    num: "08",
+    num: "09",
     title: "Changes to this policy",
     body: [
       "We may update this policy as the product and the platforms it works with evolve. Continued use after an update means you accept the revised policy.",
