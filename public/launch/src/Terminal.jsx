@@ -33,10 +33,10 @@ async function* parseSSEStream(response) {
 }
 
 const VIEW_TABS = [
-{ id: "terminal",   label: "Terminal",   stageIdx: null, num: null },
-{ id: "sentiment",  label: "Sentiment",  stageIdx: 1,    num: "01" },
-{ id: "engagement", label: "Engagement", stageIdx: 2,    num: "02" },
-{ id: "blueprint",  label: "Blueprint",  stageIdx: 3,    num: "03" }];
+{ id: "terminal",   label: "Terminal",           stageIdx: null, num: null },
+{ id: "sentiment",  label: "Community Sentiment", stageIdx: 1,    num: "01" },
+{ id: "engagement", label: "Worth Engaging",      stageIdx: 2,    num: "02" },
+{ id: "blueprint",  label: "Blue for Actions",    stageIdx: 3,    num: "03" }];
 
 
 function Terminal({ initialHost, onExit }) {
@@ -283,12 +283,38 @@ function Terminal({ initialHost, onExit }) {
     setToneOpen(true);
   }
 
+  // On a pipeline failure we do NOT drop the user into a broken terminal.
+  // Show a clean, branded full-screen state with a path back to the URL input.
+  if (apiPhase === "error") {
+    return (
+      <div style={termStyles.root}>
+        <header style={termStyles.topbar} className="lr-term-topbar">
+          <div style={termStyles.topbarLeft} className="lr-term-topbar-left">
+            <button onClick={() => { window.location.href = "/"; }} style={termStyles.brand} className="lr-term-brand" title="Back to home">LegitReach</button>
+          </div>
+        </header>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
+          <div className="mono" style={{ fontSize: 10, color: "#888", letterSpacing: "0.24em" }}>NO MATCH YET</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", maxWidth: 480, lineHeight: 1.2 }}>
+            We couldn't pull a live community for {activeHost}
+          </div>
+          <div style={{ fontSize: 14, color: "#888", maxWidth: 440, lineHeight: 1.6 }}>
+            The community our AI matched may be private or restricted. Matching is done by AI and can miss — try another URL and we'll scan again.
+          </div>
+          <button onClick={() => onExit && onExit()} style={{ marginTop: 8, background: "#fff", color: "#000", border: "none", padding: "13px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10 }}>
+            Try a different URL <span>→</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={termStyles.root}>
       {/* TOP BAR */}
       <header style={termStyles.topbar} className="lr-term-topbar">
         <div style={termStyles.topbarLeft} className="lr-term-topbar-left">
-          <div style={termStyles.brand} className="lr-term-brand">LegitReach</div>
+          <button onClick={() => { window.location.href = "/"; }} style={termStyles.brand} className="lr-term-brand" title="Back to home">LegitReach</button>
           <div style={termStyles.sep} className="lr-term-sep" />
           <div style={{ position: "relative" }}>
             <button style={termStyles.hostBtn} onClick={() => setSiteMenuOpen((s) => !s)}>
@@ -416,11 +442,13 @@ function Terminal({ initialHost, onExit }) {
           <div className="mono" style={termStyles.footRight}>
             {site.name} · {community.name}
           </div>
+          {activeHost === "legitreach.com" &&
           <button onClick={() => onExit && onExit()} style={termStyles.createOwn} className="lr-term-create-own"
             onMouseEnter={(e) => { e.currentTarget.style.background = "#4ec18a"; e.currentTarget.style.transform = "translateY(-1px)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "#3f9c6a"; e.currentTarget.style.transform = "translateY(0)"; }}>
             Create your own terminal now <span style={{marginLeft:6}}>→</span>
           </button>
+          }
         </div>
       </footer>
 
@@ -428,7 +456,7 @@ function Terminal({ initialHost, onExit }) {
       <ActionModal modal={actionModal} tone={tone} onClose={() => setActionModal(null)} />
       }
       {toneOpen &&
-      <TonePanel tone={tone} setTone={setTone} site={site} highlight={settingsHighlight} upload={upload} setUpload={setUpload} onClose={() => {setToneOpen(false);setSettingsHighlight(null);}} />
+      <TonePanel tone={tone} setTone={setTone} site={site} scanInsights={scanInsights} highlight={settingsHighlight} upload={upload} setUpload={setUpload} onClose={() => {setToneOpen(false);setSettingsHighlight(null);}} />
       }
       {creditsOpen &&
       <CreditsModal credits={credits} onTopUp={(n) => setCredits((c) => c + n)} onClose={() => setCreditsOpen(false)} />
@@ -646,7 +674,8 @@ const scanStyles = {
   headerLeft:  { display: "flex", alignItems: "center", gap: 10 },
   statusDot:   { width: 6, height: 6, borderRadius: "50%", flexShrink: 0 },
   statusLabel: { fontSize: 10, letterSpacing: "0.2em" },
-  collapseBtn: { background: "transparent", border: "none", color: "#444", fontSize: 10, letterSpacing: "0.16em", cursor: "pointer", padding: "2px 0" },
+  collapseBtn: { background: "transparent", border: "1px solid #2a2a2a", color: "#fff", fontSize: 10, letterSpacing: "0.16em", cursor: "pointer", padding: "4px 10px" },
+  scrollBody: { maxHeight: 210, overflowY: "auto" },
 
   // Pipeline log
   logWrap:  { padding: "12px 16px", display: "flex", flexDirection: "column", gap: 5 },
@@ -666,7 +695,7 @@ const scanStyles = {
   pillRow:      { display: "flex", flexWrap: "wrap", gap: 5 },
   pill:         { fontSize: 10, color: "#666", border: "1px solid #1a1a1a", padding: "2px 8px", letterSpacing: "0.02em" },
   bullet:       { fontSize: 11, color: "#4a4a4a", lineHeight: 1.4 },
-  communityName:{ fontSize: 15, fontWeight: 600, color: "#eee", letterSpacing: "-0.01em" },
+  communityName:{ fontSize: 13, fontWeight: 600, color: "#eee", letterSpacing: "-0.01em" },
   stanceBadge:  { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 10px", border: "1px solid", width: "fit-content" },
   stanceDot:    { width: 6, height: 6, borderRadius: "50%", flexShrink: 0 },
   stanceLabel:  { fontSize: 10, fontWeight: 600, letterSpacing: "0.18em" },
@@ -730,23 +759,21 @@ function ScanInsightsContent({ insights, curateEvents, apiPhase }) {
 
   return (
     <>
-      <div style={scanStyles.insightsGrid}>
-        {/* ── Left: brand ── */}
+      <div style={scanStyles.insightsGrid} className="lr-scan-insights">
+        {/* ── Left: brand — keywords + buyer pain only (no site description) ── */}
         <div style={scanStyles.col}>
           <div className="mono" style={scanStyles.colHead}>BRAND SIGNALS</div>
-          {bp && bp.tagline && <div style={scanStyles.tagline}>"{bp.tagline}"</div>}
-          {bp && bp.businessDescription && <div style={scanStyles.desc}>{bp.businessDescription}</div>}
 
           {bp && bp.keywords && bp.keywords.length > 0 && <>
             <div className="mono" style={scanStyles.sectionHead}>KEYWORDS</div>
             <div style={scanStyles.pillRow}>
-              {bp.keywords.slice(0, 4).map((k) => <span key={k} style={scanStyles.pill}>{k}</span>)}
+              {bp.keywords.slice(0, 5).map((k) => <span key={k} style={scanStyles.pill}>{k}</span>)}
             </div>
           </>}
 
           {bp && bp.buyerProblems && bp.buyerProblems.length > 0 && <>
             <div className="mono" style={scanStyles.sectionHead}>BUYER PAIN</div>
-            {bp.buyerProblems.slice(0, 2).map((p, i) => <div key={i} style={scanStyles.bullet}>· {p}</div>)}
+            {bp.buyerProblems.slice(0, 3).map((p, i) => <div key={i} style={scanStyles.bullet}>· {p}</div>)}
           </>}
         </div>
 
@@ -832,9 +859,11 @@ function ScanStatusPanel({ liveLog, scanInsights, apiPhase }) {
       </div>
 
       {!collapsed && (
-        hasCommunity
-          ? <ScanInsightsContent insights={scanInsights} curateEvents={curateEvents} apiPhase={apiPhase} />
-          : <PipelineLogPanel events={scanEvents} apiPhase={apiPhase} />
+        <div style={scanStyles.scrollBody} className="lr-scan-scrollbody">
+          {hasCommunity
+            ? <ScanInsightsContent insights={scanInsights} curateEvents={curateEvents} apiPhase={apiPhase} />
+            : <PipelineLogPanel events={scanEvents} apiPhase={apiPhase} />}
+        </div>
       )}
     </div>
   );
@@ -878,7 +907,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
       <div style={overviewStyles.head}>
         <div>
           <div style={overviewStyles.title}>Terminal · {community.name}</div>
-          <div className="mono" style={overviewStyles.sub}>at-a-glance · open a tab for the full view</div>
+          <div className="mono" style={overviewStyles.sub}>tap a card to act</div>
         </div>
         {tourActive &&
           <div style={overviewStyles.tourPill} className="mono">
@@ -898,7 +927,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
           {ready.sentiment ?
           <>
               <div style={overviewStyles.panelHead}>
-                <span className="mono" style={overviewStyles.eyebrow}>01 · sentiment</span>
+                <span className="mono" style={overviewStyles.eyebrow}>01 · community sentiment</span>
                 <span className="mono" style={overviewStyles.eyebrowMeta}>24h</span>
               </div>
               <div style={overviewStyles.sentimentBody}>
@@ -923,7 +952,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
             <button onClick={onPersonalize} style={overviewStyles.personalizeHint} className="lr-personalize-hint lr-overview-bulk"
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(240,166,87,0.10)"; e.currentTarget.style.borderColor = "#564524"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(240,166,87,0.04)"; e.currentTarget.style.borderColor = "#2a2418"; }}>
-                  <span className="mono" style={overviewStyles.hintText}>unlock personalized scoring</span>
+                  <span className="mono" style={overviewStyles.hintText}>add your voice to identity.md</span>
                   <span style={overviewStyles.hintArrow}>→</span>
                 </button>
             }
@@ -932,7 +961,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
               </button>
             </> :
 
-          <SkeletonPanel title="01 · sentiment" sub={subFor(1)} kind="sentiment" />
+          <SkeletonPanel title="01 · community sentiment" sub={subFor(1)} kind="sentiment" />
           }
           {tourHighlight(0) && <TourHighlight step={0} total={3} onNext={() => setTourStep((s) => s + 1)} onSkip={() => setTourStep(3)} />}
         </div>
@@ -942,7 +971,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
           {ready.engagement ?
           <>
               <div style={overviewStyles.panelHead}>
-                <span className="mono" style={overviewStyles.eyebrow}>02 · engagement</span>
+                <span className="mono" style={overviewStyles.eyebrow}>02 · worth engaging</span>
                 <span className="mono" style={overviewStyles.eyebrowMeta}>{posts.length} posts</span>
               </div>
               <div style={overviewStyles.mobileSummary} className="lr-overview-mobile-summary">
@@ -978,7 +1007,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
               </button>
             </> :
 
-          <SkeletonPanel title="02 · engagement" sub={subFor(2)} kind="engagement" />
+          <SkeletonPanel title="02 · worth engaging" sub={subFor(2)} kind="engagement" />
           }
           {tourHighlight(1) && <TourHighlight step={1} total={3} onNext={() => setTourStep((s) => s + 1)} onSkip={() => setTourStep(3)} />}
         </div>
@@ -989,7 +1018,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
           {ready.blueprint ?
           <>
               <div style={overviewStyles.panelHead}>
-                <span className="mono" style={overviewStyles.eyebrow}>03 · blueprint</span>
+                <span className="mono" style={overviewStyles.eyebrow}>03 · blue for actions</span>
                 <span className="mono" style={overviewStyles.eyebrowMeta}>3 posts</span>
               </div>
 
@@ -1042,7 +1071,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
               </button>
             </> :
 
-          <SkeletonPanel title="03 · blueprint" sub={subFor(3)} kind="blueprint" />
+          <SkeletonPanel title="03 · blue for actions" sub={subFor(3)} kind="blueprint" />
           }
           {tourHighlight(2) && <TourHighlight step={2} total={3} onNext={() => setTourStep(3)} onSkip={() => setTourStep(3)} last />}
         </div>
@@ -1159,44 +1188,44 @@ const SKELETON_META = {
 const overviewStyles = {
   wrap: { padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20, height: "100%", overflow: "auto" },
   head: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 18, flexWrap: "wrap" },
-  title: { fontSize: 20, fontWeight: 600, letterSpacing: "-0.01em" },
-  sub: { fontSize: 10, color: "#555", letterSpacing: "0.18em", marginTop: 4 },
+  title: { fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em" },
+  sub: { fontSize: 11, color: "#555", letterSpacing: "0.18em", marginTop: 4 },
   tourPill: { display:"inline-flex", alignItems:"center", gap:8, padding:"6px 12px", border:"1px solid #3f9c6a", color:"#5cd197", fontSize:10, letterSpacing:"0.2em", background:"rgba(63,156,106,0.08)" },
   tourPillDot: { width:6, height:6, borderRadius:"50%", background:"#5cd197", boxShadow:"0 0 8px rgba(92,209,151,.6)", animation:"lrPulse 1.4s infinite" },
 
   grid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, alignItems: "stretch" },
-  panel: { position:"relative", display: "flex", flexDirection: "column", gap: 12, padding: "18px 18px 16px", border: "1px solid #141414", background: "#040404", minHeight: 340 },
+  panel: { position:"relative", display: "flex", flexDirection: "column", gap: 14, padding: "20px 20px 18px", border: "1px solid #141414", background: "#040404", minHeight: 340 },
   panelTour: { borderColor: "transparent" },
   panelHead: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  eyebrow: { fontSize: 10, color: "#888", letterSpacing: "0.22em" },
-  eyebrowMeta: { fontSize: 10, color: "#444", letterSpacing: "0.16em" },
+  eyebrow: { fontSize: 13, color: "#aaa", letterSpacing: "0.18em" },
+  eyebrowMeta: { fontSize: 12, color: "#555", letterSpacing: "0.14em" },
 
   sentimentBody: { display: "flex", gap: 14, alignItems: "center" },
-  miniLegend: { display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 },
-  miniLegendRow: { display: "grid", gridTemplateColumns: "10px 1fr 36px", alignItems: "center", gap: 8 },
+  miniLegend: { display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 0 },
+  miniLegendRow: { display: "grid", gridTemplateColumns: "10px 1fr 38px", alignItems: "center", gap: 8 },
   swatch: { width: 8, height: 8 },
-  miniLegendLabel: { fontSize: 11, color: "#ccc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  miniLegendVal: { fontSize: 10, color: "#fff", textAlign: "right", fontVariantNumeric: "tabular-nums" },
+  miniLegendLabel: { fontSize: 13, color: "#ddd", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  miniLegendVal: { fontSize: 12, color: "#fff", textAlign: "right", fontVariantNumeric: "tabular-nums" },
 
   personalizeHint: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", border: "1px dashed #2a2418", background: "rgba(240,166,87,0.04)", marginTop: 4, width:"100%", cursor:"pointer", transition:"all .15s", textAlign:"left", color:"inherit" },
-  hintText: { fontSize: 10, color: "#bb9560", letterSpacing: "0.14em" },
+  hintText: { fontSize: 11, color: "#cda86a", letterSpacing: "0.12em" },
   hintArrow: { fontSize: 12, color: "#e6cd8d" },
   hintBtn: { background: "transparent", border: "none", color: "#e6cd8d", fontSize: 11, letterSpacing: "0.12em", cursor: "pointer", padding: 0 },
 
   postList: { display: "flex", flexDirection: "column", gap: 0, flex: 1 },
-  miniPost: { display: "grid", gridTemplateColumns: "22px 1fr", gap: 10, padding: "10px 0", borderBottom: "1px solid #0d0d0d", background: "transparent", border: "none", borderBottom: "1px solid #0d0d0d", textAlign: "left", color: "#fff", cursor: "pointer", transition: "background .15s" },
-  postIdx: { fontSize: 10, color: "#444", letterSpacing: "0.18em", paddingTop: 3 },
-  postBody: { display: "flex", flexDirection: "column", gap: 4, minWidth: 0 },
-  postMeta: { display: "flex", gap: 6, fontSize: 9, color: "#666", letterSpacing: "0.1em" },
-  postTitle: { fontSize: 13, color: "#fff", fontWeight: 500, lineHeight: 1.4, letterSpacing: "-0.005em" },
-  postMetaBot: { fontSize: 9, color: "#666", letterSpacing: "0.1em" },
+  miniPost: { display: "grid", gridTemplateColumns: "24px 1fr", gap: 12, padding: "12px 0", borderBottom: "1px solid #0d0d0d", background: "transparent", border: "none", borderBottom: "1px solid #0d0d0d", textAlign: "left", color: "#fff", cursor: "pointer", transition: "background .15s" },
+  postIdx: { fontSize: 12, color: "#555", letterSpacing: "0.18em", paddingTop: 3 },
+  postBody: { display: "flex", flexDirection: "column", gap: 5, minWidth: 0 },
+  postMeta: { display: "flex", gap: 6, fontSize: 11, color: "#777", letterSpacing: "0.08em" },
+  postTitle: { fontSize: 15, color: "#fff", fontWeight: 500, lineHeight: 1.4, letterSpacing: "-0.005em" },
+  postMetaBot: { fontSize: 11, color: "#777", letterSpacing: "0.08em" },
 
   bpList: { display: "flex", flexDirection: "column", gap: 8, flex: 1 },
-  bpMini: { display: "flex", flexDirection: "column", gap: 4, padding: "10px 12px", border: "1px solid #141414" },
-  bpKind: { fontSize: 9, color: "#bbb", letterSpacing: "0.22em", textTransform: "uppercase" },
-  bpTitle: { fontSize: 13, color: "#fff", fontWeight: 600, letterSpacing: "-0.005em" },
+  bpMini: { display: "flex", flexDirection: "column", gap: 5, padding: "11px 14px", border: "1px solid #141414" },
+  bpKind: { fontSize: 10, color: "#cfeedd", letterSpacing: "0.22em", textTransform: "uppercase" },
+  bpTitle: { fontSize: 15, color: "#fff", fontWeight: 600, letterSpacing: "-0.005em" },
 
-  showMore: { marginTop: "auto", background: "transparent", border: "1px solid #1a1a1a", color: "#ccc", padding: "9px 14px", fontSize: 11, letterSpacing: "0.14em", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 },
+  showMore: { marginTop: "auto", background: "transparent", border: "1px solid #1a1a1a", color: "#ddd", padding: "11px 14px", fontSize: 13, letterSpacing: "0.12em", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 },
 
   // Mobile-only summary line — hidden by default, shown on small screens
   mobileSummary: { display:"none", flexDirection:"column", gap:3, flex:1, minWidth:0 },
@@ -1205,8 +1234,8 @@ const overviewStyles = {
   mobileSummarySub: { fontSize:10, color:"#666", letterSpacing:"0.06em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
 
   skeleton: { display: "flex", flexDirection: "column", gap: 10, flex: 1 },
-  skelExplainTitle: { fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.005em", marginTop: 4 },
-  skelExplain: { fontSize: 12, color: "#888", lineHeight: 1.55, letterSpacing: "-0.005em" },
+  skelExplainTitle: { fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "-0.005em", marginTop: 4 },
+  skelExplain: { fontSize: 13, color: "#888", lineHeight: 1.55, letterSpacing: "-0.005em" },
   skelPreviewWrap: { position: "relative", padding: "12px 12px", border: "1px solid #141414", background: "#060606", overflow: "hidden", marginTop: 4 },
   skelPreviewBlur: { filter: "blur(3px) saturate(0.8)", opacity: 0.55 },
   skelMsg: { fontSize: 10, color: "#777", letterSpacing: "0.16em", marginTop: 4 },
@@ -1286,11 +1315,21 @@ const streakModalStyles = {
 // ════════════════════════ SENTIMENT VIEW ════════════════════════
 // Pie chart showing community sentiment breakdown.
 
+// Minimal personal-voice breakdown, surfaced once the user's Reddit export
+// has been processed. Demo representation of "how you show up".
+const PERSONAL_SENTIMENT = [
+  { label: "Supportive", value: 58, color: "#5cd197" },
+  { label: "Curious",    value: 24, color: "#f0c054" },
+  { label: "Neutral",    value: 12, color: "#888"    },
+  { label: "Critical",   value: 6,  color: "#e07b7b" },
+];
+
 function SentimentView({ community, personalized, onPersonalize }) {
   const sentiment = community.sentiment || [];
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
     <div style={sentimentStyles.wrap} className="lr-sentiment-wrap">
+
+      {/* Panel 1 — community sentiment (always visible) */}
       <div style={sentimentStyles.panel} className="lr-sentiment-panel">
         <div style={colStyles.eyebrowRow}>
           <span className="mono" style={colStyles.eyebrow}>community sentiment · 24h</span>
@@ -1305,14 +1344,62 @@ function SentimentView({ community, personalized, onPersonalize }) {
                 <span style={sentimentStyles.legendLabel}>{s.label}</span>
                 <span className="mono" style={sentimentStyles.legendVal}>{s.value}%</span>
               </div>
-              )}
+            )}
           </div>
         </div>
       </div>
-    </div>
-    {!personalized && <PersonalizeGate onClick={onPersonalize} />}
-    </div>);
 
+      {/* Panel 2 — personal sentiment (always rendered; blue-locked when !personalized) */}
+      <div style={{ ...sentimentStyles.panel, position: "relative", overflow: "hidden" }} className="lr-sentiment-panel">
+        {/* Content — blurred underneath when locked */}
+        <div style={{
+          filter: !personalized ? "blur(5px) saturate(0.4)" : "none",
+          opacity: !personalized ? 0.35 : 1,
+          transition: "filter .4s, opacity .4s",
+          pointerEvents: !personalized ? "none" : "auto"
+        }}>
+          <div style={colStyles.eyebrowRow}>
+            <span className="mono" style={colStyles.eyebrow}>personal sentiment · your voice</span>
+            <span className="mono" style={colStyles.eyebrowMeta}>from identity.md</span>
+          </div>
+          <div style={sentimentStyles.pieRow} className="lr-sentiment-pie-row">
+            <SentimentPie data={PERSONAL_SENTIMENT} />
+            <div style={sentimentStyles.legend}>
+              {PERSONAL_SENTIMENT.map((s) =>
+                <div key={s.label} style={sentimentStyles.legendRow}>
+                  <span style={{ ...sentimentStyles.swatch, background: s.color }} />
+                  <span style={sentimentStyles.legendLabel}>{s.label}</span>
+                  <span className="mono" style={sentimentStyles.legendVal}>{s.value}%</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Blue lock overlay — only when !personalized */}
+        {!personalized && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 5 }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(14,28,66,0.60)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }} />
+            <div style={{ position: "relative", maxWidth: 360, width: "100%", padding: "20px 22px 18px", background: "#050810", border: "1px solid #1a2a5a", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 16px 48px rgba(0,0,0,.7)" }}>
+              <span className="mono" style={{ fontSize: 10, color: "#5b8fd4", letterSpacing: "0.24em" }}>locked · until you connect</span>
+              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.25 }}>See how your voice fits this community</div>
+              <div style={{ fontSize: 12, color: "#888", lineHeight: 1.55 }}>
+                Upload your Reddit export to compare your personal tone against what this community values.
+              </div>
+              <button
+                onClick={onPersonalize}
+                style={{ marginTop: 6, alignSelf: "flex-start", background: "#2563eb", color: "#fff", border: "none", padding: "10px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#1d4ed8"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#2563eb"; }}>
+                Connect Reddit export <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
 }
 
 // Overlay shown over sentiment until the user uploads their reddit data.
@@ -1373,7 +1460,7 @@ function SentimentPie({ data }) {
 }
 
 const sentimentStyles = {
-  wrap: { display: "flex", flexDirection: "column", padding: 0, height: "100%", overflow: "hidden" },
+  wrap: { display: "flex", flexDirection: "column", padding: 0, height: "100%", overflowY: "auto" },
   panel: { padding: "24px 28px", display: "flex", flexDirection: "column", overflow: "hidden" },
   pieRow: { display: "flex", alignItems: "center", gap: 32, flex: 1 },
   legend: { display: "flex", flexDirection: "column", gap: 10, flex: 1 },
@@ -1746,11 +1833,37 @@ const creditsStyles = {
 
 // ════════════════════════ ACTION MODAL (unchanged) ════════════════════════
 
+// Short, human, no em dashes. Keeps replies tight + engagement-first.
+function cleanReply(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/\s*[—–]\s*/g, ", ")   // em/en dashes → comma
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(function() {});
+  } else {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand("copy"); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+
 function ActionModal({ modal, tone, onClose }) {
   const { kind, community, post } = modal;
   const [stage, setStage] = useStateT("review");
+  const [copied, setCopied] = useStateT(false);
   const [draft, setDraft] = useStateT(
-    kind === "comment" ? community.suggestedComment :
+    kind === "comment" ? cleanReply(community.suggestedComment) :
     kind === "post" ? community.suggestedPost.body : ""
   );
   const [title, setTitle] = useStateT(kind === "post" ? community.suggestedPost.title : "");
@@ -1760,28 +1873,31 @@ function ActionModal({ modal, tone, onClose }) {
   // Resolve which post title to show in the comment modal
   const commentPostTitle = (post && post.title) || community.trending.title || "";
 
+  // Build a Reddit prefilled text-post submit URL for the give-back action.
+  function redditSubmitUrl() {
+    var sub = (community.name || "").replace(/^r\//, "").trim();
+    if (!sub) return null;
+    var params = "title=" + encodeURIComponent(title || "") +
+                 "&selftext=true&text=" + encodeURIComponent(draft || "");
+    return "https://www.reddit.com/r/" + sub + "/submit?" + params;
+  }
+
+  function onCopy() {
+    copyText(draft);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
   function ship() {
-    if (kind === "comment" || kind === "post") {
-      // Copy draft to clipboard
-      var textToCopy = kind === "post" ? (title ? title + "\n\n" + draft : draft) : draft;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(textToCopy).catch(function() {});
-      } else {
-        // Fallback for older browsers
-        var ta = document.createElement("textarea");
-        ta.value = textToCopy;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        try { document.execCommand("copy"); } catch(e) {}
-        document.body.removeChild(ta);
-      }
-      // Open the Reddit post URL in a new tab
-      if (targetUrl) {
-        window.open(targetUrl, "_blank", "noopener,noreferrer");
-      }
+    if (kind === "comment") {
+      // Copy draft + open the post so the user can paste their reply.
+      copyText(draft);
+      if (targetUrl) window.open(targetUrl, "_blank", "noopener,noreferrer");
+    } else if (kind === "post") {
+      // Give back → open Reddit's submit page prefilled with title + body.
+      copyText(title ? title + "\n\n" + draft : draft);
+      var submitUrl = redditSubmitUrl();
+      if (submitUrl) window.open(submitUrl, "_blank", "noopener,noreferrer");
     }
     setStage("sending");
     setTimeout(() => setStage("done"), 900);
@@ -1827,13 +1943,24 @@ function ActionModal({ modal, tone, onClose }) {
 
         <footer style={modalStyles.footer} className="lr-modal-footer">
           <span className="mono" style={modalStyles.footerMeta}>{tone.voice.toLowerCase()} · {community.name}</span>
-          <button style={{
-            ...modalStyles.ship,
-            background: stage === "done" ? "#1a1a1a" : "#fff",
-            color: stage === "done" ? "#fff" : "#000"
-          }} onClick={ship} disabled={stage !== "review"} className="lr-modal-ship">
-            {ctaText} <span>{stage === "done" ? "✓" : "→"}</span>
-          </button>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+            {kind === "comment" &&
+              <button onClick={onCopy} disabled={stage !== "review"} className="mono" style={{
+                ...modalStyles.copyBtn,
+                borderColor: copied ? "#3f9c6a" : "#2a2a2a",
+                color: copied ? "#5cd197" : "#ccc"
+              }}>
+                {copied ? <>copied <span>✓</span></> : <>copy <span>⧉</span></>}
+              </button>
+            }
+            <button style={{
+              ...modalStyles.ship,
+              background: stage === "done" ? "#1a1a1a" : "#fff",
+              color: stage === "done" ? "#fff" : "#000"
+            }} onClick={ship} disabled={stage !== "review"} className="lr-modal-ship">
+              {ctaText} <span>{stage === "done" ? "✓" : "→"}</span>
+            </button>
+          </div>
         </footer>
       </div>
     </div>);
@@ -1842,10 +1969,30 @@ function ActionModal({ modal, tone, onClose }) {
 
 // ════════════════════════ TONE PANEL ════════════════════════
 
-function TonePanel({ tone, setTone, site, upload, setUpload, highlight, onClose }) {
+// Compose the digital identity text from whatever the brand-signal scan
+// collected for this URL. Editable by the user; shown as a starting point.
+function buildIdentityText(bp) {
+  if (!bp) return "";
+  var parts = [];
+  if (bp.tagline) parts.push('"' + bp.tagline + '"');
+  if (bp.businessDescription) parts.push(bp.businessDescription);
+  if (bp.targetAudience) parts.push("Audience: " + bp.targetAudience);
+  if (bp.keywords && bp.keywords.length) parts.push("Keywords: " + bp.keywords.join(", "));
+  if (bp.buyerProblems && bp.buyerProblems.length) parts.push("Buyer pain: " + bp.buyerProblems.join("; "));
+  if (bp.voiceTone) parts.push("Voice: " + bp.voiceTone);
+  return parts.join("\n\n");
+}
+
+function TonePanel({ tone, setTone, site, scanInsights, upload, setUpload, highlight, onClose }) {
   function set(k, v) {setTone((t) => ({ ...t, [k]: v }));}
   const fileRef = useRefT(null);
   const uploadRef = useRefT(null);
+  const mdRef = useRefT(null);
+
+  // Digital Identity defaults to the scanned brand signal for this URL.
+  const brandSignalText = buildIdentityText(scanInsights && scanInsights.brandProfile);
+  const [identity, setIdentity] = useStateT(brandSignalText || tone.bio);
+  const [identityFile, setIdentityFile] = useStateT(null);
 
   function handleFile(f) {
     if (!f) return;
@@ -1855,6 +2002,12 @@ function TonePanel({ tone, setTone, site, upload, setUpload, highlight, onClose 
   }
   function onPick(e) {handleFile(e.target.files && e.target.files[0]);}
   function onDrop(e) {e.preventDefault();handleFile(e.dataTransfer.files && e.dataTransfer.files[0]);}
+
+  // identity.md upload — placeholder only, takes no action beyond noting the file.
+  function onPickMd(e) {
+    const f = e.target.files && e.target.files[0];
+    if (f) setIdentityFile({ name: f.name, size: f.size });
+  }
 
   // Auto-scroll the upload card into view + pulse when settings was opened
   // with highlight="upload".
@@ -1875,13 +2028,41 @@ function TonePanel({ tone, setTone, site, upload, setUpload, highlight, onClose 
         <div style={tonePanelStyles.body} className="lr-settings-body">
           <div style={tonePanelStyles.col} className="lr-settings-col">
             <div className="mono" style={tonePanelStyles.fieldLabel}>Digital Identity</div>
-            <textarea value={tone.bio} onChange={(e) => set("bio", e.target.value)} style={tonePanelStyles.bioBox} rows={4} />
+            <div className="mono" style={tonePanelStyles.fieldHint}>generated from the brand signal we collected for {site.name} · edit and save</div>
+            <textarea value={identity} onChange={(e) => setIdentity(e.target.value)} style={tonePanelStyles.bioBox} rows={7} />
 
             <div ref={uploadRef} style={highlight === "upload" ? tonePanelStyles.highlightWrap : null} className={highlight === "upload" ? "lr-settings-highlight" : ""}>
               <div className="mono" style={{ ...tonePanelStyles.fieldLabel, color: highlight === "upload" ? "#e6cd8d" : tonePanelStyles.fieldLabel.color }}>
                 fine-tune from your reddit data{highlight === "upload" && <span style={tonePanelStyles.highlightTag}>← start here</span>}
               </div>
               <RedditUpload upload={upload} onPick={onPick} onDrop={onDrop} fileRef={fileRef} onClear={() => setUpload(null)} highlighted={highlight === "upload"} />
+            </div>
+
+            <div>
+              <div className="mono" style={tonePanelStyles.fieldLabel}>or upload your own identity.md</div>
+              <label style={{ ...uploadStyles.dropzone, marginTop: 8, borderColor: identityFile ? "#3f9c6a" : "#1a1a1a" }}>
+                <input ref={mdRef} type="file" accept=".md,text/markdown" onChange={onPickMd} style={{ display: "none" }} />
+                {!identityFile
+                  ? <>
+                      <div style={uploadStyles.icon}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.4">
+                          <path d="M12 4v12m0 0l-4-4m4 4l4-4" />
+                          <path d="M4 18v2h16v-2" />
+                        </svg>
+                      </div>
+                      <div style={uploadStyles.main}>upload your own identity.md file</div>
+                      <div style={uploadStyles.sub}>drop a <span className="mono">.md</span> or click to browse</div>
+                    </>
+                  : <div style={uploadStyles.row}>
+                      <span style={uploadStyles.checkOk}>✓</span>
+                      <div style={uploadStyles.fileMeta}>
+                        <div style={uploadStyles.fileName}>{identityFile.name}</div>
+                        <div className="mono" style={uploadStyles.fileSub}>ready to attach</div>
+                      </div>
+                      <button onClick={(e) => {e.preventDefault();setIdentityFile(null);}} style={uploadStyles.clear} className="mono">remove</button>
+                    </div>
+                }
+              </label>
             </div>
           </div>
         </div>
@@ -1996,7 +2177,7 @@ const termStyles = {
 
   topbar: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px", borderBottom: "1px solid #0e0e0e" },
   topbarLeft: { display: "flex", alignItems: "center", gap: 14 },
-  brand: { fontSize: 13, fontWeight: 700, letterSpacing: "0.06em" },
+  brand: { fontSize: 13, fontWeight: 700, letterSpacing: "0.06em", background: "transparent", border: "none", color: "#fff", cursor: "pointer", padding: 0, fontFamily: "inherit" },
   sep: { width: 1, height: 16, background: "#1a1a1a" },
 
   hostBtn: { background: "transparent", border: "none", padding: "6px 0", display: "inline-flex", alignItems: "center", gap: 10, color: "#fff", cursor: "pointer" },
@@ -2068,7 +2249,8 @@ const modalStyles = {
 
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", borderTop: "1px solid #111" },
   footerMeta: { fontSize: 10, color: "#555", letterSpacing: "0.16em" },
-  ship: { background: "#fff", color: "#000", border: "none", padding: "10px 18px", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 10, cursor: "pointer" }
+  ship: { background: "#fff", color: "#000", border: "none", padding: "10px 18px", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 10, cursor: "pointer" },
+  copyBtn: { background: "transparent", border: "1px solid #2a2a2a", padding: "10px 16px", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", transition: "all .15s" }
 };
 
 const tonePanelStyles = {
@@ -2082,6 +2264,7 @@ const tonePanelStyles = {
   col: { padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14, borderRight: "none" },
 
   fieldLabel: { fontSize: 10, color: "#555", letterSpacing: "0.2em" },
+  fieldHint: { fontSize: 10, color: "#444", letterSpacing: "0.04em", marginTop: -6, marginBottom: 2, lineHeight: 1.4 },
   highlightWrap: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", margin: "4px -8px", border: "1px dashed #564524", background: "rgba(214,166,55,0.04)", animation: "lrPulseSoft 1.8s ease-in-out infinite" },
   highlightTag: { marginLeft: 10, fontSize: 9, color: "#e6cd8d", letterSpacing: "0.18em", textTransform: "none" },
   voiceRow: { display: "flex", border: "1px solid #1a1a1a" },
