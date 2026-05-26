@@ -36,7 +36,7 @@ const VIEW_TABS = [
 { id: "terminal",   label: "Terminal",           stageIdx: null, num: null },
 { id: "sentiment",  label: "Community Sentiment", stageIdx: 1,    num: "01" },
 { id: "engagement", label: "Worth Engaging",      stageIdx: 2,    num: "02" },
-{ id: "blueprint",  label: "Blue for Actions",    stageIdx: 3,    num: "03" }];
+{ id: "blueprint",  label: "Blueprint for Action", stageIdx: 3,    num: "03" }];
 
 
 function Terminal({ initialHost, onExit }) {
@@ -1018,7 +1018,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
           {ready.blueprint ?
           <>
               <div style={overviewStyles.panelHead}>
-                <span className="mono" style={overviewStyles.eyebrow}>03 · blue for actions</span>
+                <span className="mono" style={overviewStyles.eyebrow}>03 · blueprint for action</span>
                 <span className="mono" style={overviewStyles.eyebrowMeta}>3 posts</span>
               </div>
 
@@ -1071,7 +1071,7 @@ function TerminalOverview({ community, ready, subFor, onJump, personalized, onPe
               </button>
             </> :
 
-          <SkeletonPanel title="03 · blue for actions" sub={subFor(3)} kind="blueprint" />
+          <SkeletonPanel title="03 · blueprint for action" sub={subFor(3)} kind="blueprint" />
           }
           {tourHighlight(2) && <TourHighlight step={2} total={3} onNext={() => setTourStep(3)} onSkip={() => setTourStep(3)} last />}
         </div>
