@@ -1104,7 +1104,7 @@ function TourHighlight({ step, total, onNext, onSkip, last }) {
 const tourStyles = {
   frame:{ position:"absolute", inset:-2, pointerEvents:"none", zIndex:4 },
   ring:{ position:"absolute", inset:0, border:"1px solid #3f9c6a", boxShadow:"0 0 0 1px rgba(63,156,106,.35), 0 0 32px rgba(63,156,106,.32), inset 0 0 18px rgba(63,156,106,.10)", animation:"lrTourPulse 1.8s ease-in-out infinite" },
-  tip:{ position:"absolute", bottom:-12, right:12, transform:"translateY(100%)", display:"inline-flex", alignItems:"center", gap:12, padding:"8px 12px 8px 14px", background:"#040404", border:"1px solid #3f9c6a", color:"#fff", pointerEvents:"auto", boxShadow:"0 8px 24px rgba(0,0,0,.55)" },
+  tip:{ position:"absolute", top:-12, right:12, transform:"translateY(-100%)", display:"inline-flex", alignItems:"center", gap:12, padding:"8px 12px 8px 14px", background:"#040404", border:"1px solid #3f9c6a", color:"#fff", pointerEvents:"auto", boxShadow:"0 8px 24px rgba(0,0,0,.55)" },
   tipCount:{ fontSize:10, color:"#5cd197", letterSpacing:"0.22em" },
   tipBtns:{ display:"inline-flex", gap:6 },
   tipSkip:{ background:"transparent", border:"none", color:"#666", fontSize:10, letterSpacing:"0.18em", padding:"6px 8px", cursor:"pointer" },
@@ -1704,17 +1704,23 @@ const bpStyles = {
 // Minimal top-up. Three tiers, payment-method row. Built to convince, not overwhelm.
 
 const CREDIT_TIERS = [
-{ id: "starter", price: 49, credits: 49, perCredit: 1.00 },
-{ id: "growth", price: 99, credits: 100, perCredit: 0.99, popular: true },
-{ id: "scale", price: 199, credits: 250, perCredit: 0.80, best: true }];
+{ id: "monthly", price: 29, term: "30 days", credits: 50, note: "billed monthly" },
+{ id: "quarterly", price: 79, term: "90 days", credits: 180, note: "3 months — best value", popular: true },
+{ id: "enterprise", contact: true, term: "custom", note: "large brands & research orgs" }];
+
+const ENTERPRISE_EMAIL = "direct@legitreach.com";
 
 
 function CreditsModal({ credits, onTopUp, onClose }) {
-  const [selected, setSelected] = useStateT("growth");
+  const [selected, setSelected] = useStateT("quarterly");
   const [stage, setStage] = useStateT("pick"); // pick → paying → done
   const tier = CREDIT_TIERS.find((t) => t.id === selected);
 
   function pay() {
+    if (tier.contact) {
+      window.location.href = `mailto:${ENTERPRISE_EMAIL}?subject=${encodeURIComponent("LegitReach Enterprise")}`;
+      return;
+    }
     setStage("paying");
     setTimeout(() => {
       onTopUp(tier.credits);
@@ -1728,14 +1734,14 @@ function CreditsModal({ credits, onTopUp, onClose }) {
       <div style={creditsStyles.dialog} className="lr-credits-dialog" onClick={(e) => e.stopPropagation()}>
         <header style={creditsStyles.header} className="lr-modal-header">
           <div>
-            <h3 style={creditsStyles.title}>Top up credits</h3>
+            <h3 style={creditsStyles.title}>Choose your plan</h3>
             <div className="mono" style={creditsStyles.balance}>balance · {credits} credits</div>
           </div>
           <button onClick={onClose} style={creditsStyles.close} className="mono">esc</button>
         </header>
 
         <div style={creditsStyles.body} className="lr-credits-body">
-          <div className="mono" style={creditsStyles.fieldLabel}>choose a package</div>
+          <div className="mono" style={creditsStyles.fieldLabel}>choose a plan</div>
           <div style={creditsStyles.tiers} className="lr-credits-tiers">
             {CREDIT_TIERS.map((t) => {
               const isSelected = selected === t.id;
@@ -1746,12 +1752,11 @@ function CreditsModal({ credits, onTopUp, onClose }) {
                   background: isSelected ? "#0d0d0d" : "transparent"
                 }} className="lr-credits-tier">
                   <div style={creditsStyles.tierTop}>
-                    <span style={creditsStyles.tierPrice}>${t.price}</span>
-                    {t.popular && <span style={creditsStyles.tierBadgePop} className="mono">popular</span>}
-                    {t.best && <span style={creditsStyles.tierBadgeBest} className="mono">best value</span>}
+                    <span style={creditsStyles.tierPrice}>{t.contact ? "Contact" : `$${t.price}`}</span>
+                    {t.popular && <span style={creditsStyles.tierBadgeBest} className="mono">best value</span>}
                   </div>
-                  <div style={creditsStyles.tierCredits}>{t.credits} credits</div>
-                  <div className="mono" style={creditsStyles.tierPer}>${t.perCredit.toFixed(2)} / credit</div>
+                  <div style={creditsStyles.tierCredits}>{t.term}</div>
+                  <div className="mono" style={creditsStyles.tierPer}>{t.note}</div>
                   <div style={{ ...creditsStyles.tierCheck, opacity: isSelected ? 1 : 0 }}>●</div>
                 </button>);
 
@@ -1774,7 +1779,8 @@ function CreditsModal({ credits, onTopUp, onClose }) {
 
         <footer style={creditsStyles.footer} className="lr-modal-footer">
           <span className="mono" style={creditsStyles.footerMeta}>
-            {stage === "done" ? `+${tier.credits} added · new balance ${credits + tier.credits}` :
+            {tier.contact ? `talk to us · ${ENTERPRISE_EMAIL}` :
+            stage === "done" ? `+${tier.credits} added · new balance ${credits + tier.credits}` :
             stage === "paying" ? `charging $${tier.price.toFixed(2)}…` :
             `you'll be charged $${tier.price.toFixed(2)}`}
           </span>
@@ -1783,9 +1789,10 @@ function CreditsModal({ credits, onTopUp, onClose }) {
             background: stage === "done" ? "#1a1a1a" : "#fff",
             color: stage === "done" ? "#fff" : "#000"
           }} onClick={pay} disabled={stage !== "pick"} className="lr-credits-pay">
-            {stage === "done" ? <>added <span>✓</span></> :
+            {tier.contact ? <>contact us <span>→</span></> :
+            stage === "done" ? <>activated <span>✓</span></> :
             stage === "paying" ? <>charging…</> :
-            <>buy {tier.credits} credits <span>→</span></>}
+            <>start {tier.term} <span>→</span></>}
           </button>
         </footer>
       </div>

@@ -169,8 +169,7 @@ List exactly 4 real, currently active subreddits. Format each one as r/subreddit
 }
 
 async function discoverCommunities(
-  brand: BrandProfile,
-  _storeUrl: string
+  brand: BrandProfile
 ): Promise<string[]> {
   return discoverCommunitiesViaGeminiGrounded(brand);
 }
@@ -377,7 +376,7 @@ export async function POST(request: NextRequest) {
 
         let candidateNames: string[];
         try {
-          candidateNames = await discoverCommunities(brandProfile, storeUrl);
+          candidateNames = await discoverCommunities(brandProfile);
         } catch (err) {
           emit({ type: "step", step: 3, status: "error", msg: `Discovery failed: ${err instanceof Error ? err.message : String(err)}` });
           emit({ type: "fatal", msg: "Could not discover relevant Reddit communities." });
