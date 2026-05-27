@@ -4,8 +4,6 @@ import { getGeminiModel } from "@/ai/gemini.model";
 import type { BrandProfile, SelectedCommunity } from "@/app/api/tech-week/magic-scan/route";
 import type { RedditPost } from "@/types";
 
-export const maxDuration = 30;
-
 // ─── Response types ───────────────────────────────────────────────────────────
 
 export interface SentimentBreakdown {

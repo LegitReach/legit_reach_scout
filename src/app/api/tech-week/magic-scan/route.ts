@@ -4,8 +4,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ProxyAgent, fetch as proxyFetch } from "undici";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
-export const maxDuration = 45;
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface BrandProfile {
