@@ -72,17 +72,6 @@ export default function Home() {
                   </a>
                 </div>
               </FadeIn>
-              <FadeIn delay={1700} duration={1000}>
-                <p
-                  className="text-sm"
-                  style={{
-                    color: "#9ca3af",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  Demo Workflow, beta sign-up in the end.
-                </p>
-              </FadeIn>
             </div>
           </div>
         </section>
