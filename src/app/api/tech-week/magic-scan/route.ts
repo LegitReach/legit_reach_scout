@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import Exa from "exa-js";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { ProxyAgent, fetch as proxyFetch } from "undici";
 
-// Sequential steps: Jina ~3s + Gemini ~4s + Exa parallel ~3s + rules parallel ~3s + Gemini ~4s
+// Sequential steps: Jina ~3s + Gemini ~4s + Gemini discovery ~3s + rules parallel ~3s + Gemini ~4s
 export const maxDuration = 45;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -114,64 +113,7 @@ Return only the JSON. No markdown. No explanation.`;
   return JSON.parse(raw) as BrandProfile;
 }
 
-// ─── Step 3: Exa — discover real active communities ───────────────────────────
-
-function extractSubreddits(urls: string[]): string[] {
-  const counts = new Map<string, number>();
-  for (const url of urls) {
-    const match = url.match(/reddit\.com\/r\/([a-zA-Z0-9_]+)/i);
-    if (match) {
-      const sub = match[1].toLowerCase();
-      // Skip generic/catch-all subs that aren't useful
-      if (!["reddit", "all", "popular", "home", "search"].includes(sub)) {
-        counts.set(sub, (counts.get(sub) || 0) + 1);
-      }
-    }
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([sub]) => sub)
-    .slice(0, 4); // top 4 by frequency
-}
-
-async function discoverCommunitiesViaExa(
-  brand: BrandProfile,
-  storeUrl: string
-): Promise<string[]> {
-  const exa = new Exa(process.env.EXA_API_KEY!);
-
-  // Keep queries short and natural — Exa neural search works better with concise prompts
-  const problemQuery = brand.buyerProblems[0] ?? brand.keywords[0] ?? brand.businessDescription.slice(0, 60);
-  const categoryQuery = brand.productCategories[0] ?? brand.keywords[0];
-
-  const [problemRes, categoryRes, urlRes] = await Promise.allSettled([
-    exa.search(`${problemQuery} advice reddit`, {
-      type: "neural",
-      includeDomains: ["reddit.com"],
-      numResults: 5,
-    }),
-    exa.search(`best ${categoryQuery} recommendations reddit`, {
-      type: "neural",
-      includeDomains: ["reddit.com"],
-      numResults: 5,
-    }),
-    // Store URL as semantic anchor — finds Reddit content similar to the brand
-    exa.search(storeUrl, {
-      type: "neural",
-      includeDomains: ["reddit.com"],
-      numResults: 5,
-    }),
-  ]);
-
-  const allUrls: string[] = [];
-  for (const res of [problemRes, categoryRes, urlRes]) {
-    if (res.status === "fulfilled") {
-      allUrls.push(...res.value.results.map((r) => r.url));
-    }
-  }
-
-  return extractSubreddits(allUrls);
-}
+// ─── Step 3: Gemini — discover relevant active communities ────────────────────
 
 async function discoverCommunitiesViaGemini(brand: BrandProfile): Promise<string[]> {
   const prompt = `You are a Reddit expert. Based on this brand profile, suggest the 4 most relevant subreddits where the target audience actively discusses problems this brand solves.
@@ -193,19 +135,9 @@ Example: ["Parenting", "beyondthebump", "daddit", "InfantRearing"]`;
 }
 
 async function discoverCommunities(
-  brand: BrandProfile,
-  storeUrl: string
+  brand: BrandProfile
 ): Promise<string[]> {
-  // Try Exa first — returns real, live communities
-  const exaCandidates = await discoverCommunitiesViaExa(brand, storeUrl);
-
-  if (exaCandidates.length > 0) {
-    console.log("[magic-scan] Exa found candidates:", exaCandidates);
-    return exaCandidates;
-  }
-
-  // Fallback to Gemini — still grounded because rules are fetched in Step 4
-  console.log("[magic-scan] Exa returned 0 candidates — falling back to Gemini suggestions");
+  // Gemini suggestions — grounded because actual rules are fetched in Step 4
   const geminiCandidates = await discoverCommunitiesViaGemini(brand);
   console.log("[magic-scan] Gemini suggested:", geminiCandidates);
   return geminiCandidates;
@@ -413,7 +345,7 @@ export async function POST(request: NextRequest) {
 
         let candidateNames: string[];
         try {
-          candidateNames = await discoverCommunities(brandProfile, storeUrl);
+          candidateNames = await discoverCommunities(brandProfile);
         } catch (err) {
           emit({ type: "step", step: 3, status: "error", msg: `Discovery failed: ${err instanceof Error ? err.message : String(err)}` });
           emit({ type: "fatal", msg: "Could not discover relevant Reddit communities." });

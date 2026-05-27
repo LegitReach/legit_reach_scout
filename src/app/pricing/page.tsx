@@ -13,18 +13,18 @@ type Plan = {
 
 const PLANS: Plan[] = [
   {
-    name: "Solo",
-    price: "$49",
-    unit: "/mo",
+    name: "Monthly",
+    price: "$29",
+    unit: "/30 days",
     forWho: "Brand owners and solopreneurs",
-    desc: "The core tool. Signal detection.",
+    desc: "The full tool. Signal detection and AI-assisted drafting, billed monthly.",
   },
   {
-    name: "Community Manager",
-    price: "$99",
-    unit: "/mo",
-    forWho: "Teams managing brand voice",
-    desc: "Tool plus AI-assisted automations.",
+    name: "Quarterly",
+    price: "$79",
+    unit: "/90 days",
+    forWho: "Best value — three months up front",
+    desc: "Everything in Monthly for 90 days. Save versus paying month to month.",
   },
 ];
 
@@ -127,7 +127,7 @@ export default function PricingPage() {
                       {p.desc}
                     </p>
                     <a
-                      href="/a16z"
+                      href="/launch"
                       className="lr-btn-primary inline-block"
                       style={{ marginTop: "1.75rem", alignSelf: "flex-start" }}
                     >
@@ -176,10 +176,10 @@ export default function PricingPage() {
                     simulation & backtesting.
                   </p>
                   <a
-                    href="mailto:manthan@legitreach.com"
+                    href="mailto:direct@legitreach.com"
                     className="lr-btn-primary inline-block"
                   >
-                    Contact sales
+                    Contact us
                   </a>
                 </div>
               </div>
