@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import Exa from "exa-js";
 import { getGeminiModel } from "@/ai/gemini.model";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ProxyAgent, fetch as proxyFetch } from "undici";
 
-// Sequential steps: Jina ~3s + Gemini ~4s + Exa parallel ~3s + rules parallel ~3s + Gemini ~4s
+// Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
 export const maxDuration = 45;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -114,67 +114,30 @@ Return only the JSON. No markdown. No explanation.`;
   return JSON.parse(raw) as BrandProfile;
 }
 
-// ─── Step 3: Exa — discover real active communities ───────────────────────────
+// ─── Step 3: Gemini with Google Search grounding — discover real communities ───
+// googleSearch tool is incompatible with responseMimeType:"application/json"
+// so we use a plain text model and extract r/ names with regex.
 
-function extractSubreddits(urls: string[]): string[] {
-  const counts = new Map<string, number>();
-  for (const url of urls) {
-    const match = url.match(/reddit\.com\/r\/([a-zA-Z0-9_]+)/i);
-    if (match) {
-      const sub = match[1].toLowerCase();
-      // Skip generic/catch-all subs that aren't useful
-      if (!["reddit", "all", "popular", "home", "search"].includes(sub)) {
-        counts.set(sub, (counts.get(sub) || 0) + 1);
-      }
-    }
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([sub]) => sub)
-    .slice(0, 4); // top 4 by frequency
-}
-
-async function discoverCommunitiesViaExa(
-  brand: BrandProfile,
-  storeUrl: string
-): Promise<string[]> {
-  const exa = new Exa(process.env.EXA_API_KEY!);
-
-  // Keep queries short and natural — Exa neural search works better with concise prompts
-  const problemQuery = brand.buyerProblems[0] ?? brand.keywords[0] ?? brand.businessDescription.slice(0, 60);
-  const categoryQuery = brand.productCategories[0] ?? brand.keywords[0];
-
-  const [problemRes, categoryRes, urlRes] = await Promise.allSettled([
-    exa.search(`${problemQuery} advice reddit`, {
-      type: "neural",
-      includeDomains: ["reddit.com"],
-      numResults: 5,
-    }),
-    exa.search(`best ${categoryQuery} recommendations reddit`, {
-      type: "neural",
-      includeDomains: ["reddit.com"],
-      numResults: 5,
-    }),
-    // Store URL as semantic anchor — finds Reddit content similar to the brand
-    exa.search(storeUrl, {
-      type: "neural",
-      includeDomains: ["reddit.com"],
-      numResults: 5,
-    }),
-  ]);
-
-  const allUrls: string[] = [];
-  for (const res of [problemRes, categoryRes, urlRes]) {
-    if (res.status === "fulfilled") {
-      allUrls.push(...res.value.results.map((r) => r.url));
-    }
+async function discoverCommunitiesViaGeminiGrounded(brand: BrandProfile): Promise<string[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("[magic-scan] GEMINI_API_KEY not set — skipping grounded search");
+    return [];
   }
 
-  return extractSubreddits(allUrls);
-}
+  let text: string;
+  try {
+    const ai = new GoogleGenerativeAI(apiKey);
+    const model = ai.getGenerativeModel({
+      model: "gemini-3-flash-preview",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tools: [{ googleSearch: {} } as any],
+      // No responseMimeType here — grounding and JSON mode are incompatible
+      // googleSearch is the correct tool name for Gemini 2.x; the SDK types
+      // (v0.24.x) still expose the old googleSearchRetrieval name so we cast.
+    });
 
-async function discoverCommunitiesViaGemini(brand: BrandProfile): Promise<string[]> {
-  const prompt = `You are a Reddit expert. Based on this brand profile, suggest the 4 most relevant subreddits where the target audience actively discusses problems this brand solves.
+    const prompt = `Search Google and find the 4 most active and relevant subreddits where this brand's target audience discusses their problems.
 
 Brand: ${brand.businessDescription}
 Target audience: ${brand.targetAudience}
@@ -182,33 +145,34 @@ Keywords: ${brand.keywords.join(", ")}
 Buyer problems: ${brand.buyerProblems.join(", ")}
 Niche score: ${brand.nicheScore} (1=niche, 2=mid, 3=commodity)
 
-Return ONLY a JSON array of 4 subreddit names WITHOUT the r/ prefix. Real, active communities only.
-Example: ["Parenting", "beyondthebump", "daddit", "InfantRearing"]`;
+List exactly 4 real, currently active subreddits. Format each one as r/subredditname on its own line. Nothing else.`;
 
-  const model = getGeminiModel();
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().replace(/```json|```/g, "").trim();
-  const parsed = JSON.parse(raw) as string[];
-  return parsed.map((s) => s.replace(/^r\//, "").toLowerCase());
+    const result = await model.generateContent(prompt);
+    text = result.response.text();
+  } catch (err) {
+    console.warn("[magic-scan] Gemini grounded search failed:", err);
+    return [];
+  }
+
+  // Extract r/subredditname matches from the response
+  const matches = [...text.matchAll(/r\/([a-zA-Z0-9_]+)/g)];
+  const seen = new Set<string>();
+  const subreddits: string[] = [];
+  for (const m of matches) {
+    const sub = m[1].toLowerCase();
+    if (!seen.has(sub)) {
+      seen.add(sub);
+      subreddits.push(sub);
+    }
+  }
+  return subreddits.slice(0, 4);
 }
 
 async function discoverCommunities(
   brand: BrandProfile,
-  storeUrl: string
+  _storeUrl: string
 ): Promise<string[]> {
-  // Try Exa first — returns real, live communities
-  const exaCandidates = await discoverCommunitiesViaExa(brand, storeUrl);
-
-  if (exaCandidates.length > 0) {
-    console.log("[magic-scan] Exa found candidates:", exaCandidates);
-    return exaCandidates;
-  }
-
-  // Fallback to Gemini — still grounded because rules are fetched in Step 4
-  console.log("[magic-scan] Exa returned 0 candidates — falling back to Gemini suggestions");
-  const geminiCandidates = await discoverCommunitiesViaGemini(brand);
-  console.log("[magic-scan] Gemini suggested:", geminiCandidates);
-  return geminiCandidates;
+  return discoverCommunitiesViaGeminiGrounded(brand);
 }
 
 // ─── Step 4: Direct Reddit JSON API — fetch rules for each candidate ─────────
