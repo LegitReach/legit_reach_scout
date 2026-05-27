@@ -169,8 +169,7 @@ List exactly 4 real, currently active subreddits. Format each one as r/subreddit
 }
 
 async function discoverCommunities(
-  brand: BrandProfile,
-  _storeUrl: string
+  brand: BrandProfile
 ): Promise<string[]> {
   return discoverCommunitiesViaGeminiGrounded(brand);
 }
