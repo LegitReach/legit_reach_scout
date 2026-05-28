@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LegitReach — Pre-Seed 2026</title>
+<title>LegitReach. Pre-Seed 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -20,7 +20,7 @@ body {
 }
 
 /* Each slide lives on a full-viewport page that centers and scales the
-   fixed 16:9 canvas. Same composition on phone and desktop — the whole
+   fixed 16:9 canvas. Same composition on phone and desktop: the whole
    slide always fits the screen (letterboxed), and you pinch-zoom to read. */
 .page {
   height: 100vh; width: 100%;
@@ -126,19 +126,19 @@ h2 {
 .feat-tag { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
 .feat-text { font-size: 15px; color: #bbb; line-height: 1.6; }
 
-/* MOAT */
-#s5 .moat-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 1px; background: #141414;
-  margin-top: 40px; max-width: 820px; position: relative; z-index: 1;
+/* VISION */
+#s5 h2 { max-width: 820px; }
+#s5 .vision-sub {
+  font-size: 15px; color: #888; margin-top: 14px;
+  max-width: 620px; position: relative; z-index: 1;
 }
-.mc { background: #000; padding: 28px 30px; }
-.mc-tag { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
-.mc-title { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 8px; }
-.mc-body { font-size: 14px; color: #999; line-height: 1.65; }
-#s5 .moat-foot {
-  margin-top: 20px; border-top: 1px solid #141414; padding-top: 16px;
-  max-width: 820px; position: relative; z-index: 1; font-size: 14px; color: #555;
+#s5 .vision-flow {
+  margin-top: 40px; max-width: 880px; position: relative; z-index: 1;
+}
+#s5 .vision-flow svg { width: 100%; height: auto; }
+#s5 .vision-foot {
+  margin-top: 18px; border-top: 1px solid #141414; padding-top: 16px;
+  max-width: 880px; position: relative; z-index: 1; font-size: 15px; color: #888;
 }
 
 /* TRACTION */
@@ -247,7 +247,7 @@ h2 {
 }
 #s11 .close-site { font-size: 13px; color: #333; margin-top: 10px; position: relative; z-index: 1; }
 
-/* PRINT — one full 16:9 slide per page, unscaled, so the PDF is a proper deck */
+/* PRINT: one full 16:9 slide per page, unscaled, so the PDF is a proper deck */
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   @page { size: 1280px 720px; margin: 0; }
@@ -300,7 +300,7 @@ h2 {
   </svg>
   <div class="slide-label">Problem</div>
   <h1>Online community management is broken.</h1>
-  <p class="body">It takes consistency, time, effort, and taste. Most brands are struggling to show up legitimately online. They go silent, outsource badly, default to ads or worse: use bot armies for posting.</p>
+  <p class="body">Showing up takes consistency, time, effort, and taste. So brands go silent, outsource badly, or default to ads that never compound.</p>
   <div class="tags">
     <div class="tag">Consistency</div>
     <div class="tag">Time</div>
@@ -325,8 +325,8 @@ h2 {
   </svg>
   <div class="slide-label">Insight</div>
   <h1>Consumers hate ads.</h1>
-  <p class="body">But brands keep paying for them because ads predict revenue. What if you could get the same predictive superpower with zero performance marketing budget?</p>
-  <p class="body">Every day, customers are expressing themselves online. There is a lot of signal in this chaotic noise. Right now, nobody is listening. Organic compounding is real.</p>
+  <p class="body">But ads are the one thing that reliably predicts revenue, so brands keep paying.</p>
+  <p class="body">Meanwhile customers express real intent online every day. Nobody is listening. Organic compounds. Ads do not.</p>
 </div>
 
 <!-- 04 SOLUTION -->
@@ -341,56 +341,49 @@ h2 {
   </svg>
   <div class="slide-label">Solution</div>
   <h1>Search engine for community managers.</h1>
-  <p class="body">Everything a community manager does to run a brand online: listen, research, respond, &amp; report. All in one platform. Compound your brand voice without a single dollar in paid media.</p>
+  <p class="body">Listen, draft, approve, post. One platform. Compound your brand voice with zero paid media.</p>
   <div class="feats">
-    <div class="feat"><div class="feat-tag">Listen</div><div class="feat-text">Capture every relevant conversation in real time before competitors respond.</div></div>
-    <div class="feat"><div class="feat-tag">Research</div><div class="feat-text">Turn community signal into predictions for customer discovery.</div></div>
-    <div class="feat"><div class="feat-tag">Respond</div><div class="feat-text">AI-assisted replies, reviewed by a human, posted in under three minutes.</div></div>
+    <div class="feat"><div class="feat-tag">Listen</div><div class="feat-text">Every relevant conversation, detected in real time.</div></div>
+    <div class="feat"><div class="feat-tag">Draft</div><div class="feat-text">AI drafts in your brand voice. Strongest one surfaces.</div></div>
+    <div class="feat"><div class="feat-tag">Approve</div><div class="feat-text">Human approves. Posted in under three minutes.</div></div>
   </div>
 </div>
 
-<!-- 05 MOAT -->
-<div class="slide" id="s5" data-label="Moat">
+<!-- 05 VISION -->
+<div class="slide" id="s5" data-label="Vision">
   <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="xMaxYMid meet" xmlns="http://www.w3.org/2000/svg">
-    <g stroke="#0d0d0d" stroke-width="1" fill="none">
-      <line x1="1050" y1="200" x2="1180" y2="320"/><line x1="1180" y1="320" x2="1280" y2="200"/>
-      <line x1="1280" y1="200" x2="1350" y2="360"/><line x1="1180" y1="320" x2="1100" y2="480"/>
-      <line x1="1100" y1="480" x2="1250" y2="520"/><line x1="1250" y1="520" x2="1350" y2="360"/>
-      <line x1="1100" y1="480" x2="1000" y2="600"/><line x1="1250" y1="520" x2="1180" y2="680"/>
-      <line x1="1000" y1="600" x2="1180" y2="680"/>
-    </g>
-    <g fill="#111">
-      <circle cx="1050" cy="200" r="3"/><circle cx="1180" cy="320" r="3"/><circle cx="1280" cy="200" r="3"/>
-      <circle cx="1350" cy="360" r="3"/><circle cx="1100" cy="480" r="3"/><circle cx="1250" cy="520" r="3"/>
-      <circle cx="1000" cy="600" r="3"/><circle cx="1180" cy="680" r="3"/>
-    </g>
+    <circle cx="1160" cy="450" r="300" fill="none" stroke="#0d0d0d" stroke-width="1"/>
+    <circle cx="1160" cy="450" r="180" fill="none" stroke="#0b0b0b" stroke-width="1"/>
+    <circle cx="1160" cy="450" r="70"  fill="none" stroke="#0a0a0a" stroke-width="1"/>
   </svg>
-  <div class="slide-label">Moat</div>
-  <h2>Logical Intelligence Layer for online communities.</h2>
-  <p style="font-size:14px;color:#555;margin-bottom:4px;position:relative;z-index:1;">An energy-based world model for online communities.</p>
-  <div class="moat-grid">
-    <div class="mc">
-      <div class="mc-tag">Architecture</div>
-      <div class="mc-title">Language as physics</div>
-      <div class="mc-body">Communities mapped in a physical AI model. Language is the physics parameter. Community dynamics simulated like particles in a field via reinforcement learning.</div>
-    </div>
-    <div class="mc">
-      <div class="mc-tag">Capability</div>
-      <div class="mc-title">Fortune 500 community voice</div>
-      <div class="mc-body">The model learns how top brand PR and community teams operate. Replicates that voice at any scale, for any brand.</div>
-    </div>
-    <div class="mc">
-      <div class="mc-tag">Differentiation</div>
-      <div class="mc-title">Backtest community strategy</div>
-      <div class="mc-body">Run historical simulations. Test messaging and timing against past behavior before going live. Strategy proven before it ships.</div>
-    </div>
-    <div class="mc">
-      <div class="mc-tag">Vision</div>
-      <div class="mc-title">Auto surface community problems</div>
-      <div class="mc-body">The first digital intelligence that grows within authentic human communities. Frictionless automated actions with mandatory human in the loop.</div>
-    </div>
+  <div class="slide-label">Vision</div>
+  <h2>From curiosity to content.</h2>
+  <p class="vision-sub">A feedback loop on how ideas form, spread, and get validated across online communities.</p>
+
+  <div class="vision-flow">
+    <svg viewBox="0 0 900 210" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10" fill="none" stroke="#777" stroke-width="1.5"/>
+        </marker>
+      </defs>
+      <line x1="175" y1="60" x2="375" y2="60" stroke="#444" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="525" y1="60" x2="725" y2="60" stroke="#444" stroke-width="1.5" marker-end="url(#arw)"/>
+      <path d="M812,78 C812,168 88,168 88,78" fill="none" stroke="#2a2a2a" stroke-width="1.5" stroke-dasharray="4 5" marker-end="url(#arw)"/>
+      <circle cx="90"  cy="60" r="7" fill="#000" stroke="#fff" stroke-width="1.5"/>
+      <circle cx="450" cy="60" r="7" fill="#fff"/>
+      <circle cx="810" cy="60" r="7" fill="#000" stroke="#fff" stroke-width="1.5"/>
+      <text x="90"  y="98"  text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Bio-brain</text>
+      <text x="450" y="98"  text-anchor="middle" fill="#fff" font-size="16" font-weight="600">LegitReach</text>
+      <text x="810" y="98"  text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Terminal</text>
+      <text x="90"  y="120" text-anchor="middle" fill="#777" font-size="13">curiosity</text>
+      <text x="450" y="120" text-anchor="middle" fill="#777" font-size="13">content</text>
+      <text x="810" y="120" text-anchor="middle" fill="#777" font-size="13">hive mind</text>
+      <text x="450" y="200" text-anchor="middle" fill="#666" font-size="13">validate &amp; learn</text>
+    </svg>
   </div>
-  <div class="moat-foot">Proprietary engine. Built to outlast every platform API &amp; policy change.</div>
+
+  <div class="vision-foot">Mission: increase the innovation alpha of humanity.</div>
 </div>
 
 <!-- 06 TRACTION -->
@@ -403,18 +396,22 @@ h2 {
     <line x1="0" y1="750" x2="1400" y2="750" stroke="#0a0a0a" stroke-width="1"/>
   </svg>
   <div class="slide-label">Traction</div>
-  <h1>The market is asking for more.</h1>
+  <h1>Validation first, build second.</h1>
   <div class="metrics">
     <div class="metric">
       <div class="metric-n">67</div>
-      <div class="metric-l">ICP discovery calls. Validated demand. Real pain.</div>
+      <div class="metric-l">ICP discovery calls. One signal: brands cannot find a legitimate voice.</div>
     </div>
     <div class="metric">
-      <div class="metric-n">2</div>
-      <div class="metric-l">LOIs signed: Boston political social strategist and education institute</div>
+      <div class="metric-n">3</div>
+      <div class="metric-l">Paying beta customers. Live on Reddit today.</div>
+    </div>
+    <div class="metric">
+      <div class="metric-n">1</div>
+      <div class="metric-l">LOI in process. Policy-making world-model use case.</div>
     </div>
   </div>
-  <div class="luma">If you are on Luma or Shopify, you already have a community. We help you run it as your biggest asset.</div>
+  <div class="luma">On Luma or Shopify, you already have a community. We help you run it as your biggest asset.</div>
 </div>
 
 <!-- 07 THESIS -->
@@ -465,12 +462,12 @@ h2 {
     <div class="member">
       <div class="m-name">Manthan Admane</div>
       <div class="m-role">Founder and CEO</div>
-      <div class="m-bio">Computer Scientist turned Product Marketing Manager at Applied Materials. 67 customer discovery calls. His own primary user. Obsessed with legitimate community voice.</div>
+      <div class="m-bio">Computer engineer turned PMM at Applied Materials. Ran 67 discovery calls. His own first user.</div>
     </div>
     <div class="member">
       <div class="m-name">Manas Kalangan</div>
       <div class="m-role">Lead Engineer</div>
-      <div class="m-bio">Builds the infrastructure that makes real-time community intelligence and the world model possible. Can't sleep knowing bots are winning at manipulations.</div>
+      <div class="m-bio">Builds the real-time community intelligence infrastructure and the world model. Architect of the simulation engine.</div>
     </div>
   </div>
 </div>
@@ -493,7 +490,7 @@ h2 {
     <div class="plan">
       <div class="plan-name">Quarterly</div>
       <div class="plan-price">$79<span class="unit">/90 days</span></div>
-      <div class="plan-for">Best value — three months up front</div>
+      <div class="plan-for">Best value. Three months up front</div>
       <div class="plan-desc">Everything in Monthly for 90 days. Save versus paying month to month.</div>
     </div>
   </div>
@@ -520,7 +517,7 @@ h2 {
   </svg>
   <div class="safe-pill">Pre-Seed SAFE · Closing 23 Jun 2026</div>
   <div class="slide-label">Ask</div>
-  <h1>We are raising to close the online communities noise and signal gap.</h1>
+  <h1>We are raising to map the curiosity to content loop.</h1>
   <div class="funds">
     <div class="fund">GTM and Customer Acquisition</div>
     <div class="fund">R&amp;D for Core community model</div>
