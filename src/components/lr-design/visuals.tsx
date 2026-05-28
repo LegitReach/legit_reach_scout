@@ -39,10 +39,16 @@ export function AnimatedHeading({
   text,
   className = "",
   style = {},
+  highlights = [],
+  highlightColor = "rgba(74, 222, 128, 0.55)",
 }: {
   text: string;
   className?: string;
   style?: React.CSSProperties;
+  /** Words to underline (case-insensitive, punctuation ignored). */
+  highlights?: string[];
+  /** Underline color for highlighted words. */
+  highlightColor?: string;
 }) {
   const [start, setStart] = useState(false);
   useEffect(() => {
@@ -51,24 +57,49 @@ export function AnimatedHeading({
   }, [text]);
   const lines = text.split("\n");
   const charDelay = 30;
+  const norm = (w: string) => w.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const hlSet = new Set(highlights.map(norm));
+  let gi = 0;
   return (
     <h1 className={className} style={{ letterSpacing: "-0.04em", ...style }}>
       {lines.map((line, li) => (
         <span key={li} style={{ display: "block" }}>
-          {Array.from(line).map((ch, ci) => {
-            const d = li * line.length * charDelay + ci * charDelay;
+          {line.split(/(\s+)/).map((tok, ti) => {
+            if (tok === "") return null;
+            if (/^\s+$/.test(tok)) return <span key={ti}> </span>;
+            const isHl = hlSet.has(norm(tok));
             return (
               <span
-                key={ci}
+                key={ti}
                 style={{
                   display: "inline-block",
-                  opacity: start ? 1 : 0,
-                  transform: start ? "translateX(0)" : "translateX(-18px)",
-                  transition: `opacity 500ms ease ${d}ms, transform 500ms ease ${d}ms`,
-                  whiteSpace: "pre",
+                  whiteSpace: "nowrap",
+                  ...(isHl
+                    ? {
+                        borderBottom: `2px solid ${highlightColor}`,
+                        paddingBottom: "0.04em",
+                      }
+                    : {}),
                 }}
               >
+                {Array.from(tok).map((ch, ci) => {
+                  const d = gi * charDelay;
+                  gi += 1;
+                  return (
+                    <span
+                      key={ci}
+                      style={{
+                        display: "inline-block",
+                        opacity: start ? 1 : 0,
+                        transform: start ? "translateX(0)" : "translateX(-18px)",
+                        transition: `opacity 500ms ease ${d}ms, transform 500ms ease ${d}ms`,
+                        whiteSpace: "pre",
+                      }}
+                    >
                 {ch === " " ? " " : ch}
+              </span>
+                  );
+                })}
               </span>
             );
           })}
