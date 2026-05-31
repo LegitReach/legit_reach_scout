@@ -23,7 +23,7 @@ const PLANS: Plan[] = [
     name: "Quarterly",
     price: "$79",
     unit: "/90 days",
-    forWho: "Best value — three months up front",
+    forWho: "Best value. Three months up front.",
     desc: "Everything in Monthly for 90 days. Save versus paying month to month.",
   },
 ];

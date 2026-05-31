@@ -16,8 +16,8 @@ export default function BuildingPage() {
   ];
 
   const nextPoints = [
-    'A simulator, which is internally referred to as: the "Full Power" engine, simulates online communities in a visual format.\n\nEducators & students learn trading information online by interacting with the model.',
-    "First LOI signed with an education institute. Open for partners.",
+    'The Terminal, internally the "Full Power" engine, maps online communities as a living hive mind. An energy-based world model where language is the physics parameter, so you can simulate and backtest a strategy before anything goes live.',
+    'The vision: close the loop from "curiosity" to "content." Validate ideas at scale and increase the innovation alpha of humanity. First policy-making partnership in progress. Open for partners.',
   ];
 
   return (
@@ -127,7 +127,7 @@ export default function BuildingPage() {
                 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal mb-10 leading-tight"
                 style={{ letterSpacing: "-0.04em" }}
               >
-                Visualize online communities by simulating it.
+                Communities, mapped as a hive mind.
               </h2>
             </Reveal>
             <div

@@ -18,10 +18,10 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: "LegitReach | Search Engine for Community Managers",
-  description: "Simple automations to manage your online community. Listen, research, respond, and report — all in one platform. Compound your brand voice without a single dollar in paid media.",
+  description: "Simple automations to manage your online community. Listen, draft, approve, and post from one platform. Compound your brand voice without a single dollar in paid media.",
   openGraph: {
     title: "LegitReach | Search Engine for Community Managers",
-    description: "Everything a community manager does to run a brand online: listen, research, respond, and report. Compound your brand voice without a single dollar in paid media.",
+    description: "Everything a community manager does to run a brand online: listen, draft, approve, and post. Compound your brand voice without a single dollar in paid media.",
     images: ["https://legitreach.com/og-image.png"],
     url: "https://legitreach.com",
     type: "website",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "LegitReach | Search Engine for Community Managers",
-    description: "Simple automations to manage your online community. Listen, research, respond, and report. Zero ad spend.",
+    description: "Simple automations to manage your online community. Listen, draft, approve, post. Zero ad spend.",
     images: ["https://legitreach.com/og-image.png"],
   },
   icons: {

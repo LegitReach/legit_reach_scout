@@ -55,7 +55,8 @@ export default function InvestPage() {
                 </div>
               </FadeIn>
               <AnimatedHeading
-                text={"We are raising to close the\nnoise and signal gap."}
+                text={"Mapping Curiosity to Content creation loop."}
+                highlights={["Curiosity", "Content"]}
                 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal mb-6"
               />
               <FadeIn delay={1200} duration={1000}>
