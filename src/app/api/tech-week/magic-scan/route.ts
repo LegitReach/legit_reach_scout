@@ -172,68 +172,55 @@ async function discoverCommunities(
   return discoverCommunitiesViaGeminiGrounded(brand);
 }
 
-// ─── Step 4: Direct Reddit JSON API — fetch rules for each candidate ─────────
-// Jina's proxy IPs are blocked by Reddit's CDN for high-traffic subreddits
-// (both www.reddit.com and old.reddit.com). The public rules.json endpoint
-// works fine with a browser-style User-Agent from our own server IP.
+// ─── Proxy helper ────────────────────────────────────────────────────────────
+
+function proxyGet(url: string): Promise<Response> {
+  const u = process.env.APIFY_PROXY_USERNAME;
+  const p = process.env.APIFY_PROXY_PASSWORD;
+  const headers = { "User-Agent": "NotReddit/1.1", "Accept": "*/*" };
+  if (u && p) {
+    const dispatcher = new ProxyAgent(`http://${u}:${p}@proxy.apify.com:8000`);
+    return proxyFetch(url, { dispatcher, headers }) as unknown as Promise<Response>;
+  }
+  return fetch(url, { headers });
+}
+
+// ─── Step 4: Fetch rules via RSS ─────────────────────────────────────────────
 
 async function fetchSubredditRules(subreddit: string): Promise<{ subreddit: string; rulesText: string }> {
-  const rulesUrl = `https://www.reddit.com/r/${subreddit}/about/rules.json`;
-
   try {
-    let res: Response;
-
-    const proxyUser = process.env.APIFY_PROXY_USERNAME;
-    const proxyPass = process.env.APIFY_PROXY_PASSWORD;
-    const usingProxy = !!(proxyUser && proxyPass);
-
-    console.log(`[magic-scan] rules r/${subreddit} — proxy: ${usingProxy} user: ${!!proxyUser} pass: ${!!proxyPass}`);
-
-    if (usingProxy) {
-      // Route through Apify's residential proxy pool to bypass Reddit's IP block
-      // on Vercel/AWS. No actor overhead — just a plain HTTP proxy. ~500ms per call.
-      const dispatcher = new ProxyAgent(
-        `http://${proxyUser}:${proxyPass}@proxy.apify.com:8000`
-      );
-      res = await proxyFetch(rulesUrl, {
-        dispatcher,
-        headers: {
-          "User-Agent": "NotReddit/1.1",
-          "Accept": "application/json",
-        },
-      }) as unknown as Response;
-    } else {
-      // Local dev — residential IP works fine without proxy
-      res = await fetch(rulesUrl, {
-        headers: {
-          "User-Agent": "NotReddit/1.1",
-          "Accept": "application/json",
-        },
-      });
-    }
-
+    const res = await proxyGet(`https://www.reddit.com/r/${subreddit}/about/rules.rss`);
     if (!res.ok) {
-      console.warn(`[magic-scan] rules HTTP ${res.status} for r/${subreddit} (proxy: ${usingProxy})`);
+      console.warn(`[magic-scan] rules HTTP ${res.status} for r/${subreddit}`);
       return { subreddit, rulesText: "No rules found." };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const json = await res.json() as { rules?: any[] };
+    const xml = await res.text();
 
-    if (!json.rules || json.rules.length === 0) {
-      console.warn(`[magic-scan] r/${subreddit} has no rules set`);
-      return { subreddit, rulesText: "No rules found." };
+    // Try individual rule entries first
+    const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
+    if (entries.length) {
+      const rules = entries
+        .map((match, i) => {
+          const e = match[1];
+          const title   = e.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1]?.trim() ?? "";
+          const content = (e.match(/<content[^>]*>([\s\S]*?)<\/content>/)?.[1] ?? "")
+            .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          return `Rule ${i + 1}: ${title}\n${content}`.trim();
+        })
+        .join("\n\n");
+      console.log(`[magic-scan] rules fetched for r/${subreddit} — ${entries.length} rules`);
+      return { subreddit, rulesText: rules };
     }
 
-    const rules = json.rules
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .sort((a: any, b: any) => a.priority - b.priority)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((r: any, i: number) => `Rule ${i + 1}: ${r.short_name}\n${r.description ?? ""}`.trim())
-      .join("\n\n");
+    // Fall back to <subtitle> — subreddit's self-description
+    const subtitle = xml.match(/<subtitle>([\s\S]*?)<\/subtitle>/)?.[1]?.trim();
+    if (subtitle) {
+      console.log(`[magic-scan] no rule entries for r/${subreddit} — using subtitle`);
+      return { subreddit, rulesText: `Community description: ${subtitle}` };
+    }
 
-    console.log(`[magic-scan] rules fetched for r/${subreddit} — ${json.rules.length} rules`);
-    return { subreddit, rulesText: rules };
+    return { subreddit, rulesText: "No rules found." };
   } catch (err) {
     console.warn(`[magic-scan] rules fetch threw for r/${subreddit}:`, err);
     return { subreddit, rulesText: "Could not fetch rules." };
@@ -400,8 +387,7 @@ export async function POST(request: NextRequest) {
           .map((c) => `r/${c.subreddit} (${parseRulesSummary(c.rulesText).length} rules)`)
           .join(" · ");
         emit({ type: "step", step: 4, status: "done", msg: `Rules fetched — ${ruleSummary}` });
-        console.log("[magic-scan] Step 4 done");
-
+        
         // ── 5. Select community ───────────────────────────────────────────────
         emit({ type: "step", step: 5, status: "start", msg: "Selecting best community…" });
         console.log("[magic-scan] Step 5 — Gemini community selection...");

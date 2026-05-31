@@ -52,7 +52,7 @@ function formatCount(n: number): string {
 }
 
 function proxyHeaders() {
-  return { "User-Agent": "LegitReach/1.1", "Accept": "application/json" };
+  return { "User-Agent": "NotReddit/1.1", "Accept": "application/json" };
 }
 
 function proxyDispatcher() {
@@ -72,9 +72,19 @@ async function proxyGet(url: string): Promise<Response> {
 
 // ─── Reddit fetches (run in parallel) ────────────────────────────────────────
 
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
 async function fetchSubredditPosts(subreddit: string): Promise<RedditPost[]> {
   const clean = subreddit.startsWith("r/") ? subreddit.slice(2) : subreddit;
-  const url = `https://www.reddit.com/r/${clean}/hot.json?limit=25&raw_json=1`;
+  const url = `https://www.reddit.com/r/${clean}/hot.rss?limit=25`;
 
   try {
     const res = await proxyGet(url);
@@ -83,29 +93,49 @@ async function fetchSubredditPosts(subreddit: string): Promise<RedditPost[]> {
       return [];
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const json = await res.json() as any;
-    return (json?.data?.children ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((c: any) => c.kind === "t3" && !c.data.stickied)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((c: any): RedditPost => {
-        const p = c.data;
+    const xml = await res.text();
+    const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
+
+    if (!entries.length) {
+      console.warn(`[tech-week/curate] no RSS entries for r/${clean}`);
+      return [];
+    }
+
+    return entries
+      .map((match): RedditPost | null => {
+        const e = match[1];
+
+        const rawId   = e.match(/<id>([\s\S]*?)<\/id>/)?.[1] ?? "";
+        const postId  = rawId.match(/t3_([a-z0-9]+)/i)?.[1] ?? rawId;
+        const title   = decodeXmlEntities(e.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1] ?? "");
+        const author  = e.match(/<author>\s*<name>([\s\S]*?)<\/name>/)?.[1] ?? "unknown";
+        const link    = e.match(/<link[^>]*href="([^"]+)"/)?.[1] ?? "";
+        const published = e.match(/<published>([\s\S]*?)<\/published>/)?.[1] ?? "";
+        const createdUtc = published
+          ? Math.floor(new Date(published).getTime() / 1000)
+          : Math.floor(Date.now() / 1000);
+        const category = e.match(/<category[^>]*label="([^"]+)"/)?.[1] ?? clean;
+        const contentHtml = e.match(/<content[^>]*>([\s\S]*?)<\/content>/)?.[1] ?? "";
+        const selftext = decodeXmlEntities(contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).slice(0, 500);
+
+        if (!title || !link) return null;
+
         return {
-          id:               p.id,
-          title:            p.title,
-          subreddit:        `r/${p.subreddit}`,
-          author:           p.author,
-          score:            p.score,
-          num_comments:     p.num_comments,
-          created_utc:      p.created_utc,
-          selftext:         (p.selftext ?? "").slice(0, 500),
-          permalink:        `https://reddit.com${p.permalink}`,
-          url:              p.url,
-          upvote_ratio:     p.upvote_ratio,    // ← real upvote %
-          link_flair_text:  p.link_flair_text ?? undefined,
+          id:              postId,
+          title,
+          subreddit:       `r/${category}`,
+          author,
+          score:           0,
+          num_comments:    0,
+          created_utc:     createdUtc,
+          selftext,
+          permalink:       link,
+          url:             link,
+          upvote_ratio:    undefined,
+          link_flair_text: undefined,
         };
-      });
+      })
+      .filter((p): p is RedditPost => p !== null);
   } catch (err) {
     console.error("[tech-week/curate] posts fetch threw:", err);
     return [];
