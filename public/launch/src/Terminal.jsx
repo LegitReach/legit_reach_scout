@@ -157,13 +157,10 @@ function Terminal({ initialHost, onExit }) {
             if (event.step === 2 && event.status === "done" && event.data && event.data.brandProfile) {
               setScanInsights(function(prev) { return Object.assign({}, prev, { brandProfile: event.data.brandProfile }); });
             }
-            // Community selected at step 5 — show full insights card
-            if (event.step === 5 && event.status === "done" && event.data && event.data.community) {
+            // All communities ranked at step 4 — show top community in insights card
+            if (event.step === 4 && event.status === "done" && event.data && event.data.communities) {
               setScanInsights(function(prev) {
-                return Object.assign({}, prev, {
-                  community: event.data.community,
-                  communityRulesSummary: event.data.communityRulesSummary || []
-                });
+                return Object.assign({}, prev, { community: event.data.communities[0] });
               });
             }
           } else if (event.type === "fatal") {
@@ -175,37 +172,44 @@ function Terminal({ initialHost, onExit }) {
         if (cancelled) return;
         if (!scanData) throw new Error("Scan completed but no result was received");
 
-        // Partial site update — real community name + keyword cloud
-        var partialSite = window.mapApiDataToSite(activeHost, scanData, null);
+        // Partial site update — show all community pills immediately
+        var curateDataMap = {};
+        var partialSite = window.mapApiDataToSite(activeHost, scanData, curateDataMap);
         setRealSiteData(partialSite);
         setApiPhase("curating");
 
-        // ── Phase 2: curate (SSE) ──────────────────────────────────────────
-        var curateRes = await fetch("/api/tech-week/curate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brandProfile: scanData.brandProfile, community: scanData.community })
+        // ── Phase 2: curate all communities in parallel ────────────────────
+        var communities = scanData.communities || [];
+        var curatePromises = communities.map(function(comm) {
+          return (async function() {
+            var res = await fetch("/api/tech-week/curate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ brandProfile: scanData.brandProfile, community: comm })
+            });
+            if (!res.ok) throw new Error("curate HTTP " + res.status + " for " + comm.subreddit);
+            var result = null;
+            for await (const event of parseSSEStream(res)) {
+              if (cancelled) break;
+              if (event.type === "step") {
+                setLiveLog(function(prev) { return [...prev, { step: event.step, status: event.status, msg: comm.subreddit + ": " + event.msg }]; });
+              } else if (event.type === "result") {
+                result = event.data;
+              }
+            }
+            return { subreddit: comm.subreddit, data: result };
+          })().then(function(r) {
+            if (cancelled || !r.data) return;
+            curateDataMap[r.subreddit] = r.data;
+            // Re-render with the freshly populated community
+            setRealSiteData(window.mapApiDataToSite(activeHost, scanData, Object.assign({}, curateDataMap)));
+          }).catch(function(err) {
+            console.warn("[Terminal] curate failed for " + comm.subreddit + ":", err);
+          });
         });
-        if (!curateRes.ok) throw new Error("curate HTTP " + curateRes.status);
-        if (cancelled) return;
 
-        var curateData = null;
-        for await (const event of parseSSEStream(curateRes)) {
-          if (cancelled) break;
-          if (event.type === "step") {
-            setLiveLog(function(prev) { return [...prev, { step: event.step, status: event.status, msg: event.msg }]; });
-          } else if (event.type === "fatal") {
-            throw new Error(event.msg);
-          } else if (event.type === "result") {
-            curateData = event.data;
-          }
-        }
-        if (cancelled) return;
-        if (!curateData) throw new Error("Curate completed but no result was received");
-
-        var fullSite = window.mapApiDataToSite(activeHost, scanData, curateData);
-        setRealSiteData(fullSite);
-        setApiPhase("done");
+        await Promise.allSettled(curatePromises);
+        if (!cancelled) setApiPhase("done");
 
       } catch (err) {
         if (!cancelled) {

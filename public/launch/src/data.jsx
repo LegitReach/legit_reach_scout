@@ -254,10 +254,11 @@ const LOADING_STAGES = [
 // scanData  = POST /api/tech-week/magic-scan response
 // curateData = POST /api/tech-week/curate response (may be null while curating)
 //
-function mapApiDataToSite(host, scanData, curateData) {
-  // magic-scan returns "brandProfile" as the key
-  const { brandProfile: brand, community } = scanData;
-  const { sentiment: sResult, engagement, creation } = curateData || {};
+// curateDataMap is { [subreddit]: curateData } — keyed by the r/name string
+function mapApiDataToSite(host, scanData, curateDataMap) {
+  const { brandProfile: brand, communities } = scanData;
+  // curateDataMap may be null (partial load) or a plain object keyed by subreddit
+  curateDataMap = curateDataMap || {};
 
   function formatAge(utc) {
     if (!utc) return "—";
@@ -267,164 +268,81 @@ function mapApiDataToSite(host, scanData, curateData) {
     return Math.floor(diff / 86400) + "d";
   }
 
-  const sub = community.subreddit || "";
-  const communityName = sub.startsWith("r/") ? sub : "r/" + sub;
-
-  // Sentiment — real breakdown from Gemini (based on actual upvote_ratio + post content)
-  // Falls back to placeholder while curate is still loading (curateData null)
-  const bd = curateData && curateData.sentimentBreakdown;
-  const sentimentData = [
-    { label: "Positive", value: bd ? bd.positive : 45, color: "#5cd197" },
-    { label: "Neutral",  value: bd ? bd.neutral  : 30, color: "#888"    },
-    { label: "Curious",  value: bd ? bd.curious  : 16, color: "#f0c054" },
-    { label: "Critical", value: bd ? bd.critical :  9, color: "#e07b7b" },
-  ];
-
-  // Posts for the Engagement tab.
-  // Primary: engagementPosts from curate — the top hot posts that are NOT in
-  // the blueprint. Gives the user fresh material to respond to.
-  // Fallback: the 2 blueprint-selected posts (old behaviour, used while curate
-  // is still loading or if engagementPosts is absent).
-  var posts = [];
-  var rawEngPosts = curateData && curateData.engagementPosts;
-  if (rawEngPosts && rawEngPosts.length > 0) {
-    // Compute sort scores from real Reddit data
-    var maxScore = Math.max.apply(null, rawEngPosts.map(function(p) { return p.score || 1; }));
-    var nowSec = Math.floor(Date.now() / 1000);
-    var times = rawEngPosts.map(function(p) { return p.created_utc || nowSec; });
-    var oldestTime = Math.min.apply(null, times);
-    var newestTime = Math.max.apply(null, times);
-    var timeSpan = Math.max(newestTime - oldestTime, 1);
-
-    rawEngPosts.forEach(function(p) {
-      var scoreNorm  = Math.min(1, (p.score || 0) / maxScore);
-      var upvote     = p.upvote_ratio != null ? p.upvote_ratio : 0.75;
-      var recency    = ((p.created_utc || oldestTime) - oldestTime) / timeSpan;
-      posts.push({
-        id:       p.id,
-        author:   "u/" + (p.author || "unknown"),
-        title:    p.title || "",
-        score:    p.score || 0,
-        comments: p.num_comments || 0,
-        age:      formatAge(p.created_utc),
-        rel:  Math.round((0.6 * scoreNorm + 0.4 * upvote) * 100) / 100,
-        hot:  Math.round(upvote * 100) / 100,
-        top:  Math.round(scoreNorm * 100) / 100,
-        new:  Math.round(recency * 100) / 100,
-        flair: p.link_flair_text || "",
-        url:      p.url || null,
-        permalink: p.permalink || ""
-      });
-    });
-  } else {
-    // Fallback while curate hasn't resolved yet
-    if (sResult && sResult.post) {
-      posts.push({
-        id: sResult.post.id || "sr1",
-        author: "u/" + (sResult.post.author || "unknown"),
-        title: sResult.post.title || "",
-        score: sResult.post.score || 0,
-        comments: sResult.post.num_comments || 0,
-        age: formatAge(sResult.post.created_utc),
-        rel: 0.94, hot: 0.62, top: 0.81, new: 0.45,
-        flair: "Read",
-        url: sResult.post.url || null,
-        permalink: sResult.post.permalink || ""
-      });
-    }
-    if (engagement && engagement.post) {
-      posts.push({
-        id: engagement.post.id || "er1",
-        author: "u/" + (engagement.post.author || "unknown"),
-        title: engagement.post.title || "",
-        score: engagement.post.score || 0,
-        comments: engagement.post.num_comments || 0,
-        age: formatAge(engagement.post.created_utc),
-        rel: 0.89, hot: 0.92, top: 0.74, new: 0.38,
-        flair: "Hot",
-        url: engagement.post.url || null,
-        permalink: engagement.post.permalink || ""
-      });
-    }
+  function fmtAuthor(a) {
+    if (!a) return "u/unknown";
+    return a.startsWith("u/") ? a : "u/" + a;
   }
 
-  // Blueprint cards — read / join / give
-  // postUrl present on read/join so the CTA button opens Reddit directly.
-  // give has no existing post URL (it's an original post suggestion).
-  var blueprint = [
-    {
-      kind: "read",
-      title: "A post worth reading",
-      line: (sResult && sResult.communityInsight) ||
-            "Read this thread to understand what this community cares about.",
-      postRef:  (sResult && sResult.post && sResult.post.title) || "",
-      postUrl:  (sResult && sResult.post && sResult.post.url) || null,
-      score:    (sResult && sResult.post && sResult.post.score) || 0,
-      comments: (sResult && sResult.post && sResult.post.num_comments) || 0,
-      age:      (sResult && sResult.post) ? formatAge(sResult.post.created_utc) : "—",
-      cta: "Open thread"
-    },
-    {
-      kind: "join",
-      title: "Join the conversation",
-      line: (engagement && engagement.whyThisPost) ||
-            "This post is ready for a thoughtful, value-adding reply.",
-      postRef:  (engagement && engagement.post && engagement.post.title) || "",
-      postUrl:  (engagement && engagement.post && engagement.post.url) || null,
-      score:    (engagement && engagement.post && engagement.post.score) || 0,
-      comments: (engagement && engagement.post && engagement.post.num_comments) || 0,
-      age:      (engagement && engagement.post) ? formatAge(engagement.post.created_utc) : "—",
-      cta: "Draft reply"
-    },
-    {
-      kind: "give",
-      title: "Give back to the community",
-      line: (creation && (creation.postingTips ||
-             (creation.contentOutline || []).slice(0, 2).join(" "))) ||
-            "Share your expertise with an original post.",
-      postRef: (creation && creation.suggestedTitle) || "Write an original post",
-      postUrl:  null,
-      cta: "Write post"
+  function buildCommunityEntry(community, idx) {
+    var sub = community.subreddit || "";
+    var communityName = sub.startsWith("r/") ? sub : "r/" + sub;
+    var curateData = curateDataMap[communityName] || curateDataMap[sub] || null;
+    var sResult  = curateData && curateData.sentiment;
+    var engagement = curateData && curateData.engagement;
+    var creation   = curateData && curateData.creation;
+
+    var bd = curateData && curateData.sentimentBreakdown;
+    var sentimentData = [
+      { label: "Positive", value: bd ? bd.positive : 45, color: "#5cd197" },
+      { label: "Neutral",  value: bd ? bd.neutral  : 30, color: "#888"    },
+      { label: "Curious",  value: bd ? bd.curious  : 16, color: "#f0c054" },
+      { label: "Critical", value: bd ? bd.critical :  9, color: "#e07b7b" },
+    ];
+
+    var posts = [];
+    var rawEngPosts = curateData && curateData.engagementPosts;
+    if (rawEngPosts && rawEngPosts.length > 0) {
+      var maxScore = Math.max.apply(null, rawEngPosts.map(function(p) { return p.score || 1; }));
+      var nowSec = Math.floor(Date.now() / 1000);
+      var times = rawEngPosts.map(function(p) { return p.created_utc || nowSec; });
+      var oldestTime = Math.min.apply(null, times);
+      var newestTime = Math.max.apply(null, times);
+      var timeSpan = Math.max(newestTime - oldestTime, 1);
+      rawEngPosts.forEach(function(p) {
+        var scoreNorm = Math.min(1, (p.score || 0) / maxScore);
+        var upvote    = p.upvote_ratio != null ? p.upvote_ratio : 0.75;
+        var recency   = ((p.created_utc || oldestTime) - oldestTime) / timeSpan;
+        posts.push({
+          id: p.id, author: fmtAuthor(p.author), title: p.title || "",
+          score: p.score || 0, comments: p.num_comments || 0, age: formatAge(p.created_utc),
+          rel: Math.round((0.6 * scoreNorm + 0.4 * upvote) * 100) / 100,
+          hot: Math.round(upvote * 100) / 100, top: Math.round(scoreNorm * 100) / 100,
+          new: Math.round(recency * 100) / 100, flair: p.link_flair_text || "",
+          url: p.url || null, permalink: p.permalink || ""
+        });
+      });
+    } else {
+      if (sResult && sResult.post) posts.push({ id: sResult.post.id || "sr1", author: fmtAuthor(sResult.post.author), title: sResult.post.title || "", score: sResult.post.score || 0, comments: sResult.post.num_comments || 0, age: formatAge(sResult.post.created_utc), rel: 0.94, hot: 0.62, top: 0.81, new: 0.45, flair: "Read", url: sResult.post.url || null, permalink: sResult.post.permalink || "" });
+      if (engagement && engagement.post) posts.push({ id: engagement.post.id || "er1", author: fmtAuthor(engagement.post.author), title: engagement.post.title || "", score: engagement.post.score || 0, comments: engagement.post.num_comments || 0, age: formatAge(engagement.post.created_utc), rel: 0.89, hot: 0.92, top: 0.74, new: 0.38, flair: "Hot", url: engagement.post.url || null, permalink: engagement.post.permalink || "" });
     }
-  ];
 
-  // trending = engagement post (drives ActionModal upvote/comment targets)
-  var trending = {
-    author: (engagement && engagement.post)
-      ? "u/" + (engagement.post.author || "unknown") : "",
-    title:    (engagement && engagement.post && engagement.post.title) || "",
-    score:    (engagement && engagement.post && engagement.post.score)    || 0,
-    comments: (engagement && engagement.post && engagement.post.num_comments) || 0,
-    age:      (engagement && engagement.post)
-      ? formatAge(engagement.post.created_utc) : "",
-    url:      (engagement && engagement.post && engagement.post.url) || null
-  };
+    var blueprint = [
+      { kind: "read", title: "A post worth reading", line: (sResult && sResult.communityInsight) || "Read this thread to understand what this community cares about.", postRef: (sResult && sResult.post && sResult.post.title) || "", postUrl: (sResult && sResult.post && sResult.post.url) || null, score: (sResult && sResult.post && sResult.post.score) || 0, comments: (sResult && sResult.post && sResult.post.num_comments) || 0, age: (sResult && sResult.post) ? formatAge(sResult.post.created_utc) : "—", cta: "Open thread" },
+      { kind: "join", title: "Join the conversation", line: (engagement && engagement.whyThisPost) || "This post is ready for a thoughtful, value-adding reply.", postRef: (engagement && engagement.post && engagement.post.title) || "", postUrl: (engagement && engagement.post && engagement.post.url) || null, score: (engagement && engagement.post && engagement.post.score) || 0, comments: (engagement && engagement.post && engagement.post.num_comments) || 0, age: (engagement && engagement.post) ? formatAge(engagement.post.created_utc) : "—", cta: "Draft reply" },
+      { kind: "give", title: "Give back to the community", line: (creation && (creation.postingTips || (creation.contentOutline || []).slice(0, 2).join(" "))) || "Share your expertise with an original post.", postRef: (creation && creation.suggestedTitle) || "Write an original post", postUrl: null, cta: "Write post" }
+    ];
 
-  // nicheScore is on brandProfile: 1=niche 2=mid 3=commodity
-  // niche → tight overlap (high), commodity → broad (lower)
-  var overlap = brand.nicheScore
-    ? Math.max(0.30, Math.round((4 - brand.nicheScore) / 3 * 100) / 100)
-    : 0.65;
+    var trending = { author: (engagement && engagement.post) ? fmtAuthor(engagement.post.author) : "", title: (engagement && engagement.post && engagement.post.title) || "", score: (engagement && engagement.post && engagement.post.score) || 0, comments: (engagement && engagement.post && engagement.post.num_comments) || 0, age: (engagement && engagement.post) ? formatAge(engagement.post.created_utc) : "", url: (engagement && engagement.post && engagement.post.url) || null };
+
+    var overlap = brand.nicheScore
+      ? Math.max(0.30, Math.round((4 - brand.nicheScore) / 3 * 100) / 100)
+      : 0.65;
+
+    return {
+      id: "c" + (idx + 1), name: communityName,
+      members: (curateData && curateData.communityStats && curateData.communityStats.subscribers) || "—",
+      active:  (curateData && curateData.communityStats && curateData.communityStats.activeUsers)  || "—",
+      overlap: overlap,
+      sentiment: sentimentData, posts: posts, blueprint: blueprint, trending: trending,
+      suggestedComment: (engagement && engagement.draftComment) || "Share your thoughts here…",
+      suggestedPost: { title: (creation && creation.suggestedTitle) || "", body: (creation && (creation.contentOutline || []).join("\n\n")) || "" }
+    };
+  }
 
   return {
     name:  host,
     label: brand.tagline || brand.businessDescription || host,
-    communities: [{
-      id:      "c1",
-      name:    communityName,
-      members: (curateData && curateData.communityStats && curateData.communityStats.subscribers) || community.size || "—",
-      active:  (curateData && curateData.communityStats && curateData.communityStats.activeUsers)  || "Live",
-      overlap: overlap,
-      sentiment: sentimentData,
-      posts:     posts,
-      blueprint: blueprint,
-      trending:  trending,
-      suggestedComment: (engagement && engagement.draftComment) || "Share your thoughts here…",
-      suggestedPost: {
-        title: (creation && creation.suggestedTitle) || "",
-        body:  (creation && (creation.contentOutline || []).join("\n\n")) || ""
-      }
-    }]
+    communities: (communities || []).map(buildCommunityEntry)
   };
 }
 

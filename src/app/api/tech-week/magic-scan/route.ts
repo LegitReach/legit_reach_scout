@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { ProxyAgent, fetch as proxyFetch } from "undici";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -28,12 +27,11 @@ export interface SelectedCommunity {
 
 export interface TechWeekMagicScanResponse {
   brandProfile: BrandProfile;
-  community: SelectedCommunity;
+  communities: SelectedCommunity[];
   meta: {
     brandName: string;
     storeUrl: string;
     ogImage: string;
-    communityRulesSummary: string[]; // short rule titles for the selected community
   };
 }
 
@@ -172,75 +170,17 @@ async function discoverCommunities(
   return discoverCommunitiesViaGeminiGrounded(brand);
 }
 
-// ─── Proxy helper ────────────────────────────────────────────────────────────
+// ─── Step 4: Gemini — rank ALL communities with promotion stances ─────────────
 
-function proxyGet(url: string): Promise<Response> {
-  const u = process.env.APIFY_PROXY_USERNAME;
-  const p = process.env.APIFY_PROXY_PASSWORD;
-  const headers = { "User-Agent": "NotReddit/1.1", "Accept": "*/*" };
-  if (u && p) {
-    const dispatcher = new ProxyAgent(`http://${u}:${p}@proxy.apify.com:8000`);
-    return proxyFetch(url, { dispatcher, headers }) as unknown as Promise<Response>;
-  }
-  return fetch(url, { headers });
-}
-
-// ─── Step 4: Fetch rules via RSS ─────────────────────────────────────────────
-
-async function fetchSubredditRules(subreddit: string): Promise<{ subreddit: string; rulesText: string }> {
-  try {
-    const res = await proxyGet(`https://www.reddit.com/r/${subreddit}/about/rules.rss`);
-    if (!res.ok) {
-      console.warn(`[magic-scan] rules HTTP ${res.status} for r/${subreddit}`);
-      return { subreddit, rulesText: "No rules found." };
-    }
-
-    const xml = await res.text();
-
-    // Try individual rule entries first
-    const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
-    if (entries.length) {
-      const rules = entries
-        .map((match, i) => {
-          const e = match[1];
-          const title   = e.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1]?.trim() ?? "";
-          const content = (e.match(/<content[^>]*>([\s\S]*?)<\/content>/)?.[1] ?? "")
-            .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-          return `Rule ${i + 1}: ${title}\n${content}`.trim();
-        })
-        .join("\n\n");
-      console.log(`[magic-scan] rules fetched for r/${subreddit} — ${entries.length} rules`);
-      return { subreddit, rulesText: rules };
-    }
-
-    // Fall back to <subtitle> — subreddit's self-description
-    const subtitle = xml.match(/<subtitle>([\s\S]*?)<\/subtitle>/)?.[1]?.trim();
-    if (subtitle) {
-      console.log(`[magic-scan] no rule entries for r/${subreddit} — using subtitle`);
-      return { subreddit, rulesText: `Community description: ${subtitle}` };
-    }
-
-    return { subreddit, rulesText: "No rules found." };
-  } catch (err) {
-    console.warn(`[magic-scan] rules fetch threw for r/${subreddit}:`, err);
-    return { subreddit, rulesText: "Could not fetch rules." };
-  }
-}
-
-// ─── Step 5: Gemini — pick ONE community with promotion stance ────────────────
-
-async function selectCommunity(
+async function rankCommunities(
   brand: BrandProfile,
-  candidates: Array<{ subreddit: string; rulesText: string }>
-): Promise<SelectedCommunity> {
+  candidates: string[]
+): Promise<SelectedCommunity[]> {
   const candidatesBlock = candidates
-    .map(
-      (c, i) =>
-        `CANDIDATE ${i + 1}: r/${c.subreddit}\n---\n${c.rulesText}`
-    )
-    .join("\n\n");
+    .map((sub, i) => `CANDIDATE ${i + 1}: r/${sub}`)
+    .join("\n");
 
-  const prompt = `You are a Reddit community strategist. A brand wants to engage authentically on Reddit. Your job is to pick the SINGLE best community for them from the candidates below, and assess how welcome brand presence is based on the actual rules.
+  const prompt = `You are a Reddit community strategist. Rank ALL of the candidate communities below for a brand from best to least fit, and assess each community's promotion stance based on your knowledge of Reddit culture.
 
 BRAND PROFILE:
 - Description: ${brand.businessDescription}
@@ -250,7 +190,7 @@ BRAND PROFILE:
 - Buyer problems: ${brand.buyerProblems.join(", ")}
 - Niche score: ${brand.nicheScore} (1=niche, 2=mid, 3=commodity)
 
-CANDIDATE COMMUNITIES WITH THEIR ACTUAL RULES:
+CANDIDATE COMMUNITIES:
 ${candidatesBlock}
 
 Selection criteria:
@@ -258,37 +198,26 @@ Selection criteria:
 - nicheScore 2 → align on problem space (what the product SOLVES)
 - nicheScore 3 → align on buyer intent (where people seek recommendations)
 
-Promotion stance — derive this from the actual rules text:
-- "friendly": rules explicitly allow brand presence or product recommendations
-- "neutral": rules don't mention promotion; community culture is open
-- "strict": rules explicitly ban promotion, brand accounts, or self-promotion
+Promotion stance — use your knowledge of each community's typical culture:
+- "friendly": community generally welcomes product recommendations or brand presence
+- "neutral": community is open but doesn't explicitly encourage or ban promotion
+- "strict": community strongly opposes self-promotion or brand accounts
 
-Return ONLY a valid JSON object:
-{
-  "subreddit": "r/communityname",
-  "selectionReason": "2-3 sentences on why this community is the strongest fit",
-  "alignmentType": "product" or "identity" or "problem",
-  "promotionStance": "friendly" or "neutral" or "strict",
-  "promotionStanceReason": "One sentence citing the specific rule or absence of rules that determines this"
-}`;
+Return ONLY a valid JSON array with ALL ${candidates.length} communities ranked best to least fit:
+[
+  {
+    "subreddit": "r/communityname",
+    "selectionReason": "2-3 sentences on why this community fits",
+    "alignmentType": "product" or "identity" or "problem",
+    "promotionStance": "friendly" or "neutral" or "strict",
+    "promotionStanceReason": "One sentence on this community's typical stance on brand engagement"
+  }
+]`;
 
   const model = getGeminiModel();
   const result = await model.generateContent(prompt);
   const raw = result.response.text().replace(/```json|```/g, "").trim();
-  return JSON.parse(raw) as SelectedCommunity;
-}
-
-// ─── Parse rules text → array of short rule titles (max 6) ──────────────────
-
-function parseRulesSummary(rulesText: string): string[] {
-  if (!rulesText || rulesText === "No rules found." || rulesText === "Could not fetch rules.") {
-    return [];
-  }
-  return rulesText
-    .split(/\n\n+/)
-    .map((block) => block.split("\n")[0].trim().replace(/^Rule \d+:\s*/i, "").trim())
-    .filter((s) => s.length > 0 && s.length < 120)
-    .slice(0, 6);
+  return JSON.parse(raw) as SelectedCommunity[];
 }
 
 // ─── Handler (SSE streaming) ──────────────────────────────────────────────────
@@ -375,55 +304,36 @@ export async function POST(request: NextRequest) {
         emit({ type: "step", step: 3, status: "done", msg: `${candidateNames.length} candidates: ${candidateNames.map((s) => "r/" + s).join(" · ")}` });
         console.log("[magic-scan] Step 3 done — candidates:", candidateNames);
 
-        // ── 4. Fetch rules ────────────────────────────────────────────────────
-        emit({ type: "step", step: 4, status: "start", msg: `Fetching rules for ${candidateNames.length} communities…` });
-        console.log("[magic-scan] Step 4 — fetching rules for:", candidateNames);
+        // ── 4. Rank all communities ───────────────────────────────────────────
+        emit({ type: "step", step: 4, status: "start", msg: "Ranking communities…" });
+        console.log("[magic-scan] Step 4 — Gemini community ranking...");
 
-        // fetchSubredditRules handles per-subreddit errors gracefully
-        const candidatesWithRules = await Promise.all(
-          candidateNames.map((sub) => fetchSubredditRules(sub))
-        );
-        const ruleSummary = candidatesWithRules
-          .map((c) => `r/${c.subreddit} (${parseRulesSummary(c.rulesText).length} rules)`)
-          .join(" · ");
-        emit({ type: "step", step: 4, status: "done", msg: `Rules fetched — ${ruleSummary}` });
-        
-        // ── 5. Select community ───────────────────────────────────────────────
-        emit({ type: "step", step: 5, status: "start", msg: "Selecting best community…" });
-        console.log("[magic-scan] Step 5 — Gemini community selection...");
-
-        let community: SelectedCommunity;
+        let communities: SelectedCommunity[];
         try {
-          community = await selectCommunity(brandProfile, candidatesWithRules);
+          communities = await rankCommunities(brandProfile, candidateNames);
         } catch (err) {
-          emit({ type: "step", step: 5, status: "error", msg: `Selection failed: ${err instanceof Error ? err.message : String(err)}` });
-          emit({ type: "fatal", msg: "Could not select a community. Please try again." });
+          emit({ type: "step", step: 4, status: "error", msg: `Ranking failed: ${err instanceof Error ? err.message : String(err)}` });
+          emit({ type: "fatal", msg: "Could not rank communities. Please try again." });
           return;
         }
 
-        // Build rules summary for the winning subreddit
-        const cleanSub = community.subreddit.replace(/^r\//, "").toLowerCase();
-        const selectedEntry = candidatesWithRules.find((c) => c.subreddit.toLowerCase() === cleanSub);
-        const communityRulesSummary = parseRulesSummary(selectedEntry?.rulesText ?? "");
-
         emit({
-          type: "step", step: 5, status: "done",
-          msg: `Selected ${community.subreddit} · ${community.promotionStance} stance`,
-          data: { community, communityRulesSummary },
+          type: "step", step: 4, status: "done",
+          msg: communities.map((c) => `${c.subreddit} · ${c.promotionStance}`).join(" · "),
+          data: { communities },
         });
-        console.log("[magic-scan] Step 5 done — selected:", community.subreddit, "| stance:", community.promotionStance);
+        console.log("[magic-scan] Step 4 done — ranked:", communities.map((c) => c.subreddit));
 
         // ── Result ────────────────────────────────────────────────────────────
         const result: TechWeekMagicScanResponse & { _debug: object } = {
           brandProfile,
-          community,
-          meta: { brandName, storeUrl, ogImage, communityRulesSummary },
+          communities,
+          meta: { brandName, storeUrl, ogImage },
           _debug: {
-            step1_scrape:            { contentLength: pageContent.length, title: brandName, ogImage },
-            step2_brandProfile:      brandProfile,
-            step3_candidates:        candidateNames,
-            step4_rulesPerCandidate: candidatesWithRules,
-            step5_selectedCommunity: community,
+            step1_scrape:       { contentLength: pageContent.length, title: brandName, ogImage },
+            step2_brandProfile: brandProfile,
+            step3_candidates:   candidateNames,
+            step4_communities:  communities,
           },
         };
         emit({ type: "result", data: result });
