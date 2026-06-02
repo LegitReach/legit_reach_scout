@@ -26,9 +26,6 @@ export interface TechWeekCurateResponse {
     postingTips: string;
   };
   communityStats: CommunityStats;
-  /** Top posts from the subreddit hot feed, excluding the blueprint pick.
-   *  Used by the Engagement tab — different from what shows in Blueprint. */
-  engagementPosts: RedditPost[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -319,17 +316,8 @@ export async function POST(request: NextRequest) {
         emit({ type: "step", step: 7, status: "done", msg: `Playbook ready · engagement: ${playbook.engagement.post?.id}` });
         console.log(`[tech-week/curate] Step 2 done — engagement: ${playbook.engagement.post?.id}`);
 
-        // ── Pick engagement posts — top posts NOT used in the blueprint ────────
-        const blueprintIds = new Set(
-          [playbook.engagement.post?.id].filter(Boolean)
-        );
-        const engagementPosts = posts
-          .filter((p) => !blueprintIds.has(p.id))
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 5);
-
         // ── Result ────────────────────────────────────────────────────────────
-        const response: TechWeekCurateResponse = { ...playbook, communityStats, engagementPosts };
+        const response: TechWeekCurateResponse = { ...playbook, communityStats };
         emit({
           type: "result",
           data: {
