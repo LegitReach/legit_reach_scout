@@ -12,6 +12,10 @@ export interface CommunityStats {
 }
 
 export interface TechWeekCurateResponse {
+  sentiment: {
+    post: RedditPost;
+    communityInsight: string;
+  };
   engagement: {
     post: RedditPost;
     draftComment: string;
@@ -155,7 +159,7 @@ async function generatePlaybook(
   brand: BrandProfile,
   community: SelectedCommunity,
   posts: RedditPost[]
-): Promise<Pick<TechWeekCurateResponse, "engagement" | "creation">> {
+): Promise<Pick<TechWeekCurateResponse, "sentiment" | "engagement" | "creation">> {
 
   const postList = posts
     .map((p, i) => {
@@ -196,8 +200,12 @@ ${postList}
 
 Return ONLY a valid JSON object with this exact structure:
 {
+  "sentiment": {
+    "postIndex": <1-based index — pick the post that best reveals what this community READS and values>,
+    "communityInsight": "2-3 sentences: what this community values, what it distrusts, what tone gets upvotes. Be specific to what you see in these actual posts."
+  },
   "engagement": {
-    "postIndex": <1-based index — best opportunity to add value with a comment RIGHT NOW>,
+    "postIndex": <1-based index of a DIFFERENT post — best opportunity to add value with a comment RIGHT NOW>,
     "draftComment": "A ready-to-post comment. Respect the promotionStance rule above exactly. Keep it SHORT (1-2 sentences, max ~40 words), casual, and genuinely engaging like a real person typing fast. Do NOT use em dashes (—). Do NOT sound like AI or marketing copy. Prioritise sparking a reply over sounding polished.",
     "whyThisPost": "One sentence: why this is the best engagement opportunity right now."
   },
@@ -220,9 +228,14 @@ Return only the JSON. No markdown. No explanation.`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = JSON.parse(raw) as any;
 
+  const sentimentPost  = posts[parsed.sentiment.postIndex  - 1];
   const engagementPost = posts[parsed.engagement.postIndex - 1];
 
   return {
+    sentiment: {
+      post:              sentimentPost,
+      communityInsight:  parsed.sentiment.communityInsight,
+    },
     engagement: {
       post: engagementPost,
       draftComment: parsed.engagement.draftComment,
