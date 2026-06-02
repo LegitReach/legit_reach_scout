@@ -6,23 +6,12 @@ import type { RedditPost } from "@/types";
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
-export interface SentimentBreakdown {
-  positive: number;  // percentage 0–100, all four sum to 100
-  neutral:  number;
-  curious:  number;
-  critical: number;
-}
-
 export interface CommunityStats {
   subscribers: string;   // e.g. "4.1M" | "320K"
   activeUsers: string;   // e.g. "1,240 online"
 }
 
 export interface TechWeekCurateResponse {
-  sentiment: {
-    post: RedditPost;
-    communityInsight: string;
-  };
   engagement: {
     post: RedditPost;
     draftComment: string;
@@ -36,9 +25,8 @@ export interface TechWeekCurateResponse {
     whatToAvoid: string[];
     postingTips: string;
   };
-  sentimentBreakdown: SentimentBreakdown;
   communityStats: CommunityStats;
-  /** Top posts from the subreddit hot feed, excluding the 2 blueprint picks.
+  /** Top posts from the subreddit hot feed, excluding the blueprint pick.
    *  Used by the Engagement tab — different from what shows in Blueprint. */
   engagementPosts: RedditPost[];
 }
@@ -170,7 +158,7 @@ async function generatePlaybook(
   brand: BrandProfile,
   community: SelectedCommunity,
   posts: RedditPost[]
-): Promise<Omit<TechWeekCurateResponse, "communityStats" | "engagementPosts">> {
+): Promise<Pick<TechWeekCurateResponse, "engagement" | "creation">> {
 
   const postList = posts
     .map((p, i) => {
@@ -211,18 +199,8 @@ ${postList}
 
 Return ONLY a valid JSON object with this exact structure:
 {
-  "sentimentBreakdown": {
-    "positive": <integer 0-100: % of posts that are celebratory, supportive, wins, grateful>,
-    "neutral":  <integer 0-100: % of posts that are informational, questions, neutral discussions>,
-    "curious":  <integer 0-100: % of posts that are seeking advice, exploratory, open-ended>,
-    "critical": <integer 0-100: % of posts that are venting, critical, controversial, negative>
-  },
-  "sentiment": {
-    "postIndex": <1-based index — pick the post that best reveals what this community READS and values>,
-    "communityInsight": "2-3 sentences: what this community values, what it distrusts, what tone gets upvotes. Be specific to what you see in these actual posts."
-  },
   "engagement": {
-    "postIndex": <1-based index of a DIFFERENT post — best opportunity to add value with a comment RIGHT NOW>,
+    "postIndex": <1-based index — best opportunity to add value with a comment RIGHT NOW>,
     "draftComment": "A ready-to-post comment. Respect the promotionStance rule above exactly. Keep it SHORT (1-2 sentences, max ~40 words), casual, and genuinely engaging like a real person typing fast. Do NOT use em dashes (—). Do NOT sound like AI or marketing copy. Prioritise sparking a reply over sounding polished.",
     "whyThisPost": "One sentence: why this is the best engagement opportunity right now."
   },
@@ -236,11 +214,7 @@ Return ONLY a valid JSON object with this exact structure:
   }
 }
 
-Rules:
-- sentimentBreakdown four values MUST sum to exactly 100
-- sentiment and engagement MUST reference different posts
-- Base sentimentBreakdown on the actual upvote_ratio values AND title/body content
-- Return only the JSON. No markdown. No explanation.`;
+Return only the JSON. No markdown. No explanation.`;
 
   const model = getGeminiModel();
   const result = await model.generateContent(prompt);
@@ -249,28 +223,9 @@ Rules:
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = JSON.parse(raw) as any;
 
-  const sentimentPost  = posts[parsed.sentiment.postIndex  - 1];
   const engagementPost = posts[parsed.engagement.postIndex - 1];
 
-  // Normalise breakdown — ensure it sums to 100
-  const bd = parsed.sentimentBreakdown as Record<string, number>;
-  const total = (bd.positive ?? 0) + (bd.neutral ?? 0) + (bd.curious ?? 0) + (bd.critical ?? 0);
-  const norm = (v: number) => Math.round((v / (total || 100)) * 100);
-  const sentimentBreakdown: SentimentBreakdown = {
-    positive: norm(bd.positive ?? 45),
-    neutral:  norm(bd.neutral  ?? 30),
-    curious:  norm(bd.curious  ?? 16),
-    critical: norm(bd.critical ??  9),
-  };
-  // Fix any rounding drift so they always sum to 100
-  const drift = 100 - (sentimentBreakdown.positive + sentimentBreakdown.neutral + sentimentBreakdown.curious + sentimentBreakdown.critical);
-  sentimentBreakdown.neutral += drift;
-
   return {
-    sentiment: {
-      post: sentimentPost,
-      communityInsight: parsed.sentiment.communityInsight,
-    },
     engagement: {
       post: engagementPost,
       draftComment: parsed.engagement.draftComment,
@@ -284,7 +239,6 @@ Rules:
       whatToAvoid:    parsed.creation.whatToAvoid,
       postingTips:    parsed.creation.postingTips,
     },
-    sentimentBreakdown,
   };
 }
 
@@ -362,23 +316,12 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        const bd = playbook.sentimentBreakdown;
-        emit({
-          type: "step", step: 7, status: "done",
-          msg: `Playbook ready · +${bd.positive}% positive · ?${bd.curious}% curious · ↔${bd.neutral}% neutral · ↓${bd.critical}% critical`,
-        });
-        console.log(
-          `[tech-week/curate] Step 2 done — ` +
-          `sentiment: ${playbook.sentiment.post?.id} · engagement: ${playbook.engagement.post?.id} · ` +
-          `breakdown: +${bd.positive} ~${bd.neutral} ?${bd.curious} -${bd.critical}`
-        );
+        emit({ type: "step", step: 7, status: "done", msg: `Playbook ready · engagement: ${playbook.engagement.post?.id}` });
+        console.log(`[tech-week/curate] Step 2 done — engagement: ${playbook.engagement.post?.id}`);
 
         // ── Pick engagement posts — top posts NOT used in the blueprint ────────
-        // Gemini selected 2 posts (sentiment + engagement) for the blueprint.
-        // We surface 5 different hot posts for the Engagement tab so the user
-        // sees fresh material to respond to, not a repeat of the blueprint picks.
         const blueprintIds = new Set(
-          [playbook.sentiment.post?.id, playbook.engagement.post?.id].filter(Boolean)
+          [playbook.engagement.post?.id].filter(Boolean)
         );
         const engagementPosts = posts
           .filter((p) => !blueprintIds.has(p.id))
@@ -396,7 +339,7 @@ export async function POST(request: NextRequest) {
               promotionStance:    community.promotionStance,
               postsAnalysed:      posts.length,
               communityStats,
-              sentimentBreakdown: bd,
+
               postTitles:         posts.map((p) => p.title),
             },
           },
