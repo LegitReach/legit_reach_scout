@@ -92,6 +92,7 @@ export default function DashboardPage() {
   const [errorMsg, setErrorMsg]   = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [brandProfile, setBrandProfile] = useState<any>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const cancelRef = useRef(false);
 
   const curateOne = useCallback(async (bp: unknown, comm: SelectedCommunity, idx: number) => {
@@ -233,6 +234,56 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.root}>
+
+      {/* ── Mobile header ── */}
+      <div className={styles.mobileHeader}>
+        <span className={styles.mobileHeaderTitle}>Communities</span>
+        <button
+          className={styles.mobileDropdownTrigger}
+          onClick={() => setDropdownOpen(o => !o)}
+        >
+          <div
+            className={styles.mobileDropdownAvatar}
+            style={{ background: stanceColor(selected?.community.promotionStance ?? "neutral") }}
+          >
+            {selected?.community.subreddit.replace(/^r\//, "").slice(0, 1).toUpperCase()}
+          </div>
+          <span className={styles.mobileDropdownName}>{selected?.community.subreddit}</span>
+          <span className={styles.mobileDropdownChevron}>{dropdownOpen ? "▲" : "▼"}</span>
+        </button>
+
+        {dropdownOpen && (
+          <div className={styles.mobileDropdownList}>
+            {slots.map((slot, i) => {
+              const sc = stanceColor(slot.community.promotionStance);
+              const initial = slot.community.subreddit.replace(/^r\//, "").slice(0, 1).toUpperCase();
+              return (
+                <button
+                  key={i}
+                  className={`${styles.mobileDropdownItem} ${i === selectedIdx ? styles.mobileDropdownItemActive : ""}`}
+                  onClick={() => { setSelected(i); setDropdownOpen(false); }}
+                >
+                  <div className={styles.mobileDropdownAvatar} style={{ background: sc }}>{initial}</div>
+                  <span className={styles.mobileDropdownItemName}>{slot.community.subreddit}</span>
+                  {slot.loading ? (
+                    <span className={styles.metaLoading}>Analysing…</span>
+                  ) : slot.failed ? (
+                    <button
+                      className={styles.retryBtn}
+                      onClick={e => { e.stopPropagation(); curateOne(brandProfile, slot.community, i); setDropdownOpen(false); }}
+                    >
+                      ↻ Retry
+                    </button>
+                  ) : (
+                    <span className={styles.stepBadge}>Step 1</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* ── Left sidebar ── */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
@@ -274,7 +325,7 @@ export default function DashboardPage() {
                         ↻ Retry
                       </button>
                     ) : (
-                      <span className={styles.stepBadge}>Step 2</span>
+                      <span className={styles.stepBadge}>Step 1</span>
                     )}
                   </div>
                 </div>
@@ -316,7 +367,7 @@ export default function DashboardPage() {
 function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
   const { community, data } = slot;
   if (!data) return null;
-  const { sentiment, engagement, creation } = data;
+  const { engagement, creation } = data;
   const sc = stanceColor(community.promotionStance);
   const sb = stanceBg(community.promotionStance);
 
@@ -342,7 +393,7 @@ function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
       {/* Blueprint header */}
       <div className={styles.blueprintHeading}>
         <span className={styles.blueprintIcon}>⚡</span>
-        3-Step Blueprint
+        2-Step Blueprint
         <span className={styles.blueprintHeadingSub}>
           Follow this proven process to build authentic presence in {community.subreddit}
         </span>
@@ -350,21 +401,7 @@ function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
 
       {/* Steps */}
       <div className={styles.steps}>
-        <StepCard num={1} status="complete" title="Read & Understand" desc="Explore posts to understand what this community values">
-          <p className={styles.insight}>{sentiment.communityInsight}</p>
-          {sentiment.post && (
-            <a href={sentiment.post.url} target="_blank" rel="noopener noreferrer" className={styles.postLink}>
-              ↳ {sentiment.post.title}
-            </a>
-          )}
-          <div className={styles.stepActions}>
-            <a href={sentiment.post?.url} target="_blank" rel="noopener noreferrer" className={styles.ctaOutline}>
-              Read Thread →
-            </a>
-          </div>
-        </StepCard>
-
-        <StepCard num={2} status="active" title="Engage Authentically" desc="Comment thoughtfully and upvote valuable discussions">
+        <StepCard num={1} status="active" title="Engage Authentically" desc="Comment thoughtfully and upvote valuable discussions">
           <p className={styles.insight}>{engagement.whyThisPost}</p>
           {engagement.post && (
             <a href={engagement.post.url} target="_blank" rel="noopener noreferrer" className={styles.postLink}>
@@ -374,7 +411,7 @@ function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
           <DraftComment draftComment={engagement.draftComment} postUrl={engagement.post?.url} />
         </StepCard>
 
-        <StepCard num={3} status="idle" title="Create & Contribute" desc="Share insights aligned with your business and community interests">
+        <StepCard num={2} status="idle" title="Create & Contribute" desc="Share insights aligned with your business and community interests">
           <p className={styles.suggestedTitle}>"{creation.suggestedTitle}"</p>
           {creation.contentOutline.length > 0 && (
             <ul className={styles.outline}>
@@ -394,16 +431,6 @@ function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
           </div>
         </StepCard>
       </div>
-
-      {/* What to avoid */}
-      {creation.whatToAvoid.length > 0 && (
-        <div className={styles.avoidSection}>
-          <div className={styles.avoidTitle}>Community-Specific Tips</div>
-          <ul className={styles.avoidList}>
-            {creation.whatToAvoid.map((t, i) => <li key={i}>{t}</li>)}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
