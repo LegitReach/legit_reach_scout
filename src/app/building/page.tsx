@@ -99,7 +99,7 @@ export default function BuildingPage() {
             </Reveal>
 
             <Reveal delay={700}>
-              <a href="/launch" className="lr-btn-primary inline-block">
+              <a href="/dashboard" className="lr-btn-primary inline-block">
                 Try the product now!
               </a>
             </Reveal>

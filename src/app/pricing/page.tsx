@@ -127,7 +127,7 @@ export default function PricingPage() {
                       {p.desc}
                     </p>
                     <a
-                      href="/launch"
+                      href="/dashboard"
                       className="lr-btn-primary inline-block"
                       style={{ marginTop: "1.75rem", alignSelf: "flex-start" }}
                     >
