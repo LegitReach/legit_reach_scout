@@ -245,8 +245,8 @@ Return only the JSON. No markdown. No explanation.`;
       suggestedTitle: parsed.creation.suggestedTitle,
       format:         parsed.creation.format,
       tone:           parsed.creation.tone,
-      contentOutline: parsed.creation.contentOutline,
-      whatToAvoid:    parsed.creation.whatToAvoid,
+      contentOutline: Array.isArray(parsed.creation.contentOutline) ? parsed.creation.contentOutline : [],
+      whatToAvoid:    Array.isArray(parsed.creation.whatToAvoid)    ? parsed.creation.whatToAvoid    : [],
       postingTips:    parsed.creation.postingTips,
     },
   };
