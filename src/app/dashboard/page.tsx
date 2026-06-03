@@ -43,7 +43,7 @@ interface CommunitySlot {
   data: CurateData | null;
   loading: boolean;
   failed: boolean;
-  currentStep: 1 | 2;
+  currentStep: 1 | 2 | "complete";
 }
 
 type Phase = "idle" | "scanning" | "ready" | "error";
@@ -133,6 +133,14 @@ export default function DashboardPage() {
     setSlots(prev => {
       const next = [...prev];
       next[idx] = { ...next[idx], currentStep: 2 };
+      return next;
+    });
+  }, []);
+
+  const completeStep2 = useCallback((idx: number) => {
+    setSlots(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], currentStep: "complete" };
       return next;
     });
   }, []);
@@ -334,7 +342,7 @@ export default function DashboardPage() {
                         ↻ Retry
                       </button>
                     ) : (
-                      <span className={styles.stepBadge}>Step {slot.currentStep}</span>
+                      <span className={styles.stepBadge}>{slot.currentStep === "complete" ? "Complete ✓" : `Step ${slot.currentStep}`}</span>
                     )}
                   </div>
                 </div>
@@ -363,7 +371,7 @@ export default function DashboardPage() {
               </button>
             </div>
           ) : (
-            <BlueprintPanel key={selected.community.subreddit} slot={selected} onStep1Complete={() => completeStep1(selectedIdx)} />
+            <BlueprintPanel key={selected.community.subreddit} slot={selected} onStep1Complete={() => completeStep1(selectedIdx)} onStep2Complete={() => completeStep2(selectedIdx)} />
           )
         }
       </main>
@@ -373,13 +381,19 @@ export default function DashboardPage() {
 
 // ─── Blueprint panel ──────────────────────────────────────────────────────────
 
-function BlueprintPanel({ slot, onStep1Complete }: { slot: CommunitySlot; onStep1Complete: () => void }) {
+function BlueprintPanel({ slot, onStep1Complete, onStep2Complete }: { slot: CommunitySlot; onStep1Complete: () => void; onStep2Complete: () => void }) {
   const { community, data } = slot;
   if (!data) return null;
   const { engagement, creation } = data;
   const sc = stanceColor(community.promotionStance);
   const sb = stanceBg(community.promotionStance);
-  const step1Done = slot.currentStep === 2;
+  const step1Done = slot.currentStep === 2 || slot.currentStep === "complete";
+  const step2Done = slot.currentStep === "complete";
+  const [step2Clicked, setStep2Clicked] = useState(false);
+
+  const sub = community.subreddit.replace(/^r\//, "");
+  const draft = creation.contentOutline.join("\n\n");
+  const submitUrl = `https://www.reddit.com/r/${sub}/submit?title=${encodeURIComponent(creation.suggestedTitle)}&selftext=true&text=${encodeURIComponent(draft)}`;
 
   return (
     <div className={styles.blueprintWrap}>
@@ -421,7 +435,7 @@ function BlueprintPanel({ slot, onStep1Complete }: { slot: CommunitySlot; onStep
           <DraftComment draftComment={engagement.draftComment} postUrl={engagement.post?.url} onComplete={onStep1Complete} />
         </StepCard>
 
-        <StepCard num={2} status={step1Done ? "active" : "idle"} title="Create & Contribute" desc="Share insights aligned with your business and community interests">
+        <StepCard num={2} status={step1Done ? (step2Done ? "complete" : "active") : "idle"} title="Create & Contribute" desc="Share insights aligned with your business and community interests">
           <p className={styles.suggestedTitle}>"{creation.suggestedTitle}"</p>
           {creation.contentOutline.length > 0 && (
             <ul className={styles.outline}>
@@ -429,16 +443,24 @@ function BlueprintPanel({ slot, onStep1Complete }: { slot: CommunitySlot; onStep
             </ul>
           )}
           {creation.postingTips && <p className={styles.tips}>{creation.postingTips}</p>}
-          <div className={styles.stepActions}>
-            <a
-              href={`https://www.reddit.com/r/${community.subreddit.replace(/^r\//, "")}/submit`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.ctaPrimary}
-            >
-              Create Post →
-            </a>
-          </div>
+          {!step2Clicked ? (
+            <div className={styles.stepActions}>
+              <button
+                className={styles.ctaPrimary}
+                onClick={() => { window.open(submitUrl, "_blank", "noopener,noreferrer"); setStep2Clicked(true); }}
+              >
+                Create Post →
+              </button>
+            </div>
+          ) : (
+            <div className={styles.taskConfirm}>
+              <span className={styles.taskConfirmLabel}>Did you create the post?</span>
+              <div className={styles.stepActions}>
+                <button className={styles.ctaPrimary} onClick={() => { setStep2Clicked(false); onStep2Complete(); }}>✓ Task Completed</button>
+                <button className={styles.ctaOutline} onClick={() => setStep2Clicked(false)}>Not Yet</button>
+              </div>
+            </div>
+          )}
         </StepCard>
       </div>
     </div>
