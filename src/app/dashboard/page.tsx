@@ -90,7 +90,42 @@ export default function DashboardPage() {
   const [slots, setSlots]         = useState<CommunitySlot[]>([]);
   const [selectedIdx, setSelected] = useState(0);
   const [errorMsg, setErrorMsg]   = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [brandProfile, setBrandProfile] = useState<any>(null);
   const cancelRef = useRef(false);
+
+  const curateOne = useCallback(async (bp: unknown, comm: SelectedCommunity, idx: number) => {
+    setSlots(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], loading: true, failed: false };
+      return next;
+    });
+    try {
+      const res = await fetch("/api/tech-week/curate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandProfile: bp, community: comm }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      for await (const ev of readSSE(res)) {
+        if (cancelRef.current) return;
+        if (ev.type === "result") {
+          setSlots(prev => {
+            const next = [...prev];
+            next[idx] = { ...next[idx], data: ev.data as CurateData, loading: false };
+            return next;
+          });
+        }
+      }
+    } catch {
+      setSlots(prev => {
+        const next = [...prev];
+        next[idx] = { ...next[idx], loading: false, failed: true };
+        return next;
+      });
+    }
+  }, []);
 
   const run = useCallback(async () => {
     const trimmed = url.trim();
@@ -101,6 +136,7 @@ export default function DashboardPage() {
     setSlots([]);
     setSelected(0);
     setErrorMsg("");
+    setBrandProfile(null);
 
     try {
       // ── Phase 1: magic-scan ─────────────────────────────────────────────────
@@ -112,7 +148,7 @@ export default function DashboardPage() {
       if (!scanRes.ok) throw new Error(`Scan failed (${scanRes.status})`);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let brandProfile: any = null;
+      let bp: any = null;
       let communities: SelectedCommunity[] = [];
 
       for await (const ev of readSSE(scanRes)) {
@@ -122,52 +158,24 @@ export default function DashboardPage() {
         } else if (ev.type === "fatal") {
           throw new Error(ev.msg);
         } else if (ev.type === "result") {
-          brandProfile  = ev.data.brandProfile;
-          communities   = ev.data.communities;
+          bp          = ev.data.brandProfile;
+          communities = ev.data.communities;
         }
       }
 
-      if (!brandProfile || !communities.length) throw new Error("No communities found for this URL.");
+      if (!bp || !communities.length) throw new Error("No communities found for this URL.");
 
-      // Seed loading slots and switch to ready phase
+      setBrandProfile(bp);
       setSlots(communities.map(c => ({ community: c, data: null, loading: true, failed: false })));
       setPhase("ready");
 
       // ── Phase 2: curate all communities in parallel ─────────────────────────
-      await Promise.allSettled(
-        communities.map(async (comm, idx) => {
-          try {
-            const res = await fetch("/api/tech-week/curate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ brandProfile, community: comm }),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            for await (const ev of readSSE(res)) {
-              if (cancelRef.current) return;
-              if (ev.type === "result") {
-                setSlots(prev => {
-                  const next = [...prev];
-                  next[idx] = { ...next[idx], data: ev.data as CurateData, loading: false };
-                  return next;
-                });
-              }
-            }
-          } catch {
-            setSlots(prev => {
-              const next = [...prev];
-              next[idx] = { ...next[idx], loading: false, failed: true };
-              return next;
-            });
-          }
-        })
-      );
+      await Promise.allSettled(communities.map((comm, idx) => curateOne(bp, comm, idx)));
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setPhase("error");
     }
-  }, [url]);
+  }, [url, curateOne]);
 
   // ── Idle / error ─────────────────────────────────────────────────────────────
   if (phase === "idle" || phase === "error") {
@@ -259,7 +267,12 @@ export default function DashboardPage() {
                     {slot.loading ? (
                       <span className={styles.metaLoading}>Analysing…</span>
                     ) : slot.failed ? (
-                      <span className={styles.metaFailed}>Failed</span>
+                      <button
+                        className={styles.retryBtn}
+                        onClick={e => { e.stopPropagation(); curateOne(brandProfile, slot.community, i); }}
+                      >
+                        ↻ Retry
+                      </button>
                     ) : (
                       <span className={styles.stepBadge}>Step 2</span>
                     )}
@@ -281,7 +294,13 @@ export default function DashboardPage() {
             </div>
           ) : selected.failed ? (
             <div className={styles.panelError}>
-              Could not load blueprint for {selected.community.subreddit}.
+              <span>Could not load blueprint for {selected.community.subreddit}.</span>
+              <button
+                className={styles.retryBtnLarge}
+                onClick={() => curateOne(brandProfile, selected.community, selectedIdx)}
+              >
+                ↻ Try again
+              </button>
             </div>
           ) : (
             <BlueprintPanel slot={selected} />
