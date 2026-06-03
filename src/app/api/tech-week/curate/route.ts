@@ -51,12 +51,17 @@ function proxyDispatcher() {
   return new ProxyAgent(`http://${u}:${p}@proxy.apify.com:8000`);
 }
 
-async function proxyGet(url: string): Promise<Response> {
+async function proxyGet(url: string, timeoutMs = 60_000): Promise<Response> {
   const dispatcher = proxyDispatcher();
   if (dispatcher) {
-    return proxyFetch(url, { dispatcher, headers: proxyHeaders() }) as unknown as Response;
+    try {
+      const signal = AbortSignal.timeout(timeoutMs);
+      return await proxyFetch(url, { dispatcher, headers: proxyHeaders(), signal }) as unknown as Response;
+    } catch (err) {
+      console.warn("[tech-week/curate] proxy fetch failed, falling back to direct:", err instanceof Error ? err.message : err);
+    }
   }
-  return fetch(url, { headers: proxyHeaders() });
+  return fetch(url, { headers: proxyHeaders(), signal: AbortSignal.timeout(timeoutMs) });
 }
 
 // ─── Reddit fetches (run in parallel) ────────────────────────────────────────
@@ -222,7 +227,10 @@ Return ONLY a valid JSON object with this exact structure:
 Return only the JSON. No markdown. No explanation.`;
 
   const model = getGeminiModel();
-  const result = await model.generateContent(prompt);
+  const geminiTimeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Gemini timeout")), 60_000)
+  );
+  const result = await Promise.race([model.generateContent(prompt), geminiTimeout]);
   const raw = result.response.text().replace(/```json|```/g, "").trim();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
