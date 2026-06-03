@@ -43,6 +43,7 @@ interface CommunitySlot {
   data: CurateData | null;
   loading: boolean;
   failed: boolean;
+  currentStep: 1 | 2;
 }
 
 type Phase = "idle" | "scanning" | "ready" | "error";
@@ -128,6 +129,14 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const completeStep1 = useCallback((idx: number) => {
+    setSlots(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], currentStep: 2 };
+      return next;
+    });
+  }, []);
+
   const run = useCallback(async () => {
     const trimmed = url.trim();
     if (!trimmed) return;
@@ -167,7 +176,7 @@ export default function DashboardPage() {
       if (!bp || !communities.length) throw new Error("No communities found for this URL.");
 
       setBrandProfile(bp);
-      setSlots(communities.map(c => ({ community: c, data: null, loading: true, failed: false })));
+      setSlots(communities.map(c => ({ community: c, data: null, loading: true, failed: false, currentStep: 1 })));
       setPhase("ready");
 
       // ── Phase 2: curate all communities in parallel ─────────────────────────
@@ -275,7 +284,7 @@ export default function DashboardPage() {
                       ↻ Retry
                     </button>
                   ) : (
-                    <span className={styles.stepBadge}>Step 1</span>
+                    <span className={styles.stepBadge}>Step {slot.currentStep}</span>
                   )}
                 </button>
               );
@@ -325,7 +334,7 @@ export default function DashboardPage() {
                         ↻ Retry
                       </button>
                     ) : (
-                      <span className={styles.stepBadge}>Step 1</span>
+                      <span className={styles.stepBadge}>Step {slot.currentStep}</span>
                     )}
                   </div>
                 </div>
@@ -354,7 +363,7 @@ export default function DashboardPage() {
               </button>
             </div>
           ) : (
-            <BlueprintPanel slot={selected} />
+            <BlueprintPanel key={selected.community.subreddit} slot={selected} onStep1Complete={() => completeStep1(selectedIdx)} />
           )
         }
       </main>
@@ -364,12 +373,13 @@ export default function DashboardPage() {
 
 // ─── Blueprint panel ──────────────────────────────────────────────────────────
 
-function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
+function BlueprintPanel({ slot, onStep1Complete }: { slot: CommunitySlot; onStep1Complete: () => void }) {
   const { community, data } = slot;
   if (!data) return null;
   const { engagement, creation } = data;
   const sc = stanceColor(community.promotionStance);
   const sb = stanceBg(community.promotionStance);
+  const step1Done = slot.currentStep === 2;
 
   return (
     <div className={styles.blueprintWrap}>
@@ -401,17 +411,17 @@ function BlueprintPanel({ slot }: { slot: CommunitySlot }) {
 
       {/* Steps */}
       <div className={styles.steps}>
-        <StepCard num={1} status="active" title="Engage Authentically" desc="Comment thoughtfully and upvote valuable discussions">
+        <StepCard num={1} status={step1Done ? "complete" : "active"} title="Engage Authentically" desc="Comment thoughtfully and upvote valuable discussions">
           <p className={styles.insight}>{engagement.whyThisPost}</p>
           {engagement.post && (
             <a href={engagement.post.url} target="_blank" rel="noopener noreferrer" className={styles.postLink}>
               ↳ {engagement.post.title}
             </a>
           )}
-          <DraftComment draftComment={engagement.draftComment} postUrl={engagement.post?.url} />
+          <DraftComment draftComment={engagement.draftComment} postUrl={engagement.post?.url} onComplete={onStep1Complete} />
         </StepCard>
 
-        <StepCard num={2} status="idle" title="Create & Contribute" desc="Share insights aligned with your business and community interests">
+        <StepCard num={2} status={step1Done ? "active" : "idle"} title="Create & Contribute" desc="Share insights aligned with your business and community interests">
           <p className={styles.suggestedTitle}>"{creation.suggestedTitle}"</p>
           {creation.contentOutline.length > 0 && (
             <ul className={styles.outline}>
@@ -472,15 +482,14 @@ function StepCard({
 
 // ─── Draft comment ────────────────────────────────────────────────────────────
 
-function DraftComment({ draftComment, postUrl }: { draftComment: string; postUrl?: string }) {
+function DraftComment({ draftComment, postUrl, onComplete }: { draftComment: string; postUrl?: string; onComplete: () => void }) {
   const [text, setText] = useState(draftComment);
-  const [label, setLabel] = useState("Copy & Engage →");
+  const [copied, setCopied] = useState(false);
 
   function act() {
     navigator.clipboard?.writeText(text).catch(() => {});
-    setLabel("Copied!");
-    setTimeout(() => setLabel("Copy & Engage →"), 2000);
     if (postUrl) window.open(postUrl, "_blank", "noopener,noreferrer");
+    setCopied(true);
   }
 
   return (
@@ -491,9 +500,19 @@ function DraftComment({ draftComment, postUrl }: { draftComment: string; postUrl
         rows={4}
         onChange={e => setText(e.target.value)}
       />
-      <div className={styles.stepActions}>
-        <button className={styles.ctaPrimary} onClick={act}>{label}</button>
-      </div>
+      {!copied ? (
+        <div className={styles.stepActions}>
+          <button className={styles.ctaPrimary} onClick={act}>Copy & Engage →</button>
+        </div>
+      ) : (
+        <div className={styles.taskConfirm}>
+          <span className={styles.taskConfirmLabel}>Did you post the comment?</span>
+          <div className={styles.stepActions}>
+            <button className={styles.ctaPrimary} onClick={() => { setCopied(false); onComplete(); }}>✓ Task Completed</button>
+            <button className={styles.ctaOutline} onClick={() => setCopied(false)}>Not Yet</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
