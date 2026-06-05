@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { UserButton, SignedIn } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import styles from "./AuthHeader.module.css";
 
@@ -17,9 +17,6 @@ export default function AuthHeader() {
       <SignedIn>
         <UserButton />
       </SignedIn>
-      <SignedOut>
-        <SignInButton mode="modal" />
-      </SignedOut>
     </div>
   );
 }
