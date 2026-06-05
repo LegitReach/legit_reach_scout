@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
+import { saveScanToSession } from "@/lib/scanStorage";
+import { useScanRestore } from "@/hooks/useScanRestore";
 import styles from "./dashboard.module.css";
 
 const MOCK_MODE = true;
@@ -250,6 +252,31 @@ export default function DashboardPage() {
 
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
+  const savedScan = useScanRestore();
+
+  // Restore scan state after OAuth redirect
+  useEffect(() => {
+    if (!savedScan) return;
+    setUrl(savedScan.storeUrl);
+    setBrandProfile(savedScan.brandProfile);
+    setSlots(savedScan.slots.map(s => ({
+      community: s.community,
+      data: s.data as CurateData | null,
+      loading: false,
+      failed: false,
+      currentStep: s.currentStep,
+    })));
+    setPhase("ready");
+  }, [savedScan]);
+
+  const handleSignIn = useCallback(() => {
+    saveScanToSession({
+      storeUrl: url,
+      brandProfile,
+      slots: slots.map(({ community, data, currentStep }) => ({ community, data, currentStep })),
+    });
+    openSignIn();
+  }, [url, brandProfile, slots, openSignIn]);
 
   const curateOne = useCallback(async (bp: unknown, comm: SelectedCommunity, idx: number) => {
     setSlots(prev => {
@@ -556,7 +583,7 @@ export default function DashboardPage() {
               key={selected.community.subreddit}
               slot={selected}
               isSignedIn={!!isSignedIn}
-              onSignIn={() => openSignIn()}
+              onSignIn={handleSignIn}
               onStep1Complete={() => completeStep1(selectedIdx)}
               onStep2Complete={() => completeStep2(selectedIdx)}
             />
