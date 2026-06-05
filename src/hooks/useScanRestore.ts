@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { readScanFromSession, clearScanSession, type SavedScan } from "@/lib/scanStorage";
-import { fetchLastScanFromDb, saveScanToDb } from "@/lib/scanApi";
+import { fetchLastScanFromDb, saveScanToDb, cacheBlueprintsFromSession } from "@/lib/scanApi";
 
 /**
  * On mount (once Clerk confirms the user is signed in):
@@ -35,6 +35,10 @@ export function useScanRestore(): SavedScan | null {
         if (!existing || existing.storeUrl !== sessionScan.storeUrl) {
           await saveScanToDb(sessionScan);
         }
+
+        // Blueprints were generated pre-auth and never reached Redis.
+        // Cache them now so the next page load is a cache hit.
+        await cacheBlueprintsFromSession(sessionScan.slots);
         return;
       }
 

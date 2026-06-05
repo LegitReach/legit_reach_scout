@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProxyAgent, fetch as proxyFetch } from "undici";
+import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
+import { redis } from "@/lib/redis";
 import type { BrandProfile, SelectedCommunity } from "@/app/api/tech-week/magic-scan/route";
 import type { RedditPost } from "@/types";
+
+const CURATE_TTL = 86400; // 24h in seconds
+
+function curateKey(userId: string, subreddit: string): string {
+  const sub = subreddit.startsWith("r/") ? subreddit.slice(2).toLowerCase() : subreddit.toLowerCase();
+  return `blueprint:${userId}:${sub}`;
+}
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
@@ -265,7 +274,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const { userId } = getAuth(request);
   const encoder = new TextEncoder();
+
+  console.log(`[tech-week/curate] ${community.subreddit} — userId: ${userId ?? "unauthenticated"}`);
+
+  // Cache hit — return immediately as a single SSE result event
+  if (userId) {
+    const cached = await redis.get<TechWeekCurateResponse>(curateKey(userId, community.subreddit));
+    if (cached) {
+      console.log(`[tech-week/curate] cache hit — ${community.subreddit}`);
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "result", data: cached })}\n\n`));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -326,6 +359,15 @@ export async function POST(request: NextRequest) {
 
         // ── Result ────────────────────────────────────────────────────────────
         const response: TechWeekCurateResponse = { ...playbook, communityStats };
+
+        // Cache for authenticated users — fresh blueprints served for 24h
+        if (userId) {
+          await redis.set(curateKey(userId, community.subreddit), response, { ex: CURATE_TTL });
+          console.log(`[tech-week/curate] cached — ${community.subreddit} (TTL: ${CURATE_TTL}s)`);
+        } else {
+          console.log(`[tech-week/curate] skipping cache — unauthenticated`);
+        }
+
         emit({
           type: "result",
           data: {

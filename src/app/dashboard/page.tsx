@@ -6,7 +6,7 @@ import { saveScanToSession } from "@/lib/scanStorage";
 import { useScanRestore } from "@/hooks/useScanRestore";
 import styles from "./dashboard.module.css";
 
-const MOCK_MODE = true;
+const MOCK_MODE = false;
 
 interface SelectedCommunity {
   subreddit: string;

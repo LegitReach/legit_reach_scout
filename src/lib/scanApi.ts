@@ -1,4 +1,4 @@
-import type { SavedScan } from "./scanStorage";
+import type { SavedScan, SavedScanSlot } from "./scanStorage";
 
 export async function fetchLastScanFromDb(): Promise<SavedScan | null> {
   try {
@@ -26,4 +26,16 @@ export async function saveScanToDb(scan: SavedScan): Promise<void> {
       }),
     });
   } catch { /* non-critical — UI still works without DB save */ }
+}
+
+// Writes pre-computed blueprints to Redis after OAuth sign-in.
+// Slots with null data are skipped silently.
+export async function cacheBlueprintsFromSession(slots: SavedScanSlot[]): Promise<void> {
+  try {
+    await fetch("/api/blueprint/cache", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ slots }),
+    });
+  } catch { /* non-critical */ }
 }
