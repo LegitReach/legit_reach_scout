@@ -89,6 +89,39 @@
   background: #4f46e5;
 }
 
+.inputAuthRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.inputSignInBtn {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inputSignInBtn:hover {
+  color: #374151;
+}
+
+.sidebarHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobileHeaderTop {
+  display: none;
+}
+
 .errorBanner {
   margin-top: 18px;
   padding: 10px 14px;
@@ -280,6 +313,28 @@
 .metaFailed {
   font-size: 12px;
   color: #dc2626;
+}
+
+.retryBtn {
+  font-size: 11px;
+  font-weight: 600;
+  color: #dc2626;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.retryBtnLarge {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366f1;
+  background: none;
+  border: 1px solid #c7d2fe;
+  border-radius: 7px;
+  padding: 6px 16px;
+  cursor: pointer;
 }
 
 .stepBadge {
@@ -659,6 +714,48 @@
   color: #374151;
 }
 
+/* ─── Step 2 lock overlay ──────────────────────────────────────────────────── */
+
+.step2LockWrap {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.step2LockedContent {
+  filter: blur(5px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.7;
+}
+
+.step2LockOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.lockIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.lockLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* ─── Avoid / tips section ─────────────────────────────────────────────────── */
 
 .avoidSection {
@@ -726,6 +823,13 @@
     z-index: 100;
   }
 
+  .mobileHeaderTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 4px;
+  }
+
   .mobileHeaderTitle {
     font-size: 12px;
     font-weight: 600;
@@ -733,6 +837,7 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding: 12px 16px 4px;
+    display: block;
   }
 
   .mobileDropdownTrigger {
@@ -848,5 +953,79 @@
   .panelError {
     min-height: 50vh;
     height: auto;
+  }
+
+  /* ─── Input screen — mobile ──────────────────────────────────────────────── */
+
+  .inputScreen {
+    align-items: flex-start;
+    padding: 64px 20px 40px;
+    background: #f9fafb;
+  }
+
+  .inputCard {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    text-align: left;
+  }
+
+  .inputLogo {
+    margin-bottom: 20px;
+  }
+
+  .inputHeading {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+
+  .inputSub {
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .inputRow {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .urlInput {
+    height: 56px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+    border-radius: 10px;
+  }
+
+  .scanBtn {
+    height: 36px;
+    width: 100%;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+
+  .errorBanner {
+    margin-top: 14px;
+  }
+
+  /* ─── Scanning screen — mobile ───────────────────────────────────────────── */
+
+  .scanCard {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+  }
+
+  .scanSpinner {
+    margin: 0 0 20px;
+  }
+
+  .scanTitle {
+    font-size: 16px;
+    margin-bottom: 16px;
   }
 }
