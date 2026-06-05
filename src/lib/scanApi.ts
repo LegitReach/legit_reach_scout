@@ -1,0 +1,29 @@
+import type { SavedScan } from "./scanStorage";
+
+export async function fetchLastScanFromDb(): Promise<SavedScan | null> {
+  try {
+    const res = await fetch("/api/scan");
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (!body.data) return null;
+    return {
+      storeUrl:     body.data.store_url,
+      brandProfile: body.data.brand_profile,
+      slots:        body.data.communities,
+    };
+  } catch { return null; }
+}
+
+export async function saveScanToDb(scan: SavedScan): Promise<void> {
+  try {
+    await fetch("/api/scan", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        storeUrl:     scan.storeUrl,
+        brandProfile: scan.brandProfile,
+        slots:        scan.slots,
+      }),
+    });
+  } catch { /* non-critical — UI still works without DB save */ }
+}
