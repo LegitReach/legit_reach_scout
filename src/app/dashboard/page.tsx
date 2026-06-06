@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { saveScanToSession } from "@/lib/scanStorage";
+import { saveScanToDb } from "@/lib/scanApi";
 import { useScanRestore } from "@/hooks/useScanRestore";
 import { useFingerprint } from "@/hooks/useFingerprint";
 import styles from "./dashboard.module.css";
@@ -253,6 +254,7 @@ export default function DashboardPage() {
   const [paymentRequired, setPaymentRequired] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const cancelRef = useRef(false);
+  const persistedUrlRef = useRef<string | null>(null);
 
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
@@ -270,6 +272,7 @@ export default function DashboardPage() {
       failed: false,
       currentStep: s.currentStep,
     }));
+    persistedUrlRef.current = savedScan.storeUrl;
     setUrl(savedScan.storeUrl);
     setBrandProfile(savedScan.brandProfile);
     setSlots(restored);
@@ -441,6 +444,11 @@ export default function DashboardPage() {
       setPhase("ready");
 
       await Promise.allSettled(communities.map((comm, idx) => curateOne(bp, comm, idx)));
+
+      if (isSignedIn && trimmed !== persistedUrlRef.current) {
+        persistedUrlRef.current = trimmed;
+        saveScanToDb({ storeUrl: trimmed, brandProfile: bp, slots: communities.map(c => ({ community: c, data: null, currentStep: 1 })) });
+      }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setPhase("error");

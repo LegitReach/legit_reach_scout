@@ -48,7 +48,7 @@ async function checkCurateEntitlement(
 // Subsequent computations the same day (other subreddits, retries) are free.
 async function consumeCurateCredit(userId: string): Promise<void> {
   const dayKey = curateDayKey(userId);
-  const alreadyCharged = await redis.get(dayKey);
+  const alreadyCharged = await redis.get(dayKey);  
   if (alreadyCharged) {
     console.log(`[tech-week/curate] already charged today — user: ${userId}`);
     return;
