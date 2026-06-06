@@ -302,7 +302,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/tech-week/curate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandProfile: bp, community: comm }),
+        body: JSON.stringify({ brandProfile: bp, community: comm, fingerprintId }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -323,7 +323,7 @@ export default function DashboardPage() {
         return next;
       });
     }
-  }, []);
+  }, [fingerprintId]);
 
   const completeStep1 = useCallback((idx: number) => {
     setSlots(prev => {

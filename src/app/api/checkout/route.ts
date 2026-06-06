@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
                     price_data: {
                         currency: "usd",
                         product_data: {
-                            name: "5 Additional Requests",
-                            description: "Get 5 more requests to scout subreddits",
+                            name: "30 Brand Scans",
+                            description: "30 Reddit community blueprint scans - one per day for 30 days",
                         },
-                        unit_amount: 100, // $1.00
+                        unit_amount: 7900, // $79.00
                     },
                     quantity: 1,
                 },

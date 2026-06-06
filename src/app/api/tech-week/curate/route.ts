@@ -6,11 +6,64 @@ import { redis } from "@/lib/redis";
 import type { BrandProfile, SelectedCommunity } from "@/app/api/tech-week/magic-scan/route";
 import type { RedditPost } from "@/types";
 
-const CURATE_TTL = 86400; // 24h in seconds
+const CURATE_TTL     = 86400;  // 24h in seconds
+const CURATE_DAY_TTL = 172800; // 48h — covers timezone edge cases
 
 function curateKey(userId: string, subreddit: string): string {
   const sub = subreddit.startsWith("r/") ? subreddit.slice(2).toLowerCase() : subreddit.toLowerCase();
   return `blueprint:${userId}:${sub}`;
+}
+
+function curateDayKey(userId: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return `curate_day:user:${userId}:${today}`;
+}
+
+// Entitlement check (read-only).
+// Authenticated: credits > 0 (key missing = new user with 3 free credits).
+// Unauthenticated: fingerprint/IP key must exist, meaning they completed a free magic-scan.
+async function checkCurateEntitlement(
+  request: NextRequest,
+  userId: string | null,
+  fingerprintId?: string
+): Promise<"allowed" | "scan_limit_reached" | "payment_required"> {
+  if (userId) {
+    const credits = parseInt((await redis.get<string>(`credits:user:${userId}`)) ?? "3", 10);
+    if (credits > 0) return "allowed";
+    return "payment_required";
+  }
+
+  const key = fingerprintId
+    ? `scan:unauth:fp:${fingerprintId}`
+    : `scan:unauth:ip:${
+        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+        request.headers.get("x-real-ip") ??
+        "unknown"
+      }`;
+  const scanned = await redis.get(key);
+  return scanned ? "allowed" : "scan_limit_reached";
+}
+
+// Consumes 1 credit the first time curate computes on a given calendar day.
+// Subsequent computations the same day (other subreddits, retries) are free.
+async function consumeCurateCredit(userId: string): Promise<void> {
+  const dayKey = curateDayKey(userId);
+  const alreadyCharged = await redis.get(dayKey);
+  if (alreadyCharged) {
+    console.log(`[tech-week/curate] already charged today — user: ${userId}`);
+    return;
+  }
+
+  // Lazy-initialize credit key for new users
+  const existing = await redis.get<string>(`credits:user:${userId}`);
+  if (existing === null) {
+    await redis.set(`credits:user:${userId}`, "3");
+    console.log(`[tech-week/curate] initialized 3 free credits — user: ${userId}`);
+  }
+
+  const remaining = await redis.decr(`credits:user:${userId}`);
+  await redis.set(dayKey, "1", { ex: CURATE_DAY_TTL });
+  console.log(`[tech-week/curate] consumed 1 credit — user: ${userId}, remaining: ${remaining}`);
 }
 
 // ─── Response types ───────────────────────────────────────────────────────────
@@ -259,14 +312,14 @@ Return only the JSON. No markdown. No explanation.`;
 // ─── Handler (SSE streaming) ──────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  let body: { brandProfile?: BrandProfile; community?: SelectedCommunity };
+  let body: { brandProfile?: BrandProfile; community?: SelectedCommunity; fingerprintId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { brandProfile, community } = body;
+  const { brandProfile, community, fingerprintId } = body;
   if (!brandProfile || !community) {
     return NextResponse.json(
       { error: "brandProfile and community are required" },
@@ -278,6 +331,14 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
   console.log(`[tech-week/curate] ${community.subreddit} — userId: ${userId ?? "unauthenticated"}`);
+
+  const entitlement = await checkCurateEntitlement(request, userId, fingerprintId ?? undefined);
+  if (entitlement === "payment_required") {
+    return NextResponse.json({ error: "payment_required" }, { status: 402 });
+  }
+  if (entitlement === "scan_limit_reached") {
+    return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
+  }
 
   // Cache hit — return immediately as a single SSE result event
   if (userId) {
@@ -360,8 +421,9 @@ export async function POST(request: NextRequest) {
         // ── Result ────────────────────────────────────────────────────────────
         const response: TechWeekCurateResponse = { ...playbook, communityStats };
 
-        // Cache for authenticated users — fresh blueprints served for 24h
+        // Consume 1 credit for the first computation this calendar day, then cache.
         if (userId) {
+          await consumeCurateCredit(userId);
           await redis.set(curateKey(userId, community.subreddit), response, { ex: CURATE_TTL });
           console.log(`[tech-week/curate] cached — ${community.subreddit} (TTL: ${CURATE_TTL}s)`);
         } else {

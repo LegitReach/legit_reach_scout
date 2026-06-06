@@ -242,30 +242,14 @@ async function checkScanGateForUnauthenticatedUser(request: NextRequest, fingerp
   return false;
 }
 
-async function checkScanGateForAuthenticatedUser(userId: string): Promise<"allowed" | "payment_required"> {
-  const month = new Date().toISOString().slice(0, 7); // e.g. "2026-06"
-  const monthKey = `scan_count:user:${userId}:${month}`;
-
-  const scanCount = parseInt((await redis.get<string>(monthKey)) ?? "0", 10);
-
-  if (scanCount < 3) {
-    const newCount = await redis.incr(monthKey);
-    if (newCount === 1) {
-      // Set a 60-day TTL on first write so old month keys clean themselves up
-      await redis.expire(monthKey, 60 * 24 * 60 * 60);
-    }
-    console.log(`[magic-scan] free scan ${newCount}/3 this month — user: ${userId}`);
-    return "allowed";
-  }
-
-  // Free tier exhausted — check paid credits
-  const credits = parseInt((await redis.get<string>(`credits:user:${userId}`)) ?? "0", 10);
+// Credits gate for authenticated users (read-only — curate is the billing point).
+// Key missing = new user with 3 free credits (lazy init).
+async function checkCreditsForAuthenticatedUser(userId: string): Promise<"allowed" | "payment_required"> {
+  const credits = parseInt((await redis.get<string>(`credits:user:${userId}`)) ?? "3", 10);
   if (credits > 0) {
-    await redis.decr(`credits:user:${userId}`);
-    console.log(`[magic-scan] paid scan — user: ${userId}, credits remaining: ${credits - 1}`);
+    console.log(`[magic-scan] credits OK — user: ${userId}, credits: ${credits}`);
     return "allowed";
   }
-
   console.log(`[magic-scan] payment required — user: ${userId}`);
   return "payment_required";
 }
@@ -295,7 +279,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
     }
   } else {
-    const result = await checkScanGateForAuthenticatedUser(userId);
+    const result = await checkCreditsForAuthenticatedUser(userId);
     if (result === "payment_required") {
       return NextResponse.json({ error: "payment_required" }, { status: 402 });
     }

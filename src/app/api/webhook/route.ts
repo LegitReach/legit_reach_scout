@@ -28,15 +28,14 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId;
 
         if (userId) {
-            console.log(`Payment successful for user ${userId}. Adding 5 credits.`);
-            // Add 5 credits to the user's account in Redis
-            await redis.incrby(`credits:user:${userId}`, 5);
+            console.log(`Payment successful for user ${userId}. Adding 30 credits.`);
+            await redis.incrby(`credits:user:${userId}`, 30);
             getPostHogClient().capture({
                 distinctId: userId,
                 event: "payment_completed",
                 properties: {
-                    credits_added: 5,
-                    amount_usd: 1,
+                    credits_added: 30,
+                    amount_usd: 79,
                     stripe_session_id: session.id,
                 },
             });
