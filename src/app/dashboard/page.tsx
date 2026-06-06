@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { saveScanToSession } from "@/lib/scanStorage";
 import { saveScanToDb } from "@/lib/scanApi";
@@ -251,11 +252,10 @@ export default function DashboardPage() {
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scanLimited, setScanLimited] = useState(false);
-  const [paymentRequired, setPaymentRequired] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const cancelRef = useRef(false);
   const persistedUrlRef = useRef<string | null>(null);
 
+  const router = useRouter();
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const fingerprintId = useFingerprint();
@@ -282,17 +282,6 @@ export default function DashboardPage() {
       if (!slot.data) curateOne(savedScan.brandProfile, slot.community, idx);
     });
   }, [savedScan]); // curateOne intentionally excluded — fires only when savedScan changes
-
-  const handleCheckout = useCallback(async () => {
-    setCheckoutLoading(true);
-    try {
-      const res = await fetch("/api/checkout", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch {
-      setCheckoutLoading(false);
-    }
-  }, []);
 
   const handleSignIn = useCallback(() => {
     saveScanToSession({
@@ -327,9 +316,7 @@ export default function DashboardPage() {
         body: JSON.stringify({ brandProfile: bp, community: comm, fingerprintId }),
       });
       if (res.status === 402) {
-        setPaymentRequired(true);
-        setPhase("idle");
-        setSlots(prev => { const next = [...prev]; next[idx] = { ...next[idx], loading: false }; return next; });
+        router.push("/subscribe");
         return;
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -431,8 +418,7 @@ export default function DashboardPage() {
       }
 
       if (scanRes.status === 402) {
-        setPaymentRequired(true);
-        setPhase("idle");
+        router.push("/subscribe");
         return;
       }
 
@@ -474,27 +460,6 @@ export default function DashboardPage() {
 
   // ── Idle / error ─────────────────────────────────────────────────────────────
   if (phase === "idle" || phase === "error") {
-    if (paymentRequired) {
-      return (
-        <div className={styles.inputScreen}>
-          <div className={styles.inputCard}>
-            <div className={styles.inputLogo}>LegitReach</div>
-            <h1 className={styles.inputHeading}>You&apos;ve used all your free scans</h1>
-            <p className={styles.inputSub}>
-              Get 30 scans to keep going — one per day for 30 days.
-            </p>
-            <button
-              className={styles.scanBtn}
-              onClick={handleCheckout}
-              disabled={checkoutLoading}
-            >
-              {checkoutLoading ? "Redirecting…" : "Get 30 scans — $79 →"}
-            </button>
-          </div>
-        </div>
-      );
-    }
-
     if (scanLimited) {
       return (
         <div className={styles.inputScreen}>
