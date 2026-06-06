@@ -226,7 +226,7 @@ Return ONLY a valid JSON array with ALL ${candidates.length} communities ranked 
 
 // Returns true if the scan should be blocked (device has already used its free scan).
 // Primary key: fingerprint. Fallback: IP (only when fingerprint is absent).
-async function checkScanGate(request: NextRequest, fingerprintId?: string): Promise<boolean> {
+async function checkScanGateForUnauthenticatedUser(request: NextRequest, fingerprintId?: string): Promise<boolean> {
   const key = fingerprintId
     ? `scan:unauth:fp:${fingerprintId}`
     : `scan:unauth:ip:${request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "unknown"}`;
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
   // Authenticated users bypass the gate entirely
   const { userId } = getAuth(request);
   if (!userId) {
-    const blocked = await checkScanGate(request, fingerprintId ?? undefined);
+    const blocked = await checkScanGateForUnauthenticatedUser(request, fingerprintId ?? undefined);
     if (blocked) {
       return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
     }

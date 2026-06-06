@@ -249,13 +249,14 @@ export default function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [scanLimited, setScanLimited] = useState(false);
   const cancelRef = useRef(false);
 
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const fingerprintId = useFingerprint();
   const savedScan = useScanRestore();
-
+  
   // Restore scan state after OAuth redirect
   useEffect(() => {
     if (!savedScan) return;
@@ -374,6 +375,16 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: trimmed, fingerprintId }),
       });
+
+      if (scanRes.status === 403) {
+        const body = await scanRes.json();
+        if (body.error === "scan_limit_reached") {
+          setScanLimited(true);
+          setPhase("idle");
+          return;
+        }
+      }
+
       if (!scanRes.ok) throw new Error(`Scan failed (${scanRes.status})`);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -407,6 +418,23 @@ export default function DashboardPage() {
 
   // ── Idle / error ─────────────────────────────────────────────────────────────
   if (phase === "idle" || phase === "error") {
+    if (scanLimited) {
+      return (
+        <div className={styles.inputScreen}>
+          <div className={styles.inputCard}>
+            <div className={styles.inputLogo}>LegitReach</div>
+            <h1 className={styles.inputHeading}>You&apos;ve used your free scan</h1>
+            <p className={styles.inputSub}>
+              Sign in to unlock unlimited scans and save your blueprints across sessions.
+            </p>
+            <button className={styles.scanBtn} onClick={() => openSignIn()}>
+              Sign in to continue →
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={styles.inputScreen}>
         <div className={styles.inputCard}>
