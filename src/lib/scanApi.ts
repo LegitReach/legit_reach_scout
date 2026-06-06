@@ -9,7 +9,7 @@ export async function fetchLastScanFromDb(): Promise<SavedScan | null> {
     return {
       storeUrl:     body.data.store_url,
       brandProfile: body.data.brand_profile,
-      slots:        body.data.communities,
+      slots:        (body.data.communities as any[]).map((s: any) => ({ ...s, data: null })),
     };
   } catch { return null; }
 }

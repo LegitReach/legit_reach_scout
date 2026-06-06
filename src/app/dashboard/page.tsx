@@ -7,7 +7,7 @@ import { useScanRestore } from "@/hooks/useScanRestore";
 import { useFingerprint } from "@/hooks/useFingerprint";
 import styles from "./dashboard.module.css";
 
-const MOCK_MODE = true;
+const MOCK_MODE = false;
 
 interface SelectedCommunity {
   subreddit: string;
@@ -250,6 +250,8 @@ export default function DashboardPage() {
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scanLimited, setScanLimited] = useState(false);
+  const [paymentRequired, setPaymentRequired] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const cancelRef = useRef(false);
 
   const { isSignedIn } = useAuth();
@@ -257,20 +259,37 @@ export default function DashboardPage() {
   const fingerprintId = useFingerprint();
   const savedScan = useScanRestore();
   
-  // Restore scan state after OAuth redirect
+  // Restore scan state. Slots without data (Redis cache expired) are marked
+  // loading and re-curated immediately for fresh daily blueprints.
   useEffect(() => {
     if (!savedScan) return;
-    setUrl(savedScan.storeUrl);
-    setBrandProfile(savedScan.brandProfile);
-    setSlots(savedScan.slots.map(s => ({
+    const restored = savedScan.slots.map(s => ({
       community: s.community,
       data: s.data as CurateData | null,
-      loading: false,
+      loading: !s.data,
       failed: false,
       currentStep: s.currentStep,
-    })));
+    }));
+    setUrl(savedScan.storeUrl);
+    setBrandProfile(savedScan.brandProfile);
+    setSlots(restored);
     setPhase("ready");
-  }, [savedScan]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    restored.forEach((slot, idx) => {
+      if (!slot.data) curateOne(savedScan.brandProfile, slot.community, idx);
+    });
+  }, [savedScan]); // curateOne intentionally excluded — fires only when savedScan changes
+
+  const handleCheckout = useCallback(async () => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      setCheckoutLoading(false);
+    }
+  }, []);
 
   const handleSignIn = useCallback(() => {
     saveScanToSession({
@@ -304,6 +323,12 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandProfile: bp, community: comm, fingerprintId }),
       });
+      if (res.status === 402) {
+        setPaymentRequired(true);
+        setPhase("idle");
+        setSlots(prev => { const next = [...prev]; next[idx] = { ...next[idx], loading: false }; return next; });
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       for await (const ev of readSSE(res)) {
@@ -385,6 +410,12 @@ export default function DashboardPage() {
         }
       }
 
+      if (scanRes.status === 402) {
+        setPaymentRequired(true);
+        setPhase("idle");
+        return;
+      }
+
       if (!scanRes.ok) throw new Error(`Scan failed (${scanRes.status})`);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -418,6 +449,27 @@ export default function DashboardPage() {
 
   // ── Idle / error ─────────────────────────────────────────────────────────────
   if (phase === "idle" || phase === "error") {
+    if (paymentRequired) {
+      return (
+        <div className={styles.inputScreen}>
+          <div className={styles.inputCard}>
+            <div className={styles.inputLogo}>LegitReach</div>
+            <h1 className={styles.inputHeading}>You&apos;ve used all your free scans</h1>
+            <p className={styles.inputSub}>
+              Get 30 scans to keep going — one per day for 30 days.
+            </p>
+            <button
+              className={styles.scanBtn}
+              onClick={handleCheckout}
+              disabled={checkoutLoading}
+            >
+              {checkoutLoading ? "Redirecting…" : "Get 30 scans — $79 →"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     if (scanLimited) {
       return (
         <div className={styles.inputScreen}>

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
             ],
             mode: "payment",
             success_url: `${origin}/dashboard?success=true`,
-            cancel_url: `${origin}/subscribe?canceled=true`,
+            cancel_url: `${origin}/dashboard?canceled=true`,
             metadata: {
                 userId,
             },

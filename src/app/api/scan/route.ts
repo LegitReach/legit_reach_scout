@@ -57,7 +57,10 @@ export async function POST(req: NextRequest) {
         user_id:       userId,
         store_url:     storeUrl,
         brand_profile: brandProfile,
-        communities:   slots,
+        // Strip curate data — only brand/community metadata belongs in the DB.
+        // Curate results are re-generated fresh from Redis or the AI on restore.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        communities:   (slots as any[]).map(({ community, currentStep }) => ({ community, currentStep })),
         updated_at:    new Date().toISOString(),
       },
       { onConflict: "user_id" }
