@@ -334,15 +334,32 @@ export default function DashboardPage() {
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+      let received = false;
       for await (const ev of readSSE(res)) {
         if (cancelRef.current) return;
         if (ev.type === "result") {
+          received = true;
           setSlots(prev => {
             const next = [...prev];
             next[idx] = { ...next[idx], data: ev.data as CurateData, loading: false };
             return next;
           });
+        } else if (ev.type === "fatal") {
+          setSlots(prev => {
+            const next = [...prev];
+            next[idx] = { ...next[idx], loading: false, failed: true };
+            return next;
+          });
+          return;
         }
+      }
+      // Stream closed without a result (e.g. server timeout, mid-stream crash)
+      if (!received) {
+        setSlots(prev => {
+          const next = [...prev];
+          next[idx] = { ...next[idx], loading: false, failed: true };
+          return next;
+        });
       }
     } catch {
       setSlots(prev => {
@@ -583,12 +600,15 @@ export default function DashboardPage() {
                   {slot.loading ? (
                     <span className={styles.metaLoading}>Analysing…</span>
                   ) : slot.failed ? (
-                    <button
+                    <span
+                      role="button"
+                      tabIndex={0}
                       className={styles.retryBtn}
                       onClick={e => { e.stopPropagation(); curateOne(brandProfile, slot.community, i); setDropdownOpen(false); }}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); curateOne(brandProfile, slot.community, i); setDropdownOpen(false); } }}
                     >
                       ↻ Retry
-                    </button>
+                    </span>
                   ) : (
                     <span className={styles.stepBadge}>{slot.currentStep === "complete" ? "Complete ✓" : `Step ${slot.currentStep}`}</span>
                   )}
@@ -633,12 +653,15 @@ export default function DashboardPage() {
                     {slot.loading ? (
                       <span className={styles.metaLoading}>Analysing…</span>
                     ) : slot.failed ? (
-                      <button
+                      <span
+                        role="button"
+                        tabIndex={0}
                         className={styles.retryBtn}
                         onClick={e => { e.stopPropagation(); curateOne(brandProfile, slot.community, i); }}
+                        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); curateOne(brandProfile, slot.community, i); } }}
                       >
                         ↻ Retry
-                      </button>
+                      </span>
                     ) : (
                       <span className={styles.stepBadge}>{slot.currentStep === "complete" ? "Complete ✓" : `Step ${slot.currentStep}`}</span>
                     )}
