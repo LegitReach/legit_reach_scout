@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { saveScanToSession } from "@/lib/scanStorage";
 import { useScanRestore } from "@/hooks/useScanRestore";
+import { useFingerprint } from "@/hooks/useFingerprint";
 import styles from "./dashboard.module.css";
 
-const MOCK_MODE = false;
+const MOCK_MODE = true;
 
 interface SelectedCommunity {
   subreddit: string;
@@ -252,6 +253,7 @@ export default function DashboardPage() {
 
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
+  const fingerprintId = useFingerprint();
   const savedScan = useScanRestore();
 
   // Restore scan state after OAuth redirect
@@ -370,7 +372,7 @@ export default function DashboardPage() {
       const scanRes = await fetch("/api/tech-week/magic-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: trimmed }),
+        body: JSON.stringify({ url: trimmed, fingerprintId }),
       });
       if (!scanRes.ok) throw new Error(`Scan failed (${scanRes.status})`);
 
@@ -401,7 +403,7 @@ export default function DashboardPage() {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setPhase("error");
     }
-  }, [url, curateOne]);
+  }, [url, curateOne, fingerprintId]);
 
   // ── Idle / error ─────────────────────────────────────────────────────────────
   if (phase === "idle" || phase === "error") {
