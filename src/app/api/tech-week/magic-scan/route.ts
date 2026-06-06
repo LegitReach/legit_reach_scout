@@ -242,6 +242,34 @@ async function checkScanGateForUnauthenticatedUser(request: NextRequest, fingerp
   return false;
 }
 
+async function checkScanGateForAuthenticatedUser(userId: string): Promise<"allowed" | "payment_required"> {
+  const month = new Date().toISOString().slice(0, 7); // e.g. "2026-06"
+  const monthKey = `scan_count:user:${userId}:${month}`;
+
+  const scanCount = parseInt((await redis.get<string>(monthKey)) ?? "0", 10);
+
+  if (scanCount < 3) {
+    const newCount = await redis.incr(monthKey);
+    if (newCount === 1) {
+      // Set a 60-day TTL on first write so old month keys clean themselves up
+      await redis.expire(monthKey, 60 * 24 * 60 * 60);
+    }
+    console.log(`[magic-scan] free scan ${newCount}/3 this month — user: ${userId}`);
+    return "allowed";
+  }
+
+  // Free tier exhausted — check paid credits
+  const credits = parseInt((await redis.get<string>(`credits:user:${userId}`)) ?? "0", 10);
+  if (credits > 0) {
+    await redis.decr(`credits:user:${userId}`);
+    console.log(`[magic-scan] paid scan — user: ${userId}, credits remaining: ${credits - 1}`);
+    return "allowed";
+  }
+
+  console.log(`[magic-scan] payment required — user: ${userId}`);
+  return "payment_required";
+}
+
 // ─── Handler (SSE streaming) ──────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -259,12 +287,17 @@ export async function POST(request: NextRequest) {
 
   const storeUrl = url.startsWith("http") ? url : `https://${url}`;
 
-  // Authenticated users bypass the gate entirely
   const { userId } = getAuth(request);
+
   if (!userId) {
     const blocked = await checkScanGateForUnauthenticatedUser(request, fingerprintId ?? undefined);
     if (blocked) {
       return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
+    }
+  } else {
+    const result = await checkScanGateForAuthenticatedUser(userId);
+    if (result === "payment_required") {
+      return NextResponse.json({ error: "payment_required" }, { status: 402 });
     }
   }
 
