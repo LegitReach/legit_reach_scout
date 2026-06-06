@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { redis } from "@/lib/redis";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -220,22 +222,52 @@ Return ONLY a valid JSON array with ALL ${candidates.length} communities ranked 
   return JSON.parse(raw) as SelectedCommunity[];
 }
 
+// ─── Unauthenticated scan gate ────────────────────────────────────────────────
+
+// Returns true if the scan should be blocked (device has already used its free scan).
+// Primary key: fingerprint. Fallback: IP (only when fingerprint is absent).
+async function checkScanGate(request: NextRequest, fingerprintId?: string): Promise<boolean> {
+  const key = fingerprintId
+    ? `scan:unauth:fp:${fingerprintId}`
+    : `scan:unauth:ip:${request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "unknown"}`;
+
+  const used = await redis.get(key);
+  if (used) {
+    console.log(`[magic-scan] scan limit reached — key: ${key}`);
+    return true;
+  }
+
+  await redis.set(key, "1");
+  console.log(`[magic-scan] free scan recorded — key: ${key}`);
+  return false;
+}
+
 // ─── Handler (SSE streaming) ──────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  let body: { url?: string };
+  let body: { url?: string; fingerprintId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url } = body;
+  const { url, fingerprintId } = body;
   if (!url) {
     return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
 
   const storeUrl = url.startsWith("http") ? url : `https://${url}`;
+
+  // Authenticated users bypass the gate entirely
+  const { userId } = getAuth(request);
+  if (!userId) {
+    const blocked = await checkScanGate(request, fingerprintId ?? undefined);
+    if (blocked) {
+      return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
+    }
+  }
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
