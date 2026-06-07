@@ -32,12 +32,19 @@ function mergeActivityIntoSlots(
  *   2. Fetch today's activity and merge step completion into slots
  *   3. Restore UI with correct per-step state
  */
-export function useScanRestore(): SavedScan | null {
+export function useScanRestore(): { savedScan: SavedScan | null; isRestoring: boolean } {
   const { isSignedIn, isLoaded } = useAuth();
   const [savedScan, setSavedScan] = useState<SavedScan | null>(null);
+  // Start true so there's no flash of the input screen while Clerk initialises
+  const [isRestoring, setIsRestoring] = useState(true);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setIsRestoring(false);
+      return;
+    }
 
     async function restore() {
       const sessionScan = readScanFromSession();
@@ -56,20 +63,14 @@ export function useScanRestore(): SavedScan | null {
           scanId = existing.scanId;
         }
 
-        // Propagate scanId so page.tsx can use it for activity writes
         if (scanId) setSavedScan(prev => prev ? { ...prev, scanId } : null);
-
-        // Blueprints were generated pre-auth and never reached Redis.
-        // Cache them now so the next page load is a cache hit.
         await cacheBlueprintsFromSession(sessionScan.slots);
         return;
       }
 
-
       const dbScan = await fetchLastScanFromDb();
       if (!dbScan) return;
 
-      // Merge today's step completion so progress is preserved across logout/login
       if (dbScan.scanId) {
         const activity = await fetchTodayActivity(dbScan.scanId);
         if (activity) {
@@ -81,8 +82,8 @@ export function useScanRestore(): SavedScan | null {
       setSavedScan(dbScan);
     }
 
-    restore();
+    restore().finally(() => setIsRestoring(false));
   }, [isLoaded, isSignedIn]);
 
-  return savedScan;
+  return { savedScan, isRestoring };
 }

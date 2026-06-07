@@ -34,7 +34,7 @@ export default function DashboardPage() {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const fingerprintId  = useFingerprint();
-  const savedScan      = useScanRestore();
+  const { savedScan, isRestoring } = useScanRestore();
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -229,6 +229,17 @@ export default function DashboardPage() {
   }, [url, curateOne, fingerprintId, isSignedIn, router]);
 
   if (phase === "idle" || phase === "error") {
+    if (isRestoring) {
+      return (
+        <div className={styles.inputScreen}>
+          <div className={styles.scanCard}>
+            <div className={styles.scanSpinner} />
+            <p className={styles.scanTitle}>Fetching your blueprints...</p>
+          </div>
+        </div>
+      );
+    }
+
     if (scanLimited) {
       return (
         <div className={styles.inputScreen}>
@@ -239,7 +250,7 @@ export default function DashboardPage() {
               Sign in to unlock unlimited scans and save your blueprints across sessions.
             </p>
             <button className={styles.scanBtn} onClick={() => openSignIn()}>
-              Sign in to continue →
+              Sign in to continue
             </button>
           </div>
         </div>
