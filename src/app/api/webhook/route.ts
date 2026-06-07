@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { stripe } from "@/lib/stripe";
-import { redis } from "@/lib/redis";
+import { getAdminClient } from "@/lib/supabaseServer";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+
+const CREDITS_PER_PURCHASE = 30;
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
@@ -22,20 +24,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
-    // Handle the event
     if (event.type === "checkout.session.completed") {
         const session = event.data.object;
         const userId = session.metadata?.userId;
 
         if (userId) {
-            console.log(`Payment successful for user ${userId}. Adding 30 credits.`);
-            await redis.incrby(`credits:user:${userId}`, 30);
+            console.log(`[webhook] payment completed — user: ${userId}, adding ${CREDITS_PER_PURCHASE} credits`);
+
+            const supabase = getAdminClient();
+            const { error } = await supabase.from("user_subscriptions").upsert(
+                {
+                    user_id:           userId,
+                    plan:              "paid",
+                    credits_remaining: CREDITS_PER_PURCHASE,
+                    last_curated_date: null,
+                },
+                { onConflict: "user_id" }
+            );
+
+            if (error) {
+                console.error(`[webhook] Supabase upsert failed for user ${userId}:`, error.message);
+            }
+
             getPostHogClient().capture({
                 distinctId: userId,
                 event: "payment_completed",
                 properties: {
-                    credits_added: 30,
-                    amount_usd: 79,
+                    credits_added:     CREDITS_PER_PURCHASE,
+                    amount_usd:        79,
                     stripe_session_id: session.id,
                 },
             });

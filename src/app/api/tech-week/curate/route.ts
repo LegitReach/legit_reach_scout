@@ -3,34 +3,39 @@ import { ProxyAgent, fetch as proxyFetch } from "undici";
 import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { redis } from "@/lib/redis";
+import { getAuthenticatedClient } from "@/lib/supabaseServer";
 import type { BrandProfile, SelectedCommunity } from "@/app/api/tech-week/magic-scan/route";
 import type { RedditPost } from "@/types";
 import { getMockCurateData } from "../mock-data";
 
-const CURATE_TTL     = 86400;  // 24h in seconds
-const CURATE_DAY_TTL = 172800; // 48h — covers timezone edge cases
+const CURATE_TTL = 86400; // 24h in seconds
 
 function curateKey(userId: string, subreddit: string): string {
   const sub = subreddit.startsWith("r/") ? subreddit.slice(2).toLowerCase() : subreddit.toLowerCase();
   return `blueprint:${userId}:${sub}`;
 }
 
-function curateDayKey(userId: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  return `curate_day:user:${userId}:${today}`;
-}
-
 // Entitlement check (read-only).
-// Authenticated: credits > 0 (key missing = new user with 3 free credits).
-// Unauthenticated: fingerprint/IP key must exist, meaning they completed a free magic-scan.
+// Authenticated: checks user_subscriptions in Supabase (missing row = 3 free credits).
+// Unauthenticated: fingerprint/IP key must exist from a completed magic-scan.
 async function checkCurateEntitlement(
   request: NextRequest,
   userId: string | null,
-  fingerprintId?: string
+  fingerprintId?: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase?: any
 ): Promise<"allowed" | "scan_limit_reached" | "payment_required"> {
-  if (userId) {
-    const credits = parseInt((await redis.get<string>(`credits:user:${userId}`)) ?? "3", 10);
-    if (credits > 0) return "allowed";
+  if (userId && supabase) {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase
+      .from("user_subscriptions")
+      .select("credits_remaining, last_curated_date")
+      .eq("user_id", userId)
+      .single();
+
+    if (!data) return "allowed";                          // new user — lazy init gives 3 free credits
+    if (data.last_curated_date === today) return "allowed"; // already charged today
+    if (data.credits_remaining > 0) return "allowed";
     return "payment_required";
   }
 
@@ -45,25 +50,20 @@ async function checkCurateEntitlement(
   return scanned ? "allowed" : "scan_limit_reached";
 }
 
-// Consumes 1 credit the first time curate computes on a given calendar day.
-// Subsequent computations the same day (other subreddits, retries) are free.
-async function consumeCurateCredit(userId: string): Promise<void> {
-  const dayKey = curateDayKey(userId);
-  const acquired = await redis.set(dayKey, "1", { ex: CURATE_DAY_TTL, nx: true });
-  if (!acquired) {
-    console.log(`[tech-week/curate] already charged today — user: ${userId}`);
-    return;
+async function consumeCurateCredit(
+  userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<{ credits_remaining: number; plan: string } | null> {
+  const { data, error } = await supabase.rpc("consume_curate_credit", { p_user_id: userId });
+  if (error) {
+    console.error("[tech-week/curate] consume_curate_credit error:", error.message);
+    return null;
   }
-
-  // Lazy-initialize credit key for new users
-  const existing = await redis.get<string>(`credits:user:${userId}`);
-  if (existing === null) {
-    await redis.set(`credits:user:${userId}`, "3");
-    console.log(`[tech-week/curate] initialized 3 free credits — user: ${userId}`);
-  }
-
-  const remaining = await redis.decr(`credits:user:${userId}`);
-  console.log(`[tech-week/curate] consumed 1 credit — user: ${userId}, remaining: ${remaining}`);
+  if (!data || data.length === 0) return null; // credits exhausted
+  const result = data[0];
+  console.log(`[tech-week/curate] credit consumed — user: ${userId}, remaining: ${result.credits_remaining}, plan: ${result.plan}`);
+  return result;
 }
 
 // ─── Response types ───────────────────────────────────────────────────────────
@@ -327,12 +327,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { userId } = getAuth(request);
+  const { userId, getToken } = getAuth(request);
   const encoder = new TextEncoder();
+
+  // Build Supabase client only for authenticated users — used for credits
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let supabase: any = null;
+  if (userId) {
+    const token = await getToken();
+    if (token) supabase = getAuthenticatedClient(token);
+  }
 
   console.log(`[tech-week/curate] ${community.subreddit} — userId: ${userId ?? "unauthenticated"}`);
 
-  const entitlement = await checkCurateEntitlement(request, userId, fingerprintId ?? undefined);
+  const entitlement = await checkCurateEntitlement(request, userId, fingerprintId ?? undefined, supabase);
   if (entitlement === "payment_required") {
     return NextResponse.json({ error: "payment_required" }, { status: 402 });
   }
@@ -365,13 +373,17 @@ export async function POST(request: NextRequest) {
   if (process.env.MOCK_MODE === "true") {
     console.log(`[tech-week/curate] MOCK_MODE — returning seed data for ${community.subreddit}`);
     const mockData = getMockCurateData(community.subreddit);
-    if (userId) {
-      await consumeCurateCredit(userId);
+    let mockCredits: { credits_remaining: number; plan: string } | null = null;
+    if (userId && supabase) {
+      mockCredits = await consumeCurateCredit(userId, supabase);
       await redis.set(curateKey(userId, community.subreddit), mockData, { ex: CURATE_TTL });
       console.log(`[tech-week/curate] mock cached — ${community.subreddit}`);
     }
     const stream = new ReadableStream({
       start(controller) {
+        if (mockCredits) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "credits", credits_remaining: mockCredits.credits_remaining, plan: mockCredits.plan })}\n\n`));
+        }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "result", data: mockData })}\n\n`));
         controller.close();
       },
@@ -442,8 +454,11 @@ export async function POST(request: NextRequest) {
         const response: TechWeekCurateResponse = { ...playbook, communityStats };
 
         // Consume 1 credit for the first computation this calendar day, then cache.
-        if (userId) {
-          await consumeCurateCredit(userId);
+        if (userId && supabase) {
+          const creditResult = await consumeCurateCredit(userId, supabase);
+          if (creditResult) {
+            emit({ type: "credits", credits_remaining: creditResult.credits_remaining, plan: creditResult.plan });
+          }
           await redis.set(curateKey(userId, community.subreddit), response, { ex: CURATE_TTL });
           console.log(`[tech-week/curate] cached — ${community.subreddit} (TTL: ${CURATE_TTL}s)`);
         } else {

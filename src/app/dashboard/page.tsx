@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scanLimited, setScanLimited]   = useState(false);
+  const [credits, setCredits]           = useState<{ plan: string; remaining: number } | null>(null);
   const cancelRef       = useRef(false);
   const persistedUrlRef = useRef<string | null>(null);
   const scanIdRef       = useRef<number | null>(null);
@@ -34,6 +35,14 @@ export default function DashboardPage() {
   const { openSignIn } = useClerk();
   const fingerprintId  = useFingerprint();
   const savedScan      = useScanRestore();
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch("/api/credits")
+      .then(r => r.json())
+      .then(body => setCredits({ plan: body.plan, remaining: body.credits_remaining }))
+      .catch(() => {});
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!savedScan) return;
@@ -101,7 +110,9 @@ export default function DashboardPage() {
       let received = false;
       for await (const ev of readSSE(res)) {
         if (cancelRef.current) return;
-        if (ev.type === "result") {
+        if (ev.type === "credits") {
+          setCredits({ plan: ev.plan, remaining: ev.credits_remaining });
+        } else if (ev.type === "result") {
           received = true;
           setSlots(prev => {
             const next = [...prev];
@@ -292,7 +303,17 @@ export default function DashboardPage() {
 
       {/* ── Mobile header ── */}
       <div className={styles.mobileHeader}>
-        <span className={styles.mobileHeaderTitle}>Communities</span>
+        <div className={styles.mobileHeaderTop}>
+          <span className={styles.mobileHeaderTitle}>Communities</span>
+          {isSignedIn && credits && (
+            <span
+              className={styles.creditBadge}
+              data-state={credits.remaining === 0 ? "empty" : credits.remaining === 1 ? "low" : "ok"}
+            >
+              {credits.remaining === 0 ? "No credits" : `${credits.remaining} credit${credits.remaining !== 1 ? "s" : ""}`}
+            </span>
+          )}
+        </div>
         <button
           className={styles.mobileDropdownTrigger}
           onClick={() => setDropdownOpen(o => !o)}
@@ -346,12 +367,22 @@ export default function DashboardPage() {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <span className={styles.sidebarTitle}>Communities ({slots.length})</span>
-          <button
-            className={styles.rescanBtn}
-            onClick={() => { cancelRef.current = true; setPhase("idle"); }}
-          >
-            ← New scan
-          </button>
+          <div className={styles.sidebarHeaderRight}>
+            {isSignedIn && credits && (
+              <span
+                className={styles.creditBadge}
+                data-state={credits.remaining === 0 ? "empty" : credits.remaining === 1 ? "low" : "ok"}
+              >
+                {credits.remaining === 0 ? "No credits" : `${credits.remaining} credit${credits.remaining !== 1 ? "s" : ""}`}
+              </span>
+            )}
+            <button
+              className={styles.rescanBtn}
+              onClick={() => { cancelRef.current = true; setPhase("idle"); }}
+            >
+              ← New scan
+            </button>
+          </div>
         </div>
 
         <div className={styles.communityList}>

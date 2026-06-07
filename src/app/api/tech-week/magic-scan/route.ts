@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { redis } from "@/lib/redis";
+import { getAuthenticatedClient } from "@/lib/supabaseServer";
 import { MOCK_MAGIC_SCAN_RESPONSE } from "../mock-data";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
@@ -244,11 +245,24 @@ async function checkScanGateForUnauthenticatedUser(request: NextRequest, fingerp
 }
 
 // Credits gate for authenticated users (read-only — curate is the billing point).
-// Key missing = new user with 3 free credits (lazy init).
-async function checkCreditsForAuthenticatedUser(userId: string): Promise<"allowed" | "payment_required"> {
-  const credits = parseInt((await redis.get<string>(`credits:user:${userId}`)) ?? "3", 10);
-  if (credits > 0) {
-    console.log(`[magic-scan] credits OK — user: ${userId}, credits: ${credits}`);
+// No row in user_subscriptions = new user (lazy init gives 3 free credits on first curate).
+async function checkCreditsForAuthenticatedUser(
+  userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<"allowed" | "payment_required"> {
+  const { data } = await supabase
+    .from("user_subscriptions")
+    .select("credits_remaining")
+    .eq("user_id", userId)
+    .single();
+
+  if (!data) {
+    console.log(`[magic-scan] new user, no subscription row — allowed: ${userId}`);
+    return "allowed";
+  }
+  if (data.credits_remaining > 0) {
+    console.log(`[magic-scan] credits OK — user: ${userId}, credits: ${data.credits_remaining}`);
     return "allowed";
   }
   console.log(`[magic-scan] payment required — user: ${userId}`);
@@ -272,7 +286,7 @@ export async function POST(request: NextRequest) {
 
   const storeUrl = url.startsWith("http") ? url : `https://${url}`;
 
-  const { userId } = getAuth(request);
+  const { userId, getToken } = getAuth(request);
 
   if (!userId) {
     const blocked = await checkScanGateForUnauthenticatedUser(request, fingerprintId ?? undefined);
@@ -280,7 +294,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
     }
   } else {
-    const result = await checkCreditsForAuthenticatedUser(userId);
+    const token = await getToken();
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const supabase = getAuthenticatedClient(token);
+    const result = await checkCreditsForAuthenticatedUser(userId, supabase);
     if (result === "payment_required") {
       return NextResponse.json({ error: "payment_required" }, { status: 402 });
     }
