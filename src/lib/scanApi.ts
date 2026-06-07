@@ -1,5 +1,11 @@
 import type { SavedScan, SavedScanSlot } from "./scanStorage";
 
+export interface ActivityProgress {
+  subreddit: string;
+  step1_completed: boolean;
+  step2_completed: boolean;
+}
+
 export async function fetchLastScanFromDb(): Promise<SavedScan | null> {
   try {
     const res = await fetch("/api/scan");
@@ -7,16 +13,21 @@ export async function fetchLastScanFromDb(): Promise<SavedScan | null> {
     const body = await res.json();
     if (!body.data) return null;
     return {
+      scanId:       body.data.id,
       storeUrl:     body.data.store_url,
       brandProfile: body.data.brand_profile,
-      slots:        (body.data.communities as any[]).map((s: any) => ({ ...s, data: null })),
+      slots:        (body.data.communities as any[]).map((s: any) => ({
+        community:   s.community,
+        data:        null,
+        currentStep: 1 as const,
+      })),
     };
   } catch { return null; }
 }
 
-export async function saveScanToDb(scan: SavedScan): Promise<void> {
+export async function saveScanToDb(scan: SavedScan): Promise<number | null> {
   try {
-    await fetch("/api/scan", {
+    const res = await fetch("/api/scan", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
@@ -25,7 +36,29 @@ export async function saveScanToDb(scan: SavedScan): Promise<void> {
         slots:        scan.slots,
       }),
     });
-  } catch { /* non-critical — UI still works without DB save */ }
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.scanId ?? null;
+  } catch { return null; }
+}
+
+export async function fetchTodayActivity(scanId: number): Promise<ActivityProgress[] | null> {
+  try {
+    const res = await fetch(`/api/activity?scanId=${scanId}`);
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.progress ?? null;
+  } catch { return null; }
+}
+
+export async function saveActivityToDb(scanId: number, progress: ActivityProgress[]): Promise<void> {
+  try {
+    await fetch("/api/activity", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ scanId, progress }),
+    });
+  } catch { /* non-critical */ }
 }
 
 // Writes pre-computed blueprints to Redis after OAuth sign-in.

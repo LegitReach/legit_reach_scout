@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { saveScanToSession } from "@/lib/scanStorage";
-import { saveScanToDb } from "@/lib/scanApi";
+import { saveScanToDb, saveActivityToDb } from "@/lib/scanApi";
 import { useScanRestore } from "@/hooks/useScanRestore";
 import { useFingerprint } from "@/hooks/useFingerprint";
 import type { SelectedCommunity, CurateData, CommunitySlot, Phase } from "./types";
@@ -24,8 +24,10 @@ export default function DashboardPage() {
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scanLimited, setScanLimited]   = useState(false);
-  const cancelRef      = useRef(false);
+  const cancelRef       = useRef(false);
   const persistedUrlRef = useRef<string | null>(null);
+  const scanIdRef       = useRef<number | null>(null);
+  const hasRestoredRef  = useRef(false);
 
   const router       = useRouter();
   const { isSignedIn } = useAuth();
@@ -35,11 +37,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!savedScan) return;
+
+    // Always capture scanId when useScanRestore propagates it (may arrive in a second update)
+    if (savedScan.scanId) scanIdRef.current = savedScan.scanId;
+
+    // Only run the full restore once — prevents re-running curate when scanId is added
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
     const restored = savedScan.slots.map(s => ({
-      community: s.community,
-      data: s.data as CurateData | null,
-      loading: !s.data,
-      failed: false,
+      community:   s.community,
+      data:        s.data as CurateData | null,
+      loading:     !s.data,
+      failed:      false,
       currentStep: s.currentStep,
     }));
     persistedUrlRef.current = savedScan.storeUrl;
@@ -52,6 +62,16 @@ export default function DashboardPage() {
       if (!slot.data) curateOne(savedScan.brandProfile, slot.community, idx);
     });
   }, [savedScan]); // curateOne intentionally excluded — fires only when savedScan changes
+
+  const saveActivity = useCallback((nextSlots: CommunitySlot[]) => {
+    if (!isSignedIn || !scanIdRef.current) return;
+    const progress = nextSlots.map(s => ({
+      subreddit:       s.community.subreddit,
+      step1_completed: s.currentStep === 2 || s.currentStep === "complete",
+      step2_completed: s.currentStep === "complete",
+    }));
+    saveActivityToDb(scanIdRef.current, progress);
+  }, [isSignedIn]);
 
   const handleSignIn = useCallback(() => {
     saveScanToSession({
@@ -118,17 +138,19 @@ export default function DashboardPage() {
     setSlots(prev => {
       const next = [...prev];
       next[idx] = { ...next[idx], currentStep: 2 };
+      saveActivity(next);
       return next;
     });
-  }, []);
+  }, [saveActivity]);
 
   const completeStep2 = useCallback((idx: number) => {
     setSlots(prev => {
       const next = [...prev];
       next[idx] = { ...next[idx], currentStep: "complete" };
+      saveActivity(next);
       return next;
     });
-  }, []);
+  }, [saveActivity]);
 
   const run = useCallback(async () => {
     const trimmed = url.trim();
@@ -186,7 +208,8 @@ export default function DashboardPage() {
 
       if (isSignedIn && trimmed !== persistedUrlRef.current) {
         persistedUrlRef.current = trimmed;
-        saveScanToDb({ storeUrl: trimmed, brandProfile: bp, slots: communities.map(c => ({ community: c, data: null, currentStep: 1 })) });
+        const scanId = await saveScanToDb({ storeUrl: trimmed, brandProfile: bp, slots: communities.map(c => ({ community: c, data: null, currentStep: 1 })) });
+        if (scanId) scanIdRef.current = scanId;
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));

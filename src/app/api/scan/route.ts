@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("brand_scans")
-    .select("store_url, brand_profile, communities")
+    .select("id, store_url, brand_profile, communities")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(1)
@@ -50,26 +50,25 @@ export async function POST(req: NextRequest) {
 
   const supabase = getAuthenticatedClient(token);
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("brand_scans")
     .upsert(
       {
         user_id:       userId,
         store_url:     storeUrl,
         brand_profile: brandProfile,
-        // Strip curate data — only brand/community metadata belongs in the DB.
-        // Curate results are re-generated fresh from Redis or the AI on restore.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        communities:   (slots as any[]).map(({ community, currentStep }) => ({ community, currentStep })),
+        communities:   (slots as any[]).map(({ community }) => ({ community })),
         updated_at:    new Date().toISOString(),
       },
       { onConflict: "user_id" }
-    );
+    )
+    .select("id")
+    .single();
 
   if (error) {
     console.error("[scan/POST]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, scanId: data.id });
 }
