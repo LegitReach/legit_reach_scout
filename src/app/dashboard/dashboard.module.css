@@ -645,6 +645,11 @@
   background: #4f46e5;
 }
 
+.ctaPrimary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ─── Suggested title (Step 3) ─────────────────────────────────────────────── */
 
 .suggestedTitle {

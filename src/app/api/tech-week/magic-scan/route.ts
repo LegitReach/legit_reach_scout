@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { redis } from "@/lib/redis";
+import { MOCK_MAGIC_SCAN_RESPONSE } from "../mock-data";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -286,6 +287,26 @@ export async function POST(request: NextRequest) {
   }
 
   const encoder = new TextEncoder();
+
+  // ── Mock mode — skip AI pipeline, return seed data for testing ───────────
+  if (process.env.MOCK_MODE === "true") {
+    console.log("[magic-scan] MOCK_MODE — returning seed data");
+    const stream = new ReadableStream({
+      start(controller) {
+        const emit = (event: object) =>
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        emit({ type: "step", step: 1, status: "done", msg: `Store found — ${MOCK_MAGIC_SCAN_RESPONSE.meta.brandName}` });
+        emit({ type: "step", step: 2, status: "done", msg: `"${MOCK_MAGIC_SCAN_RESPONSE.brandProfile.tagline}"`, data: { brandProfile: MOCK_MAGIC_SCAN_RESPONSE.brandProfile } });
+        emit({ type: "step", step: 3, status: "done", msg: `${MOCK_MAGIC_SCAN_RESPONSE.communities.length} candidates: ${MOCK_MAGIC_SCAN_RESPONSE.communities.map(c => c.subreddit).join(" · ")}` });
+        emit({ type: "step", step: 4, status: "done", msg: MOCK_MAGIC_SCAN_RESPONSE.communities.map(c => `${c.subreddit} · ${c.promotionStance}`).join(" · "), data: { communities: MOCK_MAGIC_SCAN_RESPONSE.communities } });
+        emit({ type: "result", data: MOCK_MAGIC_SCAN_RESPONSE });
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" },
+    });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {

@@ -5,6 +5,7 @@ import { getGeminiModel } from "@/ai/gemini.model";
 import { redis } from "@/lib/redis";
 import type { BrandProfile, SelectedCommunity } from "@/app/api/tech-week/magic-scan/route";
 import type { RedditPost } from "@/types";
+import { getMockCurateData } from "../mock-data";
 
 const CURATE_TTL     = 86400;  // 24h in seconds
 const CURATE_DAY_TTL = 172800; // 48h — covers timezone edge cases
@@ -358,6 +359,26 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+  }
+
+  // ── Mock mode — skip Reddit + Gemini, but run cache write + credit consume ──
+  if (process.env.MOCK_MODE === "true") {
+    console.log(`[tech-week/curate] MOCK_MODE — returning seed data for ${community.subreddit}`);
+    const mockData = getMockCurateData(community.subreddit);
+    if (userId) {
+      await consumeCurateCredit(userId);
+      await redis.set(curateKey(userId, community.subreddit), mockData, { ex: CURATE_TTL });
+      console.log(`[tech-week/curate] mock cached — ${community.subreddit}`);
+    }
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "result", data: mockData })}\n\n`));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" },
+    });
   }
 
   const stream = new ReadableStream({
