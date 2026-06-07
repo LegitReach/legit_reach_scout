@@ -135,6 +135,24 @@
 
 /* ─── Scanning screen ──────────────────────────────────────────────────────── */
 
+.restoreScreen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #f9fafb;
+  padding: 24px;
+}
+
+.restoreMsg {
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
+  text-align: center;
+}
+
 .scanCard {
   background: #fff;
   border: 1px solid #e5e7eb;

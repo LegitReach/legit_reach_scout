@@ -231,11 +231,9 @@ export default function DashboardPage() {
   if (phase === "idle" || phase === "error") {
     if (isRestoring) {
       return (
-        <div className={styles.inputScreen}>
-          <div className={styles.scanCard}>
-            <div className={styles.scanSpinner} />
-            <p className={styles.scanTitle}>Fetching your blueprints...</p>
-          </div>
+        <div className={styles.restoreScreen}>
+          <div className={styles.scanSpinner} />
+          <p className={styles.restoreMsg}>Fetching your blueprints...</p>
         </div>
       );
     }
