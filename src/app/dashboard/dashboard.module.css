@@ -248,6 +248,75 @@
   gap: 2px;
 }
 
+.sidebarFooter {
+  padding: 10px 12px 14px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.creditsCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.creditsLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #111827;
+  min-width: 36px;
+}
+
+.creditsDots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.creditsDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.creditsDotFilled {
+  background: #6366f1;
+}
+
+.creditsCount {
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.creditsCard[data-state="low"] .creditsDotFilled {
+  background: #f59e0b;
+}
+
+.creditsCard[data-state="low"] .creditsLabel {
+  color: #92400e;
+}
+
+.creditsCard[data-state="empty"] {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.creditsCard[data-state="empty"] .creditsLabel {
+  color: #991b1b;
+}
+
+.creditsCard[data-state="empty"] .creditsCount {
+  color: #ef4444;
+}
+
 .communityCard {
   display: flex;
   align-items: center;

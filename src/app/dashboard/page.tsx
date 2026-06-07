@@ -367,22 +367,12 @@ export default function DashboardPage() {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <span className={styles.sidebarTitle}>Communities ({slots.length})</span>
-          <div className={styles.sidebarHeaderRight}>
-            {isSignedIn && credits && (
-              <span
-                className={styles.creditBadge}
-                data-state={credits.remaining === 0 ? "empty" : credits.remaining === 1 ? "low" : "ok"}
-              >
-                {credits.remaining === 0 ? "No credits" : `${credits.remaining} credit${credits.remaining !== 1 ? "s" : ""}`}
-              </span>
-            )}
-            <button
-              className={styles.rescanBtn}
-              onClick={() => { cancelRef.current = true; setPhase("idle"); }}
-            >
-              ← New scan
-            </button>
-          </div>
+          <button
+            className={styles.rescanBtn}
+            onClick={() => { cancelRef.current = true; setPhase("idle"); }}
+          >
+            ← New scan
+          </button>
         </div>
 
         <div className={styles.communityList}>
@@ -425,6 +415,29 @@ export default function DashboardPage() {
             );
           })}
         </div>
+
+        {isSignedIn && credits && (() => {
+          const isExpired  = credits.plan === "expired" || credits.remaining === 0;
+          const isLow      = !isExpired && credits.remaining === 1;
+          const maxCredits = credits.plan === "paid" ? 30 : 3;
+          const totalDots  = credits.plan === "paid" ? 5 : 3;
+          const filledDots = isExpired ? 0 : Math.min(totalDots, Math.ceil((credits.remaining / maxCredits) * totalDots));
+          const planLabel  = credits.plan === "paid" ? "Pro" : isExpired ? "Expired" : "Free";
+          const state      = isExpired ? "empty" : isLow ? "low" : "ok";
+          return (
+            <div className={styles.sidebarFooter}>
+              <div className={styles.creditsCard} data-state={state}>
+                <span className={styles.creditsLabel}>{planLabel}</span>
+                <div className={styles.creditsDots}>
+                  {Array.from({ length: totalDots }).map((_, i) => (
+                    <span key={i} className={`${styles.creditsDot} ${i < filledDots ? styles.creditsDotFilled : ""}`} />
+                  ))}
+                </div>
+                <span className={styles.creditsCount}>{credits.remaining} of {maxCredits} credits</span>
+              </div>
+            </div>
+          );
+        })()}
       </aside>
 
       {/* ── Right panel ── */}
