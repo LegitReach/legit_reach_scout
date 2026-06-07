@@ -14,6 +14,7 @@ export interface SavedScanSlot {
 }
 
 export interface SavedScan {
+  scanId?: number;
   storeUrl: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   brandProfile: any;
