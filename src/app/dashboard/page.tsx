@@ -243,9 +243,9 @@ export default function DashboardPage() {
         <div className={styles.inputScreen}>
           <div className={styles.inputCard}>
             <div className={styles.inputLogo}>LegitReach</div>
-            <h1 className={styles.inputHeading}>You&apos;ve used your free scan</h1>
+            <h1 className={styles.inputHeading}>Your blueprint is ready to build</h1>
             <p className={styles.inputSub}>
-              Sign in to unlock unlimited scans and save your blueprints across sessions.
+              Sign in to get 3 free credits, save your blueprints, and pick up right where you left off.
             </p>
             <button className={styles.scanBtn} onClick={() => openSignIn()}>
               Sign in to continue
@@ -315,12 +315,33 @@ export default function DashboardPage() {
         <div className={styles.mobileHeaderTop}>
           <span className={styles.mobileHeaderTitle}>Communities</span>
           {isSignedIn && credits && (
-            <span
-              className={styles.creditBadge}
-              data-state={credits.remaining === 0 ? "empty" : credits.remaining === 1 ? "low" : "ok"}
-            >
-              {credits.remaining === 0 ? "No credits" : `${credits.remaining} credit${credits.remaining !== 1 ? "s" : ""}`}
-            </span>
+            <div className={styles.mobileHeaderActions}>
+              {credits.plan !== "paid" && (
+                <span
+                  className={styles.creditBadge}
+                  data-state={credits.remaining === 0 ? "empty" : credits.remaining === 1 ? "low" : "ok"}
+                >
+                  {credits.remaining} credit{credits.remaining !== 1 ? "s" : ""}
+                </span>
+              )}
+              {credits.plan === "paid" ? (
+                <span
+                  className={styles.creditBadge}
+                  data-state={credits.remaining === 1 ? "low" : "ok"}
+                >
+                  {credits.remaining} credit{credits.remaining !== 1 ? "s" : ""}
+                </span>
+              ) : (
+                <a
+                  href="/subscribe"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.mobileUpgradeBtn}
+                >
+                  Upgrade
+                </a>
+              )}
+            </div>
           )}
         </div>
         <button
@@ -444,6 +465,16 @@ export default function DashboardPage() {
                 </div>
                 <span className={styles.creditsCount}>{credits.remaining} of {maxCredits} credits</span>
               </div>
+              {credits.plan !== "paid" && (
+                <a
+                  href="/subscribe"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.upgradeBtn}
+                >
+                  Upgrade
+                </a>
+              )}
             </div>
           );
         })()}

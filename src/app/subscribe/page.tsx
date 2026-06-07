@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, Zap, Shield, Star, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -51,10 +51,10 @@ function SubscribeContent() {
             <div className={styles.content}>
                 <div className={styles.header}>
                     <h1 className={styles.title}>
-                        You've used your free scans.
+                        Keep building your presence.
                     </h1>
                     <p className={styles.subtitle}>
-                        Get 30 scan credits to keep building your Reddit engagement blueprints.
+                        Get 30 credits and unlock a fresh Reddit engagement blueprint every day for 30 days.
                     </p>
 
                     {success && (
