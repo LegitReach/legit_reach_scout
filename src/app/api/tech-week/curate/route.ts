@@ -168,7 +168,7 @@ async function fetchSubredditPosts(subreddit: string): Promise<RedditPost[]> {
           : Math.floor(Date.now() / 1000);
         const category = e.match(/<category[^>]*label="([^"]+)"/)?.[1] ?? clean;
         const contentHtml = e.match(/<content[^>]*>([\s\S]*?)<\/content>/)?.[1] ?? "";
-        const selftext = decodeXmlEntities(contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).slice(0, 500);
+        const selftext = decodeXmlEntities(contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
 
         if (!title || !link) return null;
 
