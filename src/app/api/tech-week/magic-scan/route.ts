@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { redis } from "@/lib/redis";
+import { getAuthenticatedClient } from "@/lib/supabaseServer";
+import { MOCK_MAGIC_SCAN_RESPONSE } from "../mock-data";
 
 // Sequential steps: Jina ~3s + Gemini ~4s + Reddit search ~2s + rules parallel ~3s + Gemini ~4s
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -220,23 +224,106 @@ Return ONLY a valid JSON array with ALL ${candidates.length} communities ranked 
   return JSON.parse(raw) as SelectedCommunity[];
 }
 
+// ─── Unauthenticated scan gate ────────────────────────────────────────────────
+
+// Returns true if the scan should be blocked (device has already used its free scan).
+// Primary key: fingerprint. Fallback: IP (only when fingerprint is absent).
+async function checkScanGateForUnauthenticatedUser(request: NextRequest, fingerprintId?: string): Promise<boolean> {
+  const key = fingerprintId
+    ? `scan:unauth:fp:${fingerprintId}`
+    : `scan:unauth:ip:${request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "unknown"}`;
+
+  const used = await redis.get(key);
+  if (used) {
+    console.log(`[magic-scan] scan limit reached — key: ${key}`);
+    return true;
+  }
+
+  await redis.set(key, "1");
+  console.log(`[magic-scan] free scan recorded — key: ${key}`);
+  return false;
+}
+
+// Credits gate for authenticated users (read-only — curate is the billing point).
+// No row in user_subscriptions = new user (lazy init gives 3 free credits on first curate).
+async function checkCreditsForAuthenticatedUser(
+  userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<"allowed" | "payment_required"> {
+  const { data } = await supabase
+    .from("user_subscriptions")
+    .select("credits_remaining")
+    .eq("user_id", userId)
+    .single();
+
+  if (!data) {
+    console.log(`[magic-scan] new user, no subscription row — allowed: ${userId}`);
+    return "allowed";
+  }
+  if (data.credits_remaining > 0) {
+    console.log(`[magic-scan] credits OK — user: ${userId}, credits: ${data.credits_remaining}`);
+    return "allowed";
+  }
+  console.log(`[magic-scan] payment required — user: ${userId}`);
+  return "payment_required";
+}
+
 // ─── Handler (SSE streaming) ──────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  let body: { url?: string };
+  let body: { url?: string; fingerprintId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url } = body;
+  const { url, fingerprintId } = body;
   if (!url) {
     return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
 
   const storeUrl = url.startsWith("http") ? url : `https://${url}`;
+
+  const { userId, getToken } = getAuth(request);
+
+  if (!userId) {
+    const blocked = await checkScanGateForUnauthenticatedUser(request, fingerprintId ?? undefined);
+    if (blocked) {
+      return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
+    }
+  } else {
+    const token = await getToken();
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const supabase = getAuthenticatedClient(token);
+    const result = await checkCreditsForAuthenticatedUser(userId, supabase);
+    if (result === "payment_required") {
+      return NextResponse.json({ error: "payment_required" }, { status: 402 });
+    }
+  }
+
   const encoder = new TextEncoder();
+
+  // ── Mock mode — skip AI pipeline, return seed data for testing ───────────
+  if (process.env.MOCK_MODE === "true") {
+    console.log("[magic-scan] MOCK_MODE — returning seed data");
+    const stream = new ReadableStream({
+      start(controller) {
+        const emit = (event: object) =>
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        emit({ type: "step", step: 1, status: "done", msg: `Store found — ${MOCK_MAGIC_SCAN_RESPONSE.meta.brandName}` });
+        emit({ type: "step", step: 2, status: "done", msg: `"${MOCK_MAGIC_SCAN_RESPONSE.brandProfile.tagline}"`, data: { brandProfile: MOCK_MAGIC_SCAN_RESPONSE.brandProfile } });
+        emit({ type: "step", step: 3, status: "done", msg: `${MOCK_MAGIC_SCAN_RESPONSE.communities.length} candidates: ${MOCK_MAGIC_SCAN_RESPONSE.communities.map(c => c.subreddit).join(" · ")}` });
+        emit({ type: "step", step: 4, status: "done", msg: MOCK_MAGIC_SCAN_RESPONSE.communities.map(c => `${c.subreddit} · ${c.promotionStance}`).join(" · "), data: { communities: MOCK_MAGIC_SCAN_RESPONSE.communities } });
+        emit({ type: "result", data: MOCK_MAGIC_SCAN_RESPONSE });
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" },
+    });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {

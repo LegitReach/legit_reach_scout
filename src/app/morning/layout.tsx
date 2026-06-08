@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import Sidebar from "@/components/Sidebar";
-import styles from "../dashboard/layout.module.css";
+import styles from "./layout.module.css";
 
 export default function MorningLayout({ children }: { children: React.ReactNode }) {
     const { onboarding } = useApp();

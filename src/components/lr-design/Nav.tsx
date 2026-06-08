@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { SignInButton, SignedOut } from "@clerk/nextjs";
 
 const LINKS = [
   { href: "/building", label: "Building" },
@@ -65,12 +66,27 @@ export default function Nav({ current }: { current?: string }) {
         </div>
 
         {/* Desktop CTA */}
-        <a
-          href="mailto:manthan@legitreach.com"
-          className="lr-btn-nav hidden md:inline-flex"
-        >
-          Start a Chat
-        </a>
+        <div className="hidden md:flex items-center" style={{ gap: "0.75rem" }}>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button style={{
+                padding: "6px 14px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                border: "1px solid rgba(255,255,255,0.3)",
+                background: "rgba(255,255,255,0.1)",
+                color: "#ffffff",
+              }}>
+                Sign in
+              </button>
+            </SignInButton>
+          </SignedOut>
+          <a href="mailto:manthan@legitreach.com" className="lr-btn-nav">
+            Start a Chat
+          </a>
+        </div>
 
         {/* Mobile hamburger */}
         <button
@@ -123,14 +139,33 @@ export default function Nav({ current }: { current?: string }) {
               </Link>
             );
           })}
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  width: "100%",
+                  textAlign: "center",
+                  marginTop: "0.5rem",
+                  padding: "0.875rem 1rem",
+                  borderRadius: "0.5rem",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "#ffffff",
+                  fontSize: "1.125rem",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Sign in
+              </button>
+            </SignInButton>
+          </SignedOut>
           <a
             href="mailto:manthan@legitreach.com"
             onClick={() => setOpen(false)}
             className="lr-btn-primary"
-            style={{
-              textAlign: "center",
-              marginTop: "0.5rem",
-            }}
+            style={{ textAlign: "center", marginTop: "0.5rem" }}
           >
             Start a Chat
           </a>

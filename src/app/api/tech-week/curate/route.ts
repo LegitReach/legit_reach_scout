@@ -1,17 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProxyAgent, fetch as proxyFetch } from "undici";
+import { getAuth } from "@clerk/nextjs/server";
 import { getGeminiModel } from "@/ai/gemini.model";
+import { redis } from "@/lib/redis";
+import { getAuthenticatedClient } from "@/lib/supabaseServer";
 import type { BrandProfile, SelectedCommunity } from "@/app/api/tech-week/magic-scan/route";
 import type { RedditPost } from "@/types";
+import { getMockCurateData } from "../mock-data";
+
+const CURATE_TTL = 86400; // 24h in seconds
+
+function curateKey(userId: string, subreddit: string): string {
+  const sub = subreddit.startsWith("r/") ? subreddit.slice(2).toLowerCase() : subreddit.toLowerCase();
+  return `blueprint:${userId}:${sub}`;
+}
+
+// Entitlement check (read-only).
+// Authenticated: checks user_subscriptions in Supabase (missing row = 3 free credits).
+// Unauthenticated: fingerprint/IP key must exist from a completed magic-scan.
+async function checkCurateEntitlement(
+  request: NextRequest,
+  userId: string | null,
+  fingerprintId?: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase?: any
+): Promise<"allowed" | "scan_limit_reached" | "payment_required"> {
+  if (userId && supabase) {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase
+      .from("user_subscriptions")
+      .select("credits_remaining, last_curated_date")
+      .eq("user_id", userId)
+      .single();
+
+    if (!data) return "allowed";                          // new user — lazy init gives 3 free credits
+    if (data.last_curated_date === today) return "allowed"; // already charged today
+    if (data.credits_remaining > 0) return "allowed";
+    return "payment_required";
+  }
+
+  const key = fingerprintId
+    ? `scan:unauth:fp:${fingerprintId}`
+    : `scan:unauth:ip:${
+        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+        request.headers.get("x-real-ip") ??
+        "unknown"
+      }`;
+  const scanned = await redis.get(key);
+  return scanned ? "allowed" : "scan_limit_reached";
+}
+
+async function consumeCurateCredit(
+  userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<{ credits_remaining: number; plan: string } | null> {
+  const { data, error } = await supabase.rpc("consume_curate_credit", { p_user_id: userId });
+  if (error) {
+    console.error("[tech-week/curate] consume_curate_credit error:", error.message);
+    return null;
+  }
+  if (!data || data.length === 0) return null; // credits exhausted
+  const result = data[0];
+  console.log(`[tech-week/curate] credit consumed — user: ${userId}, remaining: ${result.credits_remaining}, plan: ${result.plan}`);
+  return result;
+}
 
 // ─── Response types ───────────────────────────────────────────────────────────
-
-export interface SentimentBreakdown {
-  positive: number;  // percentage 0–100, all four sum to 100
-  neutral:  number;
-  curious:  number;
-  critical: number;
-}
 
 export interface CommunityStats {
   subscribers: string;   // e.g. "4.1M" | "320K"
@@ -19,10 +74,6 @@ export interface CommunityStats {
 }
 
 export interface TechWeekCurateResponse {
-  sentiment: {
-    post: RedditPost;
-    communityInsight: string;
-  };
   engagement: {
     post: RedditPost;
     draftComment: string;
@@ -36,11 +87,7 @@ export interface TechWeekCurateResponse {
     whatToAvoid: string[];
     postingTips: string;
   };
-  sentimentBreakdown: SentimentBreakdown;
   communityStats: CommunityStats;
-  /** Top posts from the subreddit hot feed, excluding the 2 blueprint picks.
-   *  Used by the Engagement tab — different from what shows in Blueprint. */
-  engagementPosts: RedditPost[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,12 +109,17 @@ function proxyDispatcher() {
   return new ProxyAgent(`http://${u}:${p}@proxy.apify.com:8000`);
 }
 
-async function proxyGet(url: string): Promise<Response> {
+async function proxyGet(url: string, timeoutMs = 60_000): Promise<Response> {
   const dispatcher = proxyDispatcher();
   if (dispatcher) {
-    return proxyFetch(url, { dispatcher, headers: proxyHeaders() }) as unknown as Response;
+    try {
+      const signal = AbortSignal.timeout(timeoutMs);
+      return await proxyFetch(url, { dispatcher, headers: proxyHeaders(), signal }) as unknown as Response;
+    } catch (err) {
+      console.warn("[tech-week/curate] proxy fetch failed, falling back to direct:", err instanceof Error ? err.message : err);
+    }
   }
-  return fetch(url, { headers: proxyHeaders() });
+  return fetch(url, { headers: proxyHeaders(), signal: AbortSignal.timeout(timeoutMs) });
 }
 
 // ─── Reddit fetches (run in parallel) ────────────────────────────────────────
@@ -116,7 +168,7 @@ async function fetchSubredditPosts(subreddit: string): Promise<RedditPost[]> {
           : Math.floor(Date.now() / 1000);
         const category = e.match(/<category[^>]*label="([^"]+)"/)?.[1] ?? clean;
         const contentHtml = e.match(/<content[^>]*>([\s\S]*?)<\/content>/)?.[1] ?? "";
-        const selftext = decodeXmlEntities(contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).slice(0, 500);
+        const selftext = decodeXmlEntities(contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
 
         if (!title || !link) return null;
 
@@ -170,7 +222,7 @@ async function generatePlaybook(
   brand: BrandProfile,
   community: SelectedCommunity,
   posts: RedditPost[]
-): Promise<Omit<TechWeekCurateResponse, "communityStats" | "engagementPosts">> {
+): Promise<Pick<TechWeekCurateResponse, "engagement" | "creation">> {
 
   const postList = posts
     .map((p, i) => {
@@ -211,18 +263,8 @@ ${postList}
 
 Return ONLY a valid JSON object with this exact structure:
 {
-  "sentimentBreakdown": {
-    "positive": <integer 0-100: % of posts that are celebratory, supportive, wins, grateful>,
-    "neutral":  <integer 0-100: % of posts that are informational, questions, neutral discussions>,
-    "curious":  <integer 0-100: % of posts that are seeking advice, exploratory, open-ended>,
-    "critical": <integer 0-100: % of posts that are venting, critical, controversial, negative>
-  },
-  "sentiment": {
-    "postIndex": <1-based index — pick the post that best reveals what this community READS and values>,
-    "communityInsight": "2-3 sentences: what this community values, what it distrusts, what tone gets upvotes. Be specific to what you see in these actual posts."
-  },
   "engagement": {
-    "postIndex": <1-based index of a DIFFERENT post — best opportunity to add value with a comment RIGHT NOW>,
+    "postIndex": <1-based index — best opportunity to add value with a comment RIGHT NOW>,
     "draftComment": "A ready-to-post comment. Respect the promotionStance rule above exactly. Keep it SHORT (1-2 sentences, max ~40 words), casual, and genuinely engaging like a real person typing fast. Do NOT use em dashes (—). Do NOT sound like AI or marketing copy. Prioritise sparking a reply over sounding polished.",
     "whyThisPost": "One sentence: why this is the best engagement opportunity right now."
   },
@@ -236,41 +278,21 @@ Return ONLY a valid JSON object with this exact structure:
   }
 }
 
-Rules:
-- sentimentBreakdown four values MUST sum to exactly 100
-- sentiment and engagement MUST reference different posts
-- Base sentimentBreakdown on the actual upvote_ratio values AND title/body content
-- Return only the JSON. No markdown. No explanation.`;
+Return only the JSON. No markdown. No explanation.`;
 
   const model = getGeminiModel();
-  const result = await model.generateContent(prompt);
+  const geminiTimeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Gemini timeout")), 60_000)
+  );
+  const result = await Promise.race([model.generateContent(prompt), geminiTimeout]);
   const raw = result.response.text().replace(/```json|```/g, "").trim();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = JSON.parse(raw) as any;
 
-  const sentimentPost  = posts[parsed.sentiment.postIndex  - 1];
   const engagementPost = posts[parsed.engagement.postIndex - 1];
 
-  // Normalise breakdown — ensure it sums to 100
-  const bd = parsed.sentimentBreakdown as Record<string, number>;
-  const total = (bd.positive ?? 0) + (bd.neutral ?? 0) + (bd.curious ?? 0) + (bd.critical ?? 0);
-  const norm = (v: number) => Math.round((v / (total || 100)) * 100);
-  const sentimentBreakdown: SentimentBreakdown = {
-    positive: norm(bd.positive ?? 45),
-    neutral:  norm(bd.neutral  ?? 30),
-    curious:  norm(bd.curious  ?? 16),
-    critical: norm(bd.critical ??  9),
-  };
-  // Fix any rounding drift so they always sum to 100
-  const drift = 100 - (sentimentBreakdown.positive + sentimentBreakdown.neutral + sentimentBreakdown.curious + sentimentBreakdown.critical);
-  sentimentBreakdown.neutral += drift;
-
   return {
-    sentiment: {
-      post: sentimentPost,
-      communityInsight: parsed.sentiment.communityInsight,
-    },
     engagement: {
       post: engagementPost,
       draftComment: parsed.engagement.draftComment,
@@ -280,25 +302,24 @@ Rules:
       suggestedTitle: parsed.creation.suggestedTitle,
       format:         parsed.creation.format,
       tone:           parsed.creation.tone,
-      contentOutline: parsed.creation.contentOutline,
-      whatToAvoid:    parsed.creation.whatToAvoid,
+      contentOutline: Array.isArray(parsed.creation.contentOutline) ? parsed.creation.contentOutline : [],
+      whatToAvoid:    Array.isArray(parsed.creation.whatToAvoid)    ? parsed.creation.whatToAvoid    : [],
       postingTips:    parsed.creation.postingTips,
     },
-    sentimentBreakdown,
   };
 }
 
 // ─── Handler (SSE streaming) ──────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  let body: { brandProfile?: BrandProfile; community?: SelectedCommunity };
+  let body: { brandProfile?: BrandProfile; community?: SelectedCommunity; fingerprintId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { brandProfile, community } = body;
+  const { brandProfile, community, fingerprintId } = body;
   if (!brandProfile || !community) {
     return NextResponse.json(
       { error: "brandProfile and community are required" },
@@ -306,7 +327,71 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const { userId, getToken } = getAuth(request);
   const encoder = new TextEncoder();
+
+  // Build Supabase client only for authenticated users — used for credits
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let supabase: any = null;
+  if (userId) {
+    const token = await getToken();
+    if (token) supabase = getAuthenticatedClient(token);
+  }
+
+  console.log(`[tech-week/curate] ${community.subreddit} — userId: ${userId ?? "unauthenticated"}`);
+
+  const entitlement = await checkCurateEntitlement(request, userId, fingerprintId ?? undefined, supabase);
+  if (entitlement === "payment_required") {
+    return NextResponse.json({ error: "payment_required" }, { status: 402 });
+  }
+  if (entitlement === "scan_limit_reached") {
+    return NextResponse.json({ error: "scan_limit_reached" }, { status: 403 });
+  }
+
+  // Cache hit — return immediately as a single SSE result event
+  if (userId) {
+    const cached = await redis.get<TechWeekCurateResponse>(curateKey(userId, community.subreddit));
+    if (cached) {
+      console.log(`[tech-week/curate] cache hit — ${community.subreddit}`);
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "result", data: cached })}\n\n`));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+  }
+
+  // ── Mock mode — skip Reddit + Gemini, but run cache write + credit consume ──
+  if (process.env.MOCK_MODE === "true") {
+    console.log(`[tech-week/curate] MOCK_MODE — returning seed data for ${community.subreddit}`);
+    const mockData = getMockCurateData(community.subreddit);
+    let mockCredits: { credits_remaining: number; plan: string } | null = null;
+    if (userId && supabase) {
+      mockCredits = await consumeCurateCredit(userId, supabase);
+      await redis.set(curateKey(userId, community.subreddit), mockData, { ex: CURATE_TTL });
+      console.log(`[tech-week/curate] mock cached — ${community.subreddit}`);
+    }
+    const stream = new ReadableStream({
+      start(controller) {
+        if (mockCredits) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "credits", credits_remaining: mockCredits.credits_remaining, plan: mockCredits.plan })}\n\n`));
+        }
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "result", data: mockData })}\n\n`));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" },
+    });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -362,31 +447,24 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        const bd = playbook.sentimentBreakdown;
-        emit({
-          type: "step", step: 7, status: "done",
-          msg: `Playbook ready · +${bd.positive}% positive · ?${bd.curious}% curious · ↔${bd.neutral}% neutral · ↓${bd.critical}% critical`,
-        });
-        console.log(
-          `[tech-week/curate] Step 2 done — ` +
-          `sentiment: ${playbook.sentiment.post?.id} · engagement: ${playbook.engagement.post?.id} · ` +
-          `breakdown: +${bd.positive} ~${bd.neutral} ?${bd.curious} -${bd.critical}`
-        );
-
-        // ── Pick engagement posts — top posts NOT used in the blueprint ────────
-        // Gemini selected 2 posts (sentiment + engagement) for the blueprint.
-        // We surface 5 different hot posts for the Engagement tab so the user
-        // sees fresh material to respond to, not a repeat of the blueprint picks.
-        const blueprintIds = new Set(
-          [playbook.sentiment.post?.id, playbook.engagement.post?.id].filter(Boolean)
-        );
-        const engagementPosts = posts
-          .filter((p) => !blueprintIds.has(p.id))
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 5);
+        emit({ type: "step", step: 7, status: "done", msg: `Playbook ready · engagement: ${playbook.engagement.post?.id}` });
+        console.log(`[tech-week/curate] Step 2 done — engagement: ${playbook.engagement.post?.id}`);
 
         // ── Result ────────────────────────────────────────────────────────────
-        const response: TechWeekCurateResponse = { ...playbook, communityStats, engagementPosts };
+        const response: TechWeekCurateResponse = { ...playbook, communityStats };
+
+        // Consume 1 credit for the first computation this calendar day, then cache.
+        if (userId && supabase) {
+          const creditResult = await consumeCurateCredit(userId, supabase);
+          if (creditResult) {
+            emit({ type: "credits", credits_remaining: creditResult.credits_remaining, plan: creditResult.plan });
+          }
+          await redis.set(curateKey(userId, community.subreddit), response, { ex: CURATE_TTL });
+          console.log(`[tech-week/curate] cached — ${community.subreddit} (TTL: ${CURATE_TTL}s)`);
+        } else {
+          console.log(`[tech-week/curate] skipping cache — unauthenticated`);
+        }
+
         emit({
           type: "result",
           data: {
@@ -396,7 +474,7 @@ export async function POST(request: NextRequest) {
               promotionStance:    community.promotionStance,
               postsAnalysed:      posts.length,
               communityStats,
-              sentimentBreakdown: bd,
+
               postTitles:         posts.map((p) => p.title),
             },
           },

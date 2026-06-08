@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from "react";
 //   Explore Tools  -> /tools    (the full existing main experience, preserved)
 //   Know More      -> /building
 //   Pitch Deck     -> /invest
-//   Log In         -> /         (no-op for now)
 
 const STREAM_WORD = "legitreach";
 const STREAM_REPS = 40;
@@ -17,13 +16,19 @@ export default function Home() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canHover = useRef(false);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    canHover.current = window.matchMedia("(hover: hover)").matches;
+    // (pointer: fine) excludes touch screens and hybrid tablets that report hover: hover
+    canHover.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   }, []);
 
   useEffect(() => {
-    const close = () => setOpenMenu(null);
+    const close = (e: MouseEvent) => {
+      // Don't close if the click originated inside the nav
+      if (navRef.current?.contains(e.target as Node)) return;
+      setOpenMenu(null);
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpenMenu(null);
     };
@@ -83,7 +88,7 @@ export default function Home() {
             <span className="word"><b>LegitReach</b></span>
           </Link>
 
-          <nav className="nav">
+          <nav className="nav" ref={navRef}>
             <div
               className={`nav-item${openMenu === "products" ? " open" : ""}`}
               onMouseEnter={() => handleEnter("products")}
@@ -131,7 +136,7 @@ export default function Home() {
             </div>
           </nav>
 
-          <Link className="btn btn-ghost" href="/">Log In</Link>
+
         </div>
       </header>
 
