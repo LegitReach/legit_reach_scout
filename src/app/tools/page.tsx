@@ -67,7 +67,7 @@ export default function Home() {
                   className="flex flex-wrap"
                   style={{ gap: "1rem", marginBottom: "1rem" }}
                 >
-                  <a href="/launch" className="lr-btn-primary">
+                  <a href="/dashboard" className="lr-btn-primary">
                     Create now!
                   </a>
                 </div>
