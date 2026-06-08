@@ -7,8 +7,8 @@ import styles from "./AuthHeader.module.css";
 export default function AuthHeader() {
   const pathname = usePathname();
 
-  // morning/terminal/a16z/invest have custom navs
-  if (pathname?.startsWith('/morning') || pathname?.startsWith('/terminal') || pathname?.startsWith('/a16z') || pathname?.startsWith('/invest')) {
+  // Hide on home page, dashboard, and terminal as they have custom navs
+  if (pathname === '/' || pathname?.startsWith('/tools') ||  pathname?.startsWith('/morning') || pathname?.startsWith('/terminal') || pathname?.startsWith('/a16z') || pathname?.startsWith('/invest') || pathname?.startsWith('/building') || pathname?.startsWith('/pricing') || pathname?.startsWith('/policy')) {
     return null;
   }
 
