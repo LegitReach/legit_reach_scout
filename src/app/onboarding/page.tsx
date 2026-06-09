@@ -28,7 +28,7 @@ function OnboardingContent() {
     // Skip if already done
     useEffect(() => {
         if (isAppLoaded && onboarding.completed) {
-            router.push("/terminal");
+            router.push("/dashboard");
         }
     }, [isAppLoaded, onboarding.completed, router]);
 
@@ -82,7 +82,7 @@ function OnboardingContent() {
             localStorage.setItem("lr_pending_scan_url", storeUrl);
 
             posthog.capture("onboarding_completed", { method: "magic_scan" });
-            router.push("/terminal");
+            router.push("/dashboard");
 
         } catch (error) {
             console.error(error);
@@ -139,7 +139,7 @@ function OnboardingContent() {
             completed: true,
         });
         posthog.capture("onboarding_completed", { method: "manual" });
-        router.push("/terminal");
+        router.push("/dashboard");
     };
 
     if (!isAppLoaded) return null;

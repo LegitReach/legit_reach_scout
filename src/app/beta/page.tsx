@@ -1,29 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useApp } from "@/context/AppContext";
 import { WaitlistExperience } from "@/components/ui/waitlist-landing-page-with-countdown-timer";
 import {
   SignInButton,
   UserButton,
   SignedIn,
   SignedOut,
-  useAuth
 } from "@clerk/nextjs";
 import Link from "next/link";
-import React, { useEffect } from "react";
 import posthog from "posthog-js";
 
 export default function Home() {
-  const router = useRouter();
-  const { onboarding, isAppLoaded } = useApp();
-  const { isSignedIn, isLoaded } = useAuth();
-
-  useEffect(() => {
-    if (isLoaded && isSignedIn && isAppLoaded && onboarding.completed) {
-      router.push("/terminal");
-    }
-  }, [isLoaded, isSignedIn, isAppLoaded, onboarding.completed, router]);
   return (
     <div className="relative min-h-screen">
       {/* Absolute Header for Login/Dashboard Access */}
@@ -47,10 +34,10 @@ export default function Home() {
         </SignedOut>
         <SignedIn>
           <Link
-            href="/terminal"
+            href="/dashboard"
             className="text-sm font-medium text-foreground/90 hover:text-foreground px-4 py-2 rounded-full border border-primary/30 hover:border-primary bg-primary/10 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(114,227,173,0.1)] hover:shadow-[0_0_20px_rgba(114,227,173,0.3)] mr-2"
           >
-            Go to Terminal
+            Go to Dashboard
           </Link>
           <UserButton />
         </SignedIn>

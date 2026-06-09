@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Outfit } from "next/font/google";
-import { AppProvider } from "@/context/AppContext";
 import { ClerkProvider } from "@clerk/nextjs";
 import AuthHeader from "@/components/AuthHeader";
 import "./globals.css";
@@ -74,12 +73,10 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <PostHogPageView />
             </Suspense>
-            <AppProvider>
               <RealtimeProvider>
                 <AuthHeader />
                 {children}
               </RealtimeProvider>
-            </AppProvider>
           </ClerkProvider>
         </CSPostHogProvider>
       </body>
