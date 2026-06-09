@@ -159,8 +159,26 @@ h2 {
   max-width: 820px; position: relative; z-index: 1; font-size: 16px; color: #888;
 }
 
-/* THESIS */
-#s7 .vals { margin-top: 40px; position: relative; z-index: 1; }
+/* VALUE ROWS (Why now) */
+.vals { margin-top: 40px; position: relative; z-index: 1; }
+
+/* ROADMAP (Vision) */
+.roadmap { margin-top: 36px; max-width: 900px; position: relative; z-index: 1; }
+.rm-row {
+  display: grid; grid-template-columns: 170px 1fr auto;
+  gap: 28px; align-items: center;
+  padding: 20px 0; border-top: 1px solid #141414;
+}
+.rm-row:last-child { border-bottom: 1px solid #141414; }
+.rm-layer { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.rm-desc { font-size: 14px; color: #999; line-height: 1.5; }
+.rm-status {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 6px 13px; border: 1px solid #1a1a1a; white-space: nowrap;
+}
+.rm-status.live { color: #4ade80; border-color: rgba(74,222,128,0.4); }
+.rm-status.fund { color: #fff; border-color: #333; }
+.rm-status.soon { color: #555; }
 .val {
   display: grid; grid-template-columns: 64px 1fr;
   gap: 28px; padding: 22px 0;
@@ -314,21 +332,6 @@ h2 {
   </div>
 </div>
 
-<!-- 03 INSIGHT -->
-<div class="slide" id="s3" data-label="Insight">
-  <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="xMaxYMid meet" xmlns="http://www.w3.org/2000/svg">
-    <line x1="950" y1="50"  x2="950" y2="850" stroke="#0d0d0d" stroke-width="1"/>
-    <line x1="600" y1="450" x2="1300" y2="450" stroke="#0d0d0d" stroke-width="1"/>
-    <line x1="1100" y1="100" x2="1100" y2="800" stroke="#0a0a0a" stroke-width="1"/>
-    <line x1="700" y1="200" x2="1400" y2="200" stroke="#0a0a0a" stroke-width="1"/>
-    <line x1="700" y1="700" x2="1400" y2="700" stroke="#0a0a0a" stroke-width="1"/>
-  </svg>
-  <div class="slide-label">Insight</div>
-  <h1>Consumers hate ads.</h1>
-  <p class="body">But ads are the one thing that reliably predicts revenue, so brands keep paying.</p>
-  <p class="body">Meanwhile customers express real intent online every day. Nobody is listening. Organic compounds. Ads do not.</p>
-</div>
-
 <!-- 04 SOLUTION -->
 <div class="slide" id="s4" data-label="Solution">
   <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="xMaxYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -349,6 +352,40 @@ h2 {
   </div>
 </div>
 
+<!-- 04b WHY NOW -->
+<div class="slide" id="s3" data-label="Why Now">
+  <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="0" y1="225" x2="1400" y2="225" stroke="#0a0a0a" stroke-width="1"/>
+    <line x1="0" y1="450" x2="1400" y2="450" stroke="#0a0a0a" stroke-width="1"/>
+    <line x1="0" y1="675" x2="1400" y2="675" stroke="#0a0a0a" stroke-width="1"/>
+  </svg>
+  <div class="slide-label">Why now</div>
+  <h1>Three shifts<br>just converged.</h1>
+  <div class="vals">
+    <div class="val">
+      <div class="val-n">01</div>
+      <div>
+        <div class="val-title">AI slop broke trust</div>
+        <div class="val-desc">A legitimate human voice is suddenly scarce and valuable.</div>
+      </div>
+    </div>
+    <div class="val">
+      <div class="val-n">02</div>
+      <div>
+        <div class="val-title">Ads climb, organic compounds</div>
+        <div class="val-desc">Rising ad costs push brands back to real communities.</div>
+      </div>
+    </div>
+    <div class="val">
+      <div class="val-n">03</div>
+      <div>
+        <div class="val-title">Consensus data is usable</div>
+        <div class="val-desc">Open-public consensus data (Meta Tribe v2) makes a community world-model possible for the first time.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 05 VISION -->
 <div class="slide" id="s5" data-label="Vision">
   <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="xMaxYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -357,33 +394,25 @@ h2 {
     <circle cx="1160" cy="450" r="70"  fill="none" stroke="#0a0a0a" stroke-width="1"/>
   </svg>
   <div class="slide-label">Vision</div>
-  <h2>From curiosity to content.</h2>
-  <p class="vision-sub">A feedback loop on how ideas form, spread, and get validated across online communities.</p>
-
-  <div class="vision-flow">
-    <svg viewBox="0 0 900 210" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M0,0 L10,5 L0,10" fill="none" stroke="#777" stroke-width="1.5"/>
-        </marker>
-      </defs>
-      <line x1="175" y1="60" x2="375" y2="60" stroke="#444" stroke-width="1.5" marker-end="url(#arw)"/>
-      <line x1="525" y1="60" x2="725" y2="60" stroke="#444" stroke-width="1.5" marker-end="url(#arw)"/>
-      <path d="M812,78 C812,168 88,168 88,78" fill="none" stroke="#2a2a2a" stroke-width="1.5" stroke-dasharray="4 5" marker-end="url(#arw)"/>
-      <circle cx="90"  cy="60" r="7" fill="#000" stroke="#fff" stroke-width="1.5"/>
-      <circle cx="450" cy="60" r="7" fill="#fff"/>
-      <circle cx="810" cy="60" r="7" fill="#000" stroke="#fff" stroke-width="1.5"/>
-      <text x="90"  y="98"  text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Bio-brain</text>
-      <text x="450" y="98"  text-anchor="middle" fill="#fff" font-size="16" font-weight="600">LegitReach</text>
-      <text x="810" y="98"  text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Terminal</text>
-      <text x="90"  y="120" text-anchor="middle" fill="#777" font-size="13">curiosity</text>
-      <text x="450" y="120" text-anchor="middle" fill="#777" font-size="13">content</text>
-      <text x="810" y="120" text-anchor="middle" fill="#777" font-size="13">hive mind</text>
-      <text x="450" y="200" text-anchor="middle" fill="#666" font-size="13">validate &amp; learn</text>
-    </svg>
+  <h2>The 10-year roadmap.</h2>
+  <p class="vision-sub">From signal tools today to the hardware of human intent.</p>
+  <div class="roadmap">
+    <div class="rm-row">
+      <div class="rm-layer">Tools</div>
+      <div class="rm-desc">Signal intelligence, deployed.</div>
+      <div class="rm-status live">Live</div>
+    </div>
+    <div class="rm-row">
+      <div class="rm-layer">Models</div>
+      <div class="rm-desc">World model for communal intelligence.</div>
+      <div class="rm-status fund">Actively fundraising</div>
+    </div>
+    <div class="rm-row">
+      <div class="rm-layer">Hardware · Chips</div>
+      <div class="rm-desc">Photonics for interposing consumer intent.</div>
+      <div class="rm-status soon">10-year roadmap</div>
+    </div>
   </div>
-
-  <div class="vision-foot">Mission: increase the innovation alpha of humanity.</div>
 </div>
 
 <!-- 06 TRACTION -->
@@ -414,42 +443,6 @@ h2 {
   <div class="luma">On Luma or Shopify, you already have a community. We help you run it as your biggest asset.</div>
 </div>
 
-<!-- 07 THESIS -->
-<div class="slide" id="s7" data-label="Thesis">
-  <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <line x1="0" y1="1" x2="1400" y2="1" stroke="#0a0a0a" stroke-width="1"/>
-    <line x1="0" y1="225" x2="1400" y2="225" stroke="#0a0a0a" stroke-width="1"/>
-    <line x1="0" y1="450" x2="1400" y2="450" stroke="#0a0a0a" stroke-width="1"/>
-    <line x1="0" y1="675" x2="1400" y2="675" stroke="#0a0a0a" stroke-width="1"/>
-    <line x1="0" y1="899" x2="1400" y2="899" stroke="#0a0a0a" stroke-width="1"/>
-  </svg>
-  <div class="slide-label">Thesis</div>
-  <h1>Making online communities legitimate again.</h1>
-  <div class="vals">
-    <div class="val">
-      <div class="val-n">01</div>
-      <div>
-        <div class="val-title">Bot detection through community simulation</div>
-        <div class="val-desc">The answer to artificial noise is intelligence that knows what is real.</div>
-      </div>
-    </div>
-    <div class="val">
-      <div class="val-n">02</div>
-      <div>
-        <div class="val-title">Use AI to fight AI slop</div>
-        <div class="val-desc">GDPR compliant AI detection tools</div>
-      </div>
-    </div>
-    <div class="val">
-      <div class="val-n">03</div>
-      <div>
-        <div class="val-title">Emotions intact. Process automated.</div>
-        <div class="val-desc">Humans at every milestone that matters. Machines handling the rest.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- 08 TEAM -->
 <div class="slide" id="s8" data-label="Team">
   <svg class="bg" viewBox="0 0 1400 900" preserveAspectRatio="xMaxYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -457,17 +450,17 @@ h2 {
     <circle cx="1290" cy="500" r="130" fill="none" stroke="#0a0a0a" stroke-width="1"/>
   </svg>
   <div class="slide-label">Team</div>
-  <h1>We are experts in code &amp;<br>we hate bot armies.</h1>
+  <h1>We are experts in code &amp;<br>we hate AI-slop.</h1>
   <div class="team">
     <div class="member">
       <div class="m-name">Manthan Admane</div>
       <div class="m-role">Founder and CEO</div>
-      <div class="m-bio">Computer engineer turned PMM at Applied Materials. Ran 67 discovery calls. His own first user.</div>
+      <div class="m-bio">Repeat founder since 19 (kites e-commerce, 10-person team, Times of India). Immigrant builder, ex-Applied Materials, the world's largest semiconductor equipment company.</div>
     </div>
     <div class="member">
       <div class="m-name">Manas Kalangan</div>
       <div class="m-role">Lead Engineer</div>
-      <div class="m-bio">Builds the real-time community intelligence infrastructure and the world model. Architect of the simulation engine.</div>
+      <div class="m-bio">World-model architect. Builds the real-time community intelligence and the simulation engine for communal intelligence.</div>
     </div>
   </div>
 </div>
@@ -482,26 +475,16 @@ h2 {
   <h1>Simple pricing.<br>Zero ad spend.</h1>
   <div class="pricing-top">
     <div class="plan">
-      <div class="plan-name">Monthly</div>
-      <div class="plan-price">$29<span class="unit">/30 days</span></div>
+      <div class="plan-name">Self-Serve SaaS</div>
+      <div class="plan-price">$79<span class="unit">/month</span></div>
       <div class="plan-for">Brand owners and solopreneurs</div>
-      <div class="plan-desc">The full tool. Signal detection and AI-assisted drafting, billed monthly.</div>
+      <div class="plan-desc">The full tool. Real-time signal detection and AI-assisted drafting in your brand voice.</div>
     </div>
     <div class="plan">
-      <div class="plan-name">Quarterly</div>
-      <div class="plan-price">$79<span class="unit">/90 days</span></div>
-      <div class="plan-for">Best value. Three months up front</div>
-      <div class="plan-desc">Everything in Monthly for 90 days. Save versus paying month to month.</div>
-    </div>
-  </div>
-  <div class="enterprise-box">
-    <div class="ent-left">
       <div class="plan-name">Enterprise</div>
-      <div class="plan-cta">Get in touch</div>
+      <div class="plan-price">Custom</div>
       <div class="plan-for">Research orgs and large brands</div>
-    </div>
-    <div class="ent-right">
-      <div class="plan-desc">Listening Tool + AI Automations. World model for custom simulation &amp; backtesting.</div>
+      <div class="plan-desc">Listening and AI automations, plus the world-model for custom community simulation and backtesting.</div>
     </div>
   </div>
 </div>
@@ -536,6 +519,11 @@ h2 {
   <div class="close-label">Get in touch</div>
   <div class="close-email">manthan@legitreach.com</div>
   <div class="close-site">legitreach.com</div>
+  <div style="position:absolute; right:84px; bottom:90px; z-index:2; text-align:center;">
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://www.legitreach.com&bgcolor=000000&color=ffffff&qzone=2" width="180" height="180" alt="Scan to try LegitReach" style="display:block;"/>
+    <div style="font-size:14px; color:#4ade80; margin-top:12px; font-weight:700; letter-spacing:0.02em;">Public Beta is Live</div>
+    <div style="font-size:12px; color:#555; margin-top:5px;">Scan to try it now</div>
+  </div>
 </div>
 
 </div>
