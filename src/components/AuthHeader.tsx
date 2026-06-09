@@ -8,7 +8,7 @@ export default function AuthHeader() {
   const pathname = usePathname();
 
   // Hide on home page, dashboard, and terminal as they have custom navs
-  if (pathname === '/' || pathname?.startsWith('/morning') || pathname?.startsWith('/terminal') || pathname?.startsWith('/a16z') || pathname?.startsWith('/invest') || pathname?.startsWith('/building') || pathname?.startsWith('/pricing') || pathname?.startsWith('/policy')) {
+  if (pathname === '/' || pathname?.startsWith('/terminal') || pathname?.startsWith('/a16z') || pathname?.startsWith('/invest') || pathname?.startsWith('/building') || pathname?.startsWith('/pricing') || pathname?.startsWith('/policy')) {
     return null;
   }
 

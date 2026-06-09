@@ -40,10 +40,6 @@ interface AppContextValue {
     setOnboarding: (state: OnboardingState) => void;
     updateOnboarding: (updates: Partial<OnboardingState>) => void;
     resetOnboarding: () => void;
-    cachedMorningPosts: any[];
-    cachedMorningMeta: { ts: number; signature: string } | null;
-    setMorningCache: (posts: any[], signature: string) => void;
-    clearMorningCache: () => void;
     cachedDashboardPosts: any[];
     cachedDashboardCurated: any[];
     cachedDashboardSummary: string;
@@ -64,8 +60,6 @@ const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
     const [onboarding, setOnboarding] = useState<OnboardingState>(initialOnboardingState);
-    const [cachedMorningPosts, setCachedMorningPosts] = useState<any[]>([]);
-    const [cachedMorningMeta, setCachedMorningMeta] = useState<{ ts: number; signature: string } | null>(null);
     const [cachedDashboardPosts, setCachedDashboardPosts] = useState<any[]>([]);
     const [cachedDashboardCurated, setCachedDashboardCurated] = useState<any[]>([]);
     const [cachedDashboardSummary, setCachedDashboardSummary] = useState<string>("");
@@ -81,17 +75,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const stored = userStored || guestStored;
         if (stored) {
             try { setOnboarding(JSON.parse(stored)); } catch { /* ignore */ }
-        }
-
-        const morning = localStorage.getItem("legitreach_morning_cache");
-        if (morning) {
-            try {
-                const parsed = JSON.parse(morning);
-                if (parsed && Array.isArray(parsed.posts) && parsed.ts && parsed.signature) {
-                    setCachedMorningPosts(parsed.posts || []);
-                    setCachedMorningMeta({ ts: parsed.ts, signature: parsed.signature });
-                }
-            } catch { /* ignore */ }
         }
 
         const dashboard = localStorage.getItem("legitreach_dashboard_cache");
@@ -130,7 +113,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const resetOnboarding = () => {
         setOnboarding(initialOnboardingState);
-        clearMorningCache();
         clearDashboardCache();
         clearMetaAdsCache();
         localStorage.removeItem(STORAGE_KEY_GUEST);
@@ -139,19 +121,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // No-op — Supabase sync removed (onboarding_details table deprecated)
     const syncOnboardingData = async (_dataToSync?: OnboardingState): Promise<boolean> => false;
-
-    const setMorningCache = (posts: any[], signature: string) => {
-        const payload = { posts: posts || [], ts: Date.now(), signature };
-        setCachedMorningPosts(posts || []);
-        setCachedMorningMeta({ ts: payload.ts, signature });
-        try { localStorage.setItem("legitreach_morning_cache", JSON.stringify(payload)); } catch { /* ignore */ }
-    };
-
-    const clearMorningCache = () => {
-        setCachedMorningPosts([]);
-        setCachedMorningMeta(null);
-        try { localStorage.removeItem("legitreach_morning_cache"); } catch { /* ignore */ }
-    };
 
     const setDashboardCache = (posts: any[], signature: string, curated?: any[], summary?: string) => {
         const payload = { posts: posts || [], curated: curated || [], summary: summary || "", ts: Date.now(), signature };
@@ -189,10 +158,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setOnboarding,
             updateOnboarding,
             resetOnboarding,
-            cachedMorningPosts,
-            cachedMorningMeta,
-            setMorningCache,
-            clearMorningCache,
             cachedDashboardPosts,
             cachedDashboardCurated,
             cachedDashboardSummary,
