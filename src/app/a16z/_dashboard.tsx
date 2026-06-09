@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FadeIn, AnimatedHeading } from "@/components/lr-design/visuals";
 import {
@@ -340,9 +340,9 @@ export function Step4Dashboard({
             style={{ gap: "1rem" }}
           >
             <div className="text-sm" style={{ color: "#9ca3af" }}>
-              Demo workflow completed. You can access the beta by clicking{" "}
+              Demo workflow completed. You can access the app by clicking{" "}
               <Link
-                href="/beta"
+                href="/"
                 style={{
                   color: "#fff",
                   textDecoration: "underline",
