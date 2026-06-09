@@ -159,7 +159,7 @@ export default function DemoPage() {
 
             <div className={styles.cta}>
                 <p>Ready to find real opportunities?</p>
-                <Link href="/onboarding" className={styles.ctaBtn}>
+                <Link href="/dashboard" className={styles.ctaBtn}>
                     Start Using LegitReach →
                 </Link>
             </div>

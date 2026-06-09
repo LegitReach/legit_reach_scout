@@ -46,7 +46,7 @@ export function TopBar({
             </button>
           )}
           <Link
-            href={onDashboard ? "/beta" : "/"}
+            href="/"
             className="text-sm"
             style={{ color: "#d1d5db", transition: "color 200ms ease" }}
           >
