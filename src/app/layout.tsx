@@ -6,7 +6,6 @@ import AuthHeader from "@/components/AuthHeader";
 import "./globals.css";
 import { CSPostHogProvider, PostHogPageView } from "@/providers/posthog";
 import { Suspense } from "react";
-import { RealtimeProvider } from "@/providers/RealtimeProvider";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -73,10 +72,8 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <PostHogPageView />
             </Suspense>
-              <RealtimeProvider>
                 <AuthHeader />
                 {children}
-              </RealtimeProvider>
           </ClerkProvider>
         </CSPostHogProvider>
       </body>
