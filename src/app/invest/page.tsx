@@ -67,8 +67,8 @@ export default function InvestPage() {
                     color: "#d1d5db",
                   }}
                 >
-                  GTM and customer acquisition. R&D for the core community
-                  model. Reaching $25k+ MRR before Dec 2026.
+                  GTM and customer acquisition. R&D for the swarm intelligence
+                  world models. Reaching $25k+ MRR before Dec 2026.
                 </p>
               </FadeIn>
               <FadeIn delay={1500} duration={1000}>
