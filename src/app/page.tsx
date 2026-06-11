@@ -99,6 +99,7 @@ export default function Home() {
     function endIntro() {
       if (introDone) return;
       introDone = true;
+      try { localStorage.setItem("lr-intro-seen", "1"); } catch (_) {}
       clearTimers();
       intro.classList.add("gone");
       field.classList.add("on");
@@ -512,7 +513,17 @@ export default function Home() {
       m.addEventListener("click", onModelClick);
     });
 
-    goPhase(0);
+    const seenIntro = (() => { try { return !!localStorage.getItem("lr-intro-seen"); } catch (_) { return false; } })();
+    if (seenIntro) {
+      introDone = true;
+      intro.style.display = "none";
+      field.style.transition = "none";
+      field.classList.add("on");
+      setTimeout(function () { field.style.transition = ""; }, 50);
+      startField();
+    } else {
+      goPhase(0);
+    }
 
     return function cleanup() {
       clearTimers();
@@ -1270,8 +1281,10 @@ const PHOTON_CSS = `
 }
 
 @media (max-width: 480px) {
-  .photon-landing #brand .word { display: none; }
+  .photon-landing #brand .word { font-size: 12px; }
   .photon-landing .greet { font-size: clamp(38px, 11vw, 64px); }
   .photon-landing #toast { white-space: normal; border-radius: 16px; }
+  .photon-landing .breathwrap { width: min(200px, 52vmin); height: min(200px, 52vmin); }
+  .photon-landing .breathring { inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px); }
 }
 `;
