@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LegitReach Investor Deck</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --ink: #050505;
+        --muted: #5f5f5f;
+        --line: #d9d9d9;
+        --soft: #f4f4f4;
+        --paper: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-width: 0;
+        margin: 0;
+        background: #ededed;
+        color: var(--ink);
+      }
+
+      header {
+        position: sticky;
+        z-index: 10;
+        top: 0;
+        display: flex;
+        min-height: 64px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(18px);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .brand {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 10px;
+        font-weight: 780;
+      }
+
+      .brand img {
+        width: 27px;
+        height: 27px;
+      }
+
+      .download {
+        min-height: 38px;
+        padding: 9px 13px;
+        border: 1px solid var(--ink);
+        border-radius: 999px;
+        background: var(--ink);
+        color: #ffffff;
+        font-size: 0.88rem;
+        font-weight: 720;
+        text-decoration: none;
+      }
+
+      main {
+        display: grid;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .slide {
+        position: relative;
+        display: grid;
+        align-content: center;
+        width: min(1120px, 100%);
+        min-height: min(72vh, 630px);
+        margin: 0 auto;
+        padding: clamp(32px, 5vw, 70px);
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.06);
+      }
+
+      .slide::after {
+        position: absolute;
+        right: clamp(24px, 4vw, 54px);
+        bottom: 24px;
+        color: var(--muted);
+        font-size: 0.74rem;
+        content: attr(data-slide);
+      }
+
+      .source {
+        position: absolute;
+        bottom: 24px;
+        left: clamp(32px, 5vw, 70px);
+        max-width: 62%;
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .kicker {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 780;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 800px;
+        margin: 22px 0 0;
+        font-size: clamp(2.65rem, 6vw, 5.3rem);
+        font-weight: 760;
+        letter-spacing: 0;
+        line-height: 0.9;
+        overflow-wrap: anywhere;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .sub {
+        max-width: 820px;
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: clamp(1rem, 1.6vw, 1.35rem);
+        line-height: 1.55;
+      }
+
+      .center {
+        place-items: center;
+        text-align: center;
+      }
+
+      .center h1,
+      .center .sub {
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .prism {
+        width: 140px;
+        height: 140px;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 48px;
+      }
+
+      .chip,
+      .logo-chip {
+        display: inline-grid;
+        min-height: 42px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 0 22px;
+        font-weight: 760;
+      }
+
+      .logo-chip {
+        min-width: 120px;
+        background: var(--soft);
+        font-size: 0.9rem;
+        font-weight: 820;
+        letter-spacing: 0;
+      }
+
+      .crayon {
+        width: min(680px, 100%);
+        height: 5px;
+        margin-top: 26px;
+        background:
+          linear-gradient(90deg, transparent 0 2%, #c7c7c7 2% 98%, transparent 98%),
+          linear-gradient(90deg, transparent 0 8%, #d6d6d6 8% 94%, transparent 94%);
+        background-size: 100% 1px, 100% 1px;
+        background-position: 0 0, 0 3px;
+        background-repeat: no-repeat;
+      }
+
+      .metrics,
+      .cards,
+      .timeline,
+      .team,
+      .data-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        align-items: stretch;
+        margin-top: 46px;
+      }
+
+      .data-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .solution-cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 46px;
+      }
+
+      .solution-vision {
+        display: grid;
+        grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1fr);
+        gap: 24px;
+        align-items: center;
+        margin-top: 18px;
+      }
+
+      .metric,
+      .card,
+      .team-card,
+      .timeline-card,
+      .data-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 22px;
+      }
+
+      .data-card {
+        min-height: 122px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 780;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .value {
+        display: block;
+        margin-top: 12px;
+        font-size: clamp(1.7rem, 3vw, 2.65rem);
+        font-weight: 780;
+        letter-spacing: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .market-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+        gap: 34px;
+        align-items: start;
+        margin-top: 42px;
+      }
+
+      .market-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .market-metrics .metric:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .hardware-table {
+        border-top: 1px solid var(--ink);
+      }
+
+      .hardware-head,
+      .hardware-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: baseline;
+        border-bottom: 1px solid var(--line);
+        padding: 9px 0;
+      }
+
+      .hardware-head {
+        padding-top: 0;
+        font-size: 0.74rem;
+        font-weight: 780;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .hardware-row span:first-child {
+        font-size: 0.86rem;
+      }
+
+      .hardware-row span:last-child {
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 760;
+      }
+
+      .value-logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .value-logo img {
+        width: 24px;
+        height: 24px;
+      }
+
+      .note {
+        margin-top: 11px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .axis {
+        position: relative;
+        height: 360px;
+        width: min(820px, calc(100% - 34px));
+        margin: 52px auto 0;
+        border-left: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+      }
+
+      .axis-x,
+      .axis-y {
+        position: absolute;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 780;
+        letter-spacing: 0.1em;
+      }
+
+      .axis-x {
+        right: 6px;
+        bottom: -28px;
+      }
+
+      .axis-y {
+        top: 14px;
+        left: 14px;
+      }
+
+      .dot {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        min-width: 112px;
+        transform: translate(-50%, -50%);
+        gap: 6px;
+        font-size: 0.9rem;
+        font-weight: 760;
+      }
+
+      .dot::before {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--ink);
+        content: "";
+      }
+
+      .dot.quiet {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .dot.quiet::before {
+        background: var(--muted);
+      }
+
+      .dot.legit {
+        font-size: 1.15rem;
+      }
+
+      .dot.legit::before {
+        width: 13px;
+        height: 13px;
+      }
+
+      .logo-row {
+        position: absolute;
+        bottom: 18px;
+        left: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        max-width: 430px;
+      }
+
+      .ask-cta {
+        margin-top: 28px;
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 780;
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+        margin-top: 46px;
+      }
+
+      .workflow-panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 24px;
+      }
+
+      .workflow-logos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .osint-sketch {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px;
+        margin-top: 54px;
+      }
+
+      .sketch-node {
+        min-height: 134px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+          linear-gradient(90deg, transparent 0 49%, rgba(5, 5, 5, 0.04) 49% 51%, transparent 51%),
+          #fff;
+        padding: 24px;
+      }
+
+      .sketch-line {
+        position: absolute;
+        top: 68px;
+        left: 29%;
+        width: 42%;
+        height: 6px;
+        background:
+          linear-gradient(90deg, transparent 0 1%, #c7c7c7 1% 99%, transparent 99%),
+          linear-gradient(90deg, transparent 0 9%, #d8d8d8 9% 94%, transparent 94%);
+        background-size: 100% 1px, 100% 1px;
+        background-position: 0 0, 0 4px;
+        background-repeat: no-repeat;
+      }
+
+      @media (max-width: 760px) {
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        main {
+          padding: 10px;
+        }
+
+        .slide {
+          min-height: 680px;
+          padding: 30px 22px 54px;
+        }
+
+        .source {
+          left: 22px;
+          max-width: calc(100% - 76px);
+        }
+
+        .metrics,
+        .cards,
+        .solution-cards,
+        .solution-vision,
+        .timeline,
+        .team,
+        .workflow,
+        .data-grid,
+        .market-layout,
+        .market-metrics,
+        .osint-sketch {
+          grid-template-columns: 1fr;
+        }
+
+        .sketch-line {
+          display: none;
+        }
+
+        .axis {
+          height: 280px;
+          margin-left: 28px;
+        }
+      }
+
+      @media print {
+        body {
+          background: #ffffff;
+        }
+
+        header {
+          display: none;
+        }
+
+        main {
+          padding: 0;
+          gap: 0;
+        }
+
+        .slide {
+          width: 100vw;
+          min-height: 100vh;
+          border: 0;
+          box-shadow: none;
+          break-after: page;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img src="/lr-icon.svg" alt="" />
+        <span>LegitReach investor deck</span>
+      </div>
+      <a class="download" href="/legitreach-sipho-investor-deck.pdf" download>Download PDF</a>
+    </header>
+
+    <main>
+      <section class="slide center" data-slide="01">
+        <div>
+          <img class="prism" src="/lr-icon.svg" alt="" />
+          <h1>LegitReach</h1>
+          <p class="sub">Data intelligence for silicon optics</p>
+        </div>
+      </section>
+
+      <section class="slide" data-slide="02">
+        <p class="kicker">Problem</p>
+        <h1>Optics buying is too messy.</h1>
+        <p class="sub">200G, 400G, 800G, and 1.6T overlap. Buyers must check reach, protocol, firmware, power, and heat before every PO.</p>
+        <div class="chips">
+          <span class="chip">200G</span>
+          <span class="chip">400G</span>
+          <span class="chip">800G</span>
+          <span class="chip">1.6T</span>
+        </div>
+        <div class="crayon"></div>
+        <p class="source">Miss once: stranded ports, delayed racks, extra power, thermal rework.</p>
+      </section>
+
+      <section class="slide" data-slide="03">
+        <p class="kicker">Why now</p>
+        <h1>Co-packaged Optics. The Type-C moment.</h1>
+        <p class="sub">Pluggables carried the last era. Co-packaged optics moves light beside switch silicon because bandwidth, power, reach, and heat are now the bottleneck.</p>
+        <div class="data-grid">
+          <div class="data-card">
+            <p class="label">Bandwidth</p>
+            <strong class="value">1.6T</strong>
+            <p class="note">Port class.</p>
+          </div>
+          <div class="data-card">
+            <p class="label">Power</p>
+            <strong class="value">5x</strong>
+            <p class="note">Lower per 1.6T port.</p>
+          </div>
+          <div class="data-card">
+            <p class="label">Reach</p>
+            <strong class="value">63x</strong>
+            <p class="note">Signal integrity.</p>
+          </div>
+          <div class="data-card">
+            <p class="label">Heat</p>
+            <strong class="value">4x</strong>
+            <p class="note">Fewer lasers.</p>
+          </div>
+        </div>
+        <div class="crayon"></div>
+        <p class="source">Source: NVIDIA silicon photonics and Spectrum-X Photonics materials.</p>
+      </section>
+
+      <section class="slide" data-slide="04">
+        <p class="kicker">Solution</p>
+        <h1>Buying intelligence layer for silicon optics.</h1>
+        <p class="sub">Data and research first. Buyer workflows next. LegitReach CPO after the market tells us what to build.</p>
+        <div class="solution-cards">
+          <div class="card">
+            <p class="label">SiPho Model</p>
+            <strong class="value">Model</strong>
+            <p class="note">Compatibility, substitution, vendor risk.</p>
+          </div>
+          <div class="card">
+            <p class="label">Tetration</p>
+            <strong class="value">Simulator</strong>
+            <p class="note">Distributed as a 'manga-style' monthly magazine.</p>
+          </div>
+        </div>
+        <div class="card solution-vision">
+          <div>
+            <p class="label">Vision</p>
+            <strong class="value value-logo"><img src="/lr-icon.svg" alt="" /> LegitReach CPO</strong>
+          </div>
+          <p class="note">Long-term product wedge once buyer data proves the market.</p>
+        </div>
+        <p class="source">Marvell/Celestial: about $3.25B upfront; $1B run-rate target by Marvell FY2029.</p>
+      </section>
+
+      <section class="slide" data-slide="05">
+        <p class="kicker">Market</p>
+        <h1>Silicon Optics is superior, strategic, &amp; urgent.</h1>
+        <div class="market-layout">
+          <div class="market-metrics">
+            <div class="metric">
+              <p class="label">TAM</p>
+              <strong class="value">$13.18B</strong>
+              <p class="note">Total silicon optics market, 2031.</p>
+            </div>
+            <div class="metric">
+              <p class="label">SAM</p>
+              <strong class="value">$764.3M</strong>
+              <p class="note">CPO portion of silicon optics, 2031.</p>
+            </div>
+            <div class="metric">
+              <p class="label">SOM</p>
+              <strong class="value">$1.5M ARR</strong>
+              <p class="note">data intelligence for silicon optics.</p>
+            </div>
+          </div>
+          <div class="hardware-table" aria-label="CPO hardware stack with indicative costs">
+            <div class="hardware-head">
+              <span>CPO hardware stack</span>
+              <span>Cost</span>
+            </div>
+            <div class="hardware-row"><span>Switch ASIC + package</span><span>$5k-25k</span></div>
+            <div class="hardware-row"><span>Silicon photonics PIC</span><span>$100-1k</span></div>
+            <div class="hardware-row"><span>Optical engine</span><span>$500-3k</span></div>
+            <div class="hardware-row"><span>External laser source</span><span>$200-1k</span></div>
+            <div class="hardware-row"><span>Co-packaged substrate</span><span>$1k-10k</span></div>
+            <div class="hardware-row"><span>Fiber attach/connectors</span><span>$50-500</span></div>
+            <div class="hardware-row"><span>Thermal/cooling</span><span>$100-2k</span></div>
+            <div class="hardware-row"><span>Test + validation</span><span>$10k-250k</span></div>
+            <div class="hardware-row"><span>Switch system</span><span>$25k-100k+</span></div>
+          </div>
+        </div>
+        <p class="source">Sources: Mordor Intelligence silicon photonics/CPO estimates; internal data-intelligence ARR model.</p>
+      </section>
+
+      <section class="slide" data-slide="06">
+        <p class="kicker">GTM</p>
+        <h1>Win the buyer before the PO exists.</h1>
+        <p class="sub">Search, newsletter, community, and paid pilots convert technical confusion into buyer intent.</p>
+        <div class="timeline">
+          <div class="timeline-card">
+            <p class="label">0-90 days</p>
+            <strong class="value">Public model</strong>
+            <p class="note">500 compatibility paths and high-intent part pages.</p>
+          </div>
+          <div class="timeline-card">
+            <p class="label">3-9 months</p>
+            <strong class="value">Paid teams</strong>
+            <p class="note">Team access, buyer exports, validation notes, pilots.</p>
+          </div>
+          <div class="timeline-card">
+            <p class="label">9-18 months</p>
+            <strong class="value">Enterprise</strong>
+            <p class="note">CPO roadmap intelligence, procurement data, hardware thesis.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-slide="07">
+        <p class="kicker">Business model</p>
+        <h1>Premium intelligence beats generic research.</h1>
+        <p class="sub">B2B Enterprise Model</p>
+        <div class="metrics">
+          <div class="metric">
+            <p class="label">Team</p>
+            <strong class="value">$5-15k/yr</strong>
+            <p class="note">Research plus model access.</p>
+          </div>
+          <div class="metric">
+            <p class="label">Enterprise</p>
+            <strong class="value">$25-100k+/yr</strong>
+            <p class="note">Database, guidance, exports.</p>
+          </div>
+          <div class="metric">
+            <p class="label">Expansion</p>
+            <strong class="value">Reports</strong>
+            <p class="note">Validation, roadmap, and data feeds.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-slide="08">
+        <p class="kicker">Competition</p>
+        <h1>Research influence plus hardware moat.</h1>
+        <div class="axis">
+          <span class="axis-y">Hardware MOAT</span>
+          <span class="axis-x">Research influence</span>
+          <span class="dot quiet" style="left: 15%; top: 86%;">Catalogs</span>
+          <span class="dot quiet" style="left: 27%; top: 77%;">Gartner</span>
+          <span class="dot quiet" style="left: 41%; top: 82%;">Yole</span>
+          <span class="dot quiet" style="left: 52%; top: 73%;">Dell'Oro</span>
+          <span class="dot" style="left: 24%; top: 30%;">Teradyne</span>
+          <span class="dot" style="left: 74%; top: 58%;">SemiAnalysis</span>
+          <span class="dot legit" style="left: 78%; top: 24%;">LegitReach</span>
+        </div>
+      </section>
+
+      <section class="slide" data-slide="09">
+        <p class="kicker">Team</p>
+        <h1>Data driven team.</h1>
+        <p class="sub">Market experience, software execution, &amp; lab.</p>
+        <div class="team">
+          <div class="team-card">
+            <strong class="value">Manthan Admane</strong>
+            <p class="note">Founder</p>
+            <span class="logo-chip">Applied Materials</span>
+          </div>
+          <div class="team-card">
+            <strong class="value">Manas Kalangan</strong>
+            <p class="note">Founding engineer</p>
+            <span class="logo-chip">Rocket Money</span>
+          </div>
+          <div class="team-card">
+            <strong class="value">Research Partner</strong>
+            <p class="note">Mentorship & Labs</p>
+            <span class="logo-chip">MIT-WPU</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-slide="10">
+        <p class="kicker">Ask</p>
+        <h1>$500k pre-seed.</h1>
+        <p class="sub">18 months to prove paid intelligence, buyer workflow, and the CPO hardware wedge.</p>
+        <div class="timeline">
+          <div class="timeline-card">
+            <p class="label">Build</p>
+            <strong class="value">SiPho Model</strong>
+            <p class="note">500+ compatibility paths, part pages, newsletter, and community capture.</p>
+          </div>
+          <div class="timeline-card">
+            <p class="label">Sell</p>
+            <strong class="value">10 paid teams</strong>
+            <p class="note">Team subscriptions, enterprise pilots, validation notes, and exports.</p>
+          </div>
+          <div class="timeline-card">
+            <p class="label">Prove</p>
+            <strong class="value">$1.5M ARR path</strong>
+            <p class="note">Repeatable buyer intent, order clicks, and CPO hardware partner thesis.</p>
+          </div>
+        </div>
+        <p class="ask-cta">Reach out: <a href="mailto:manthan@legitreach.com">manthan@legitreach.com</a></p>
+      </section>
+    </main>
+  </body>
+</html>
