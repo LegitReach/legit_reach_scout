@@ -486,7 +486,7 @@ function setupWaitlist() {
     }
     status.textContent = "Saving...";
     try {
-      const response = await fetch("/api/waitlist", {
+      const response = await fetch("/api/email-capture", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, source: "Silicon Photonics Monthly" })
