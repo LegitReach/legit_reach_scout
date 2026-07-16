@@ -18,7 +18,7 @@ export default function InvestPage() {
         flexDirection: "column",
       }}
     >
-      <Nav current="/invest" />
+      <Nav current="/cpo/invest" />
 
       <main style={{ flex: 1 }}>
         {/* Ask section */}
@@ -98,7 +98,7 @@ export default function InvestPage() {
       >
         <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
           <span>LegitReach. Manage real online presence with ease.</span>
-          <a href="/policy" style={{ transition: "color 200ms ease" }}>
+          <a href="/cpo/policy" style={{ transition: "color 200ms ease" }}>
             Policy
           </a>
         </div>

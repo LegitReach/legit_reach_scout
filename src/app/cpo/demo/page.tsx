@@ -44,7 +44,7 @@ export default function DemoPage() {
 
     return (
         <div className={styles.container}>
-            <Link href="/" className={styles.back}>← Back to Home</Link>
+            <Link href="/cpo" className={styles.back}>← Back to Home</Link>
 
             <header className={styles.header}>
                 <span className={styles.badge}>🎭 Demo Walkthrough</span>
@@ -159,7 +159,7 @@ export default function DemoPage() {
 
             <div className={styles.cta}>
                 <p>Ready to find real opportunities?</p>
-                <Link href="/dashboard" className={styles.ctaBtn}>
+                <Link href="/cpo/dashboard" className={styles.ctaBtn}>
                     Start Using LegitReach →
                 </Link>
             </div>

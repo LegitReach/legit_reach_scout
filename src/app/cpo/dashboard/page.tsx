@@ -104,7 +104,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandProfile: bp, community: comm, fingerprintId }),
       });
-      if (res.status === 402) { router.push("/subscribe"); return; }
+      if (res.status === 402) { router.push("/cpo/subscribe"); return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       let received = false;
@@ -190,7 +190,7 @@ export default function DashboardPage() {
         }
       }
 
-      if (scanRes.status === 402) { router.push("/subscribe"); return; }
+      if (scanRes.status === 402) { router.push("/cpo/subscribe"); return; }
       if (!scanRes.ok) throw new Error(`Scan failed (${scanRes.status})`);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                 </span>
               ) : (
                 <a
-                  href="/subscribe"
+                  href="/cpo/subscribe"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.mobileUpgradeBtn}
@@ -467,7 +467,7 @@ export default function DashboardPage() {
               </div>
               {credits.plan !== "paid" && (
                 <a
-                  href="/subscribe"
+                  href="/cpo/subscribe"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.upgradeBtn}

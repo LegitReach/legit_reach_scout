@@ -30,7 +30,7 @@ export default function BuildingPage() {
         flexDirection: "column",
       }}
     >
-      <Nav current="/building" />
+      <Nav current="/cpo/building" />
 
       <main style={{ flex: 1, paddingTop: "6rem" }}>
         <section
@@ -99,7 +99,7 @@ export default function BuildingPage() {
             </Reveal>
 
             <Reveal delay={700}>
-              <a href="/dashboard" className="lr-btn-primary inline-block">
+              <a href="/cpo/dashboard" className="lr-btn-primary inline-block">
                 Try the product now!
               </a>
             </Reveal>
@@ -174,7 +174,7 @@ export default function BuildingPage() {
       >
         <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
           <span>LegitReach. Manage real online presence with ease.</span>
-          <a href="/policy" style={{ transition: "color 200ms ease" }}>
+          <a href="/cpo/policy" style={{ transition: "color 200ms ease" }}>
             Policy
           </a>
         </div>

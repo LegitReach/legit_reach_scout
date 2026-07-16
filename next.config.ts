@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        // Root serves the static landing; the previous app root lives at /cpo.
+        source: "/",
+        destination: "/landing.html",
+      },
+      {
         source: "/ingest/static/:path*",
         destination: "https://us-assets.i.posthog.com/static/:path*",
       },

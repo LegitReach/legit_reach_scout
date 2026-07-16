@@ -342,7 +342,7 @@ export function Step4Dashboard({
             <div className="text-sm" style={{ color: "#9ca3af" }}>
               Demo workflow completed. You can access the app by clicking{" "}
               <Link
-                href="/"
+                href="/cpo"
                 style={{
                   color: "#fff",
                   textDecoration: "underline",

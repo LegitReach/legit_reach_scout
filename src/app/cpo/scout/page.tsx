@@ -139,8 +139,8 @@ export default function Home() {
     };
 
     const NODES: Node[] = [
-      { x: 0, y: -2, title: "Tools", bare: true, href: "/tools", cta: "Explore Tools" },
-      { x: 2, y: 0, title: "Vision", sub: "Becoming one with the photon.", href: "/invest", cta: "Open the Pitch Deck" },
+      { x: 0, y: -2, title: "Tools", bare: true, href: "/cpo/tools", cta: "Explore Tools" },
+      { x: 2, y: 0, title: "Vision", sub: "Becoming one with the photon.", href: "/cpo/invest", cta: "Open the Pitch Deck" },
       { x: -2, y: 0, title: "Models", action: "models", cta: "Explore" },
     ];
     const BOUND = 3; /* photon can roam ±3 cells */
@@ -626,8 +626,8 @@ export default function Home() {
 
       <div id="indexPanel">
         <nav>
-          <a href="/tools">Tools</a>
-          <a href="/invest">Vision</a>
+          <a href="/cpo/tools">Tools</a>
+          <a href="/cpo/invest">Vision</a>
           <a href="#" id="indexModels">
             Models
           </a>
@@ -717,10 +717,10 @@ export default function Home() {
               fontSize: 28,
             }}
           >
-            <a href="/tools" style={{ color: "#fff" }}>
+            <a href="/cpo/tools" style={{ color: "#fff" }}>
               Tools
             </a>
-            <a href="/invest" style={{ color: "#fff" }}>
+            <a href="/cpo/invest" style={{ color: "#fff" }}>
               Vision
             </a>
           </nav>
