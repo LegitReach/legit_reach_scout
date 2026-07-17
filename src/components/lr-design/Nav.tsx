@@ -6,9 +6,9 @@ import { Menu, X } from "lucide-react";
 import { SignInButton, SignedOut } from "@clerk/nextjs";
 
 const LINKS = [
-  { href: "/building", label: "Building" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/invest", label: "Invest" },
+  { href: "/cpo/building", label: "Building" },
+  { href: "/cpo/pricing", label: "Pricing" },
+  { href: "/cpo/invest", label: "Invest" },
 ];
 
 export default function Nav({ current }: { current?: string }) {
@@ -34,7 +34,7 @@ export default function Nav({ current }: { current?: string }) {
     >
       <nav className="liquid-glass rounded-xl px-4 py-2 flex items-center justify-between">
         <Link
-          href="/"
+          href="/cpo"
           className="text-xl md:text-2xl font-semibold tracking-tight"
           style={{ letterSpacing: "-0.03em" }}
           onClick={() => setOpen(false)}

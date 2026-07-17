@@ -39,7 +39,7 @@ export default function PricingPage() {
         flexDirection: "column",
       }}
     >
-      <Nav current="/pricing" />
+      <Nav current="/cpo/pricing" />
 
       <main style={{ flex: 1, paddingTop: "6rem" }}>
         <section
@@ -127,7 +127,7 @@ export default function PricingPage() {
                       {p.desc}
                     </p>
                     <a
-                      href="/dashboard"
+                      href="/cpo/dashboard"
                       className="lr-btn-primary inline-block"
                       style={{ marginTop: "1.75rem", alignSelf: "flex-start" }}
                     >
@@ -200,7 +200,7 @@ export default function PricingPage() {
       >
         <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
           <span>LegitReach. Manage real online presence with ease.</span>
-          <a href="/policy" style={{ transition: "color 200ms ease" }}>
+          <a href="/cpo/policy" style={{ transition: "color 200ms ease" }}>
             Policy
           </a>
         </div>

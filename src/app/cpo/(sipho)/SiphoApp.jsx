@@ -238,12 +238,12 @@ const selectedModules = new Set();
 function header() {
   return `
     <header class="site-header">
-      <a class="wordmark" href="/" aria-label="LegitReach home">
+      <a class="wordmark" href="/cpo" aria-label="LegitReach home">
         <img src="/lr-icon.svg" alt="" />
         <span>LegitReach</span>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
-        <a href="/#newsletter">Silicon Photonics Monthly</a>
+        <a href="/cpo#newsletter">Silicon Photonics Monthly</a>
       </nav>
       <button id="openDeck" class="invest-button" type="button">Invest</button>
     </header>
@@ -286,8 +286,8 @@ function landingPage() {
           </p>
         </div>
         <div class="hero-actions" aria-label="Product links">
-          <a class="link-button dark" href="/model">SiPho Model</a>
-          <a class="link-button" href="/tetration">Data-Center Sim</a>
+          <a class="link-button dark" href="/cpo/model">SiPho Model</a>
+          <a class="link-button" href="/cpo/tetration">Data-Center Sim</a>
         </div>
       </section>
 
@@ -435,13 +435,13 @@ function tetrationPage() {
 
 function renderApp() {
   const path = window.location.pathname;
-  if (path === "/model") {
+  if (path === "/cpo/model") {
     app.innerHTML = modelPage();
     setupDeckModal();
     setupModel();
     return;
   }
-  if (path === "/tetration") {
+  if (path === "/cpo/tetration") {
     app.innerHTML = tetrationPage();
     setupDeckModal();
     setupSimulator();

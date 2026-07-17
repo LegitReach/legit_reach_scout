@@ -67,7 +67,7 @@ export default function Home() {
                   className="flex flex-wrap"
                   style={{ gap: "1rem", marginBottom: "1rem" }}
                 >
-                  <a href="/dashboard" className="lr-btn-primary">
+                  <a href="/cpo/dashboard" className="lr-btn-primary">
                     Create now!
                   </a>
                 </div>
@@ -154,7 +154,7 @@ export default function Home() {
       >
         <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
           <span>LegitReach. Manage real online presence with ease.</span>
-          <Link href="/policy" style={{ transition: "color 200ms ease" }}>
+          <Link href="/cpo/policy" style={{ transition: "color 200ms ease" }}>
             Policy
           </Link>
         </div>

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LegitReach</title>
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs><mask id="m"><rect width="1024" height="1024" fill="white"/><line x1="-50" y1="420" x2="1074" y2="820" stroke="black" stroke-width="54"/></mask></defs><rect width="1024" height="1024" fill="%23000"/><polygon points="512,183 132,841 892,841" fill="%23FFF" mask="url(%23m)"/></svg>'>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html{background:#000}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#fff}
+
+  .slide{width:1280px;height:720px;background:#000;position:relative;overflow:hidden;
+    margin:20px auto;padding:90px 110px;display:flex;flex-direction:column;justify-content:center}
+  @media screen{.slide{outline:1px solid #1a1a1a}}
+
+  h1{font-size:96px;font-weight:700;letter-spacing:-3px;line-height:1.02}
+  h2{font-size:66px;font-weight:700;letter-spacing:-2px;line-height:1.05}
+  .sub{font-size:23px;color:#999;margin-top:28px;line-height:1.5;max-width:780px;font-weight:400}
+  .sub b{color:#fff;font-weight:600}
+
+  .corner{position:absolute;bottom:36px;left:110px;font-size:13px;letter-spacing:2px;color:#666}
+  .pageno{position:absolute;bottom:36px;right:44px;font-size:12px;color:#444}
+
+  .mark{position:absolute;top:40px;left:110px;display:flex;align-items:center;gap:12px}
+  .mark svg{width:26px;height:26px}
+  .mark span{font-size:14px;font-weight:700;letter-spacing:1px}
+
+  .stitle{position:absolute;top:96px;left:110px}
+  .stitle .w{font-size:17px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#fff}
+  .stitle svg{display:block;margin-top:6px}
+
+  .abs{position:absolute}
+
+  .bigrow{display:flex;gap:80px;margin-top:44px}
+  .bigrow .cell .n{font-size:56px;font-weight:700;letter-spacing:-1px}
+  .bigrow .cell .l{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-top:8px}
+
+  table.bom{border-collapse:collapse;margin-top:36px;width:720px}
+  table.bom td{padding:13px 6px;border-bottom:1px solid #222;font-size:19px;color:#ccc}
+  table.bom td:first-child{color:#fff;font-weight:600;width:300px}
+  table.bom td:nth-child(2){color:#888;font-size:16px}
+  table.bom td:last-child{text-align:right;color:#fff;font-variant-numeric:tabular-nums}
+  table.bom tr.tot td{border-bottom:none;padding-top:20px;font-size:22px;font-weight:700;color:#7CFF6B}
+
+  .team{display:flex;gap:70px;margin-top:56px}
+  .tm{text-align:center}
+  .tm .nm{font-size:26px;font-weight:700;margin-top:20px}
+  .tm .rl{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-top:6px}
+  .tm a.li{display:inline-block;margin-top:12px}
+  .tm a.li:hover rect{stroke:#fff}
+  .tm a.li:hover text{fill:#fff}
+
+  #pdfbtn{position:fixed;top:16px;right:16px;z-index:99;background:#fff;color:#000;border:none;
+    border-radius:100px;padding:12px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  #hint{position:fixed;top:62px;right:16px;z-index:99;font-size:11px;color:#888;background:#111;
+    border:1px solid #222;border-radius:8px;padding:8px 12px;max-width:210px;line-height:1.4}
+
+  @media print{
+    #pdfbtn,#hint{display:none!important}
+    .slide{margin:0;outline:none;page-break-after:always;break-after:page}
+    .slide:last-child{page-break-after:auto}
+  }
+  @page{size:1280px 720px;margin:0}
+</style>
+</head>
+<body>
+
+<button id="pdfbtn" onclick="window.print()">Download PDF</button>
+<script>
+(function(){
+  function fit(){document.body.style.zoom=innerWidth<1320?(innerWidth/1320):'';
+    if(window.self!==window.top){var b=document.getElementById('pdfbtn'),h=document.getElementById('hint');if(b)b.style.display='none';if(h)h.style.display='none';}}
+  addEventListener('resize',fit);
+  addEventListener('DOMContentLoaded',fit);
+  window.addEventListener('beforeprint',function(){document.body.style.zoom='';});
+  window.addEventListener('afterprint',fit);
+  fit();
+})();
+</script>
+<div id="hint">Print dialog: <b>Save as PDF</b>, margins <b>None</b>, <b>Background graphics</b> on.</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="cr" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="7"/>
+    </filter>
+    <filter id="cr2" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="21" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="9"/>
+    </filter>
+    <mask id="lrcut" maskContentUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1024" height="1024" fill="white"/>
+      <line x1="-50" y1="420" x2="1074" y2="820" stroke="black" stroke-width="54"/>
+    </mask>
+    <g id="lrtri"><polygon points="512,183 132,841 892,841" fill="#FFF" mask="url(#lrcut)"/></g>
+    <g id="uline-y"><path d="M3 8 C 45 3, 110 12, 175 6" stroke="#FFD84D" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#cr)"/></g>
+    <g id="uline-c"><path d="M3 8 C 45 3, 110 12, 175 6" stroke="#5BE7FF" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#cr)"/></g>
+    <g id="uline-p"><path d="M3 8 C 45 3, 110 12, 175 6" stroke="#FF5BD0" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#cr)"/></g>
+    <g id="uline-g"><path d="M3 8 C 45 3, 110 12, 175 6" stroke="#7CFF6B" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#cr)"/></g>
+    <g id="uline-o"><path d="M3 8 C 45 3, 110 12, 175 6" stroke="#FF9A3D" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#cr)"/></g>
+  </defs>
+</svg>
+
+<!-- 1 TITLE -->
+<section class="slide">
+  <svg class="abs" style="top:80px;right:120px" width="300" height="220" viewBox="0 0 300 220" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round">
+      <path d="M40 30 l0 26 M27 43 l26 0" stroke="#FFD84D" stroke-width="4"/>
+      <path d="M250 60 l0 18 M241 69 l18 0" stroke="#FFD84D" stroke-width="3.5"/>
+      <path d="M170 15 l0 12 M164 21 l12 0" stroke="#fff" stroke-width="3"/>
+      <circle cx="120" cy="140" r="34" stroke="#5BE7FF" stroke-width="4"/>
+      <path d="M60 155 C 90 175, 160 170, 195 128" stroke="#FF9A3D" stroke-width="4"/>
+      <path d="M240 180 l0 14 M233 187 l14 0" stroke="#FF5BD0" stroke-width="3.5"/>
+    </g>
+  </svg>
+  <svg width="120" height="120" viewBox="0 0 1024 1024" style="margin-bottom:44px"><use href="#lrtri"/></svg>
+  <h1>LegitReach</h1>
+  <p class="sub">Deep space communications with photons</p>
+  <div class="corner">Pre-seed · July 2026 · contact: manthan@legitreach.com</div>
+</section>
+
+<!-- 2 PROBLEM -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Problem</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-o"/></svg></div>
+  <h2>Radio is too slow.</h2>
+  <p class="sub">Mars talks to Earth at <b>5.2 Mbitps</b> over the radio.<br>One photo takes 90 minutes.</p>
+  <svg class="abs" style="right:100px;top:210px" width="360" height="320" viewBox="0 0 360 320" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <path d="M35 80 q 20 40 40 0 q 20 40 40 0 q 20 40 40 0 q 20 40 40 0 q 20 40 40 0 q 20 40 40 0" stroke="#FF9A3D" stroke-width="5"/>
+      <path d="M290 105 l 26 26 M316 105 l -26 26" stroke="#FF5BD0" stroke-width="5"/>
+      <circle cx="85" cy="225" r="42" stroke="#5BE7FF" stroke-width="4"/>
+      <path d="M58 215 q 15 11 30 2 q 13 -8 27 4" stroke="#5BE7FF" stroke-width="3"/>
+      <circle cx="290" cy="232" r="24" stroke="#FFD84D" stroke-width="4"/>
+      <path d="M136 228 C 180 220, 220 226, 258 234" stroke="#fff" stroke-width="3" stroke-dasharray="2 12"/>
+    </g>
+    <text x="62" y="300" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">EARTH</text>
+    <text x="272" y="300" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">MARS</text>
+  </svg>
+  <div class="pageno">02</div>
+</section>
+
+<!-- 3 SOLUTION -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Solution</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-c"/></svg></div>
+  <h2>Light. Lasers already won.</h2>
+  <p class="sub">NASA streamed <b>267 Mb/s</b> from <b>31 million km</b>.<br>The physics is settled. Nobody sells it cheap. We will.</p>
+  <svg class="abs" style="right:90px;top:180px" width="380" height="400" viewBox="0 0 380 400" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <path d="M305 45 l 24 40 l -48 0 z" stroke="#fff" stroke-width="4"/>
+      <path d="M296 100 L 138 272" stroke="#5BE7FF" stroke-width="5"/>
+      <path d="M312 106 L 158 286" stroke="#5BE7FF" stroke-width="3" opacity=".5"/>
+      <circle cx="112" cy="305" r="48" stroke="#7CFF6B" stroke-width="4"/>
+      <path d="M82 295 q 14 10 28 2 q 12 -8 26 4" stroke="#7CFF6B" stroke-width="3"/>
+      <path d="M48 70 l0 16 M40 78 l16 0" stroke="#FFD84D" stroke-width="3.5"/>
+      <path d="M100 150 l0 12 M94 156 l12 0" stroke="#FF5BD0" stroke-width="3"/>
+    </g>
+    <text x="252" y="30" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">SPACECRAFT</text>
+    <text x="88" y="382" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">EARTH</text>
+  </svg>
+  <div class="pageno">03</div>
+</section>
+
+<!-- 4 VISION -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Vision</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-p"/></svg></div>
+  <h2 style="max-width:560px">A laser terminal on every spacecraft.</h2>
+  <p class="sub">NASA physics. Telecom parts.<br>Small, cheap, everywhere.</p>
+  <svg class="abs" style="right:70px;top:140px" width="460" height="460" viewBox="0 0 460 460" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <!-- satellite body -->
+      <rect x="150" y="250" width="150" height="110" rx="10" stroke="#fff" stroke-width="4"/>
+      <!-- solar panels -->
+      <rect x="20" y="272" width="110" height="66" rx="6" stroke="#5BE7FF" stroke-width="3.5"/>
+      <path d="M57 272 l0 66 M94 272 l0 66" stroke="#5BE7FF" stroke-width="2.5"/>
+      <path d="M130 305 l 20 0" stroke="#fff" stroke-width="3.5"/>
+      <rect x="320" y="272" width="110" height="66" rx="6" stroke="#5BE7FF" stroke-width="3.5"/>
+      <path d="M357 272 l0 66 M394 272 l0 66" stroke="#5BE7FF" stroke-width="2.5"/>
+      <path d="M300 305 l 20 0" stroke="#fff" stroke-width="3.5"/>
+      <!-- gimbal fork -->
+      <path d="M225 250 l0 -28" stroke="#FF9A3D" stroke-width="4"/>
+      <path d="M200 222 l 50 0" stroke="#FF9A3D" stroke-width="4"/>
+      <path d="M203 222 l0 -30 M247 222 l0 -30" stroke="#FF9A3D" stroke-width="4"/>
+      <!-- telescope tube, angled up right -->
+      <g transform="rotate(-32 225 178)">
+        <rect x="185" y="158" width="120" height="40" rx="8" stroke="#FFD84D" stroke-width="4"/>
+        <path d="M305 152 l 0 52" stroke="#FFD84D" stroke-width="4"/>
+      </g>
+      <!-- beam -->
+      <path d="M330 118 L 428 42" stroke="#5BE7FF" stroke-width="5"/>
+      <path d="M340 132 L 438 60" stroke="#5BE7FF" stroke-width="3" opacity=".5"/>
+      <!-- star -->
+      <path d="M436 30 l0 14 M429 37 l14 0" stroke="#FFD84D" stroke-width="3.5"/>
+    </g>
+    <text x="150" y="395" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">SPACECRAFT BUS</text>
+    <text x="252" y="212" fill="#FF9A3D" style="font:600 12px Helvetica;letter-spacing:2px">GIMBAL</text>
+    <text x="118" y="128" fill="#FFD84D" style="font:600 12px Helvetica;letter-spacing:2px">TELESCOPE</text>
+    <text x="360" y="105" fill="#5BE7FF" style="font:600 12px Helvetica;letter-spacing:2px">LIGHT OUT</text>
+  </svg>
+  <div class="pageno">04</div>
+</section>
+
+<!-- 5 HOW IT WORKS -->
+<section class="slide" style="justify-content:flex-start;padding-top:170px">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">How it works</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-y"/></svg></div>
+  <svg style="margin-top:20px" width="1060" height="470" viewBox="0 0 1060 470" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <!-- terminal outline -->
+      <rect x="20" y="40" width="640" height="390" rx="18" stroke="#444" stroke-width="3" stroke-dasharray="10 14"/>
+      <!-- modem -->
+      <rect x="55" y="90" width="170" height="80" rx="12" stroke="#fff" stroke-width="4"/>
+      <!-- laser -->
+      <rect x="290" y="90" width="170" height="80" rx="12" stroke="#fff" stroke-width="4"/>
+      <!-- mirror -->
+      <rect x="290" y="250" width="170" height="80" rx="12" stroke="#fff" stroke-width="4"/>
+      <!-- photon counter -->
+      <rect x="55" y="250" width="170" height="80" rx="12" stroke="#fff" stroke-width="4"/>
+      <!-- telescope trapezoid -->
+      <path d="M510 250 L 620 235 L 620 345 L 510 330 Z" stroke="#FFD84D" stroke-width="4"/>
+      <!-- flows -->
+      <path d="M232 128 L 282 128" stroke="#FFD84D" stroke-width="5"/>
+      <path d="M270 118 L 285 128 L 270 138" stroke="#FFD84D" stroke-width="5"/>
+      <path d="M375 176 L 375 242" stroke="#FFD84D" stroke-width="5"/>
+      <path d="M365 228 L 375 245 L 385 228" stroke="#FFD84D" stroke-width="5"/>
+      <path d="M466 290 L 502 290" stroke="#FFD84D" stroke-width="5"/>
+      <path d="M490 280 L 505 290 L 490 300" stroke="#FFD84D" stroke-width="5"/>
+      <!-- beacon return path -->
+      <path d="M510 315 C 420 380, 300 380, 232 318" stroke="#FF5BD0" stroke-width="4" stroke-dasharray="4 14"/>
+      <path d="M252 332 L 230 316 L 252 306" stroke="#FF5BD0" stroke-width="4"/>
+      <!-- tracking wire photon counter to mirror -->
+      <path d="M140 246 C 150 210, 240 200, 286 250" stroke="#888" stroke-width="3"/>
+      <path d="M270 236 L 288 252 L 264 258" stroke="#888" stroke-width="3"/>
+      <!-- beam to earth -->
+      <path d="M626 268 C 760 240, 870 220, 950 195" stroke="#5BE7FF" stroke-width="6"/>
+      <path d="M932 190 L 954 194 L 940 212" stroke="#5BE7FF" stroke-width="5"/>
+      <!-- beacon from earth -->
+      <path d="M950 260 C 860 290, 740 330, 632 322" stroke="#FF5BD0" stroke-width="4" stroke-dasharray="4 14"/>
+      <path d="M652 312 L 630 322 L 650 334" stroke="#FF5BD0" stroke-width="4"/>
+      <!-- earth -->
+      <circle cx="990" cy="230" r="46" stroke="#7CFF6B" stroke-width="4"/>
+      <path d="M962 222 q 14 10 28 2 q 12 -8 24 4" stroke="#7CFF6B" stroke-width="3"/>
+    </g>
+    <text x="88" y="122" fill="#fff" style="font:700 17px Helvetica">MODEM</text>
+    <text x="88" y="146" fill="#777" style="font:400 13px Helvetica">codes bits into pulses</text>
+    <text x="322" y="122" fill="#fff" style="font:700 17px Helvetica">LASER</text>
+    <text x="322" y="146" fill="#777" style="font:400 13px Helvetica">1550 nm, fiber grade</text>
+    <text x="322" y="282" fill="#fff" style="font:700 17px Helvetica">FINE MIRROR</text>
+    <text x="322" y="306" fill="#777" style="font:400 13px Helvetica">kills jitter, aims tight</text>
+    <text x="88" y="282" fill="#fff" style="font:700 17px Helvetica">PHOTON RX</text>
+    <text x="88" y="306" fill="#777" style="font:400 13px Helvetica">counts single photons</text>
+    <text x="516" y="220" fill="#FFD84D" style="font:600 13px Helvetica;letter-spacing:2px">TELESCOPE</text>
+    <text x="36" y="66" fill="#666" style="font:600 12px Helvetica;letter-spacing:3px">ONE TERMINAL</text>
+    <text x="760" y="196" fill="#5BE7FF" style="font:600 13px Helvetica;letter-spacing:2px">DATA, AS LIGHT</text>
+    <text x="750" y="366" fill="#FF5BD0" style="font:600 13px Helvetica;letter-spacing:2px">BEACON GUIDES AIM</text>
+    <text x="966" y="310" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">EARTH</text>
+  </svg>
+  <div class="pageno">05</div>
+</section>
+
+<!-- 6 PROTOTYPE -->
+<section class="slide" style="justify-content:flex-start;padding-top:170px">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Prototype</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-g"/></svg></div>
+  <h2 style="font-size:56px">$5k on the bench, not $300M.</h2>
+  <div style="display:flex;gap:80px;align-items:flex-start">
+    <table class="bom">
+      <tr><td>Photon counter</td><td>counts single photons, the NASA trick</td><td>$2,500</td></tr>
+      <tr><td>1550 nm laser + driver</td><td>makes the beam</td><td>$600</td></tr>
+      <tr><td>Telescope + optics</td><td>sends and catches light</td><td>$900</td></tr>
+      <tr><td>Camera + gimbal</td><td>locks onto the beacon</td><td>$700</td></tr>
+      <tr><td>Software radio</td><td>pulse coding, open source</td><td>$300</td></tr>
+      <tr><td>Beacon LED + mounts</td><td>the aim reference</td><td>$150</td></tr>
+      <tr class="tot"><td>Full DSOC signal chain</td><td></td><td>$5,150</td></tr>
+    </table>
+    <svg width="280" height="310" viewBox="0 0 280 310" fill="none" style="margin-top:20px">
+      <g filter="url(#cr2)" stroke-linecap="round" fill="none">
+        <circle cx="118" cy="122" r="95" stroke="#FF9A3D" stroke-width="5"/>
+        <circle cx="228" cy="235" r="8" stroke="#7CFF6B" stroke-width="5"/>
+        <path d="M160 205 C 180 220, 196 230, 212 234" stroke="#7CFF6B" stroke-width="3" stroke-dasharray="2 10"/>
+        <path d="M36 30 l0 14 M29 37 l14 0" stroke="#FFD84D" stroke-width="3.5"/>
+      </g>
+      <text x="84" y="130" fill="#FF9A3D" style="font:700 22px Helvetica">$300M</text>
+      <text x="72" y="250" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">NASA DSOC</text>
+      <text x="214" y="270" fill="#7CFF6B" style="font:700 16px Helvetica">$5K</text>
+      <text x="210" y="290" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">OURS</text>
+    </svg>
+  </div>
+  <p class="sub" style="font-size:17px;color:#666;margin-top:26px">Same architecture NASA flew: photon counting, pulse position coding, beacon guided pointing.</p>
+  <div class="pageno">06</div>
+</section>
+
+<!-- 7 MARKET -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Market</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-y"/></svg></div>
+  <h2>Space needs 118,000<br>of these terminals.</h2>
+  <div class="bigrow">
+    <div class="cell"><div class="n">$12.9B</div><div class="l">terminal market to 2035</div>
+      <svg width="220" height="20" viewBox="0 0 220 20" fill="none"><path filter="url(#cr)" d="M5 12 C 60 6, 140 16, 215 8" stroke="#FFD84D" stroke-width="5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="cell"><div class="n">19,000</div><div class="l">units shipping yearly by 2030</div>
+      <svg width="220" height="20" viewBox="0 0 220 20" fill="none"><path filter="url(#cr)" d="M5 12 C 60 6, 140 16, 215 8" stroke="#5BE7FF" stroke-width="5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="cell"><div class="n">2%</div><div class="l">share is a $40M+ business</div>
+      <svg width="220" height="20" viewBox="0 0 220 20" fill="none"><path filter="url(#cr)" d="M5 12 C 60 6, 140 16, 215 8" stroke="#FF5BD0" stroke-width="5" stroke-linecap="round"/></svg>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:50px;font-size:17px;color:#666">Novaspace, MarketsandMarkets 2025. Estimates vary. Nearly all demand is low Earth orbit.</p>
+  <div class="pageno">07</div>
+</section>
+
+<!-- 8 TRACTION -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Traction</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-g"/></svg></div>
+  <h2>People already pay us<br>to explain this.</h2>
+  <p class="sub">Weekly data packages on deep space communication.<br>Think <b>SemiAnalysis</b>, for the optical link.</p>
+  <div class="bigrow">
+    <div class="cell"><div class="n">100k+</div><div class="l">cumulative views, weekly content</div>
+      <svg width="220" height="20" viewBox="0 0 220 20" fill="none"><path filter="url(#cr)" d="M5 12 C 60 6, 140 16, 215 8" stroke="#7CFF6B" stroke-width="5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="cell"><div class="n">$1,500</div><div class="l">total revenue, data packages</div>
+      <svg width="220" height="20" viewBox="0 0 220 20" fill="none"><path filter="url(#cr)" d="M5 12 C 60 6, 140 16, 215 8" stroke="#FFD84D" stroke-width="5" stroke-linecap="round"/></svg>
+    </div>
+  </div>
+  <svg class="abs" style="right:120px;top:200px" width="280" height="260" viewBox="0 0 280 260" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <path d="M30 210 L 250 210" stroke="#555" stroke-width="3.5"/>
+      <path d="M40 200 C 100 195, 160 150, 240 55" stroke="#7CFF6B" stroke-width="5"/>
+      <path d="M222 58 L 244 50 L 240 74" stroke="#7CFF6B" stroke-width="4"/>
+      <path d="M52 60 l0 14 M45 67 l14 0" stroke="#FFD84D" stroke-width="3.5"/>
+    </g>
+    <text x="30" y="242" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">WEEKLY, SINCE 2025</text>
+  </svg>
+  <div class="pageno">08</div>
+</section>
+
+<!-- 9 COMPETITION -->
+<section class="slide" style="justify-content:flex-start;padding-top:170px">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Competition</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-p"/></svg></div>
+  <div style="display:flex;gap:70px;align-items:center">
+    <svg width="560" height="470" viewBox="0 0 560 470" fill="none">
+      <g filter="url(#cr)" stroke-linecap="round" fill="none">
+        <path d="M280 30 L 280 430" stroke="#555" stroke-width="3.5"/>
+        <path d="M60 230 L 500 230" stroke="#555" stroke-width="3.5"/>
+        <circle cx="430" cy="105" r="17" stroke="#7CFF6B" stroke-width="5"/>
+        <circle cx="130" cy="320" r="13" stroke="#666" stroke-width="4"/>
+        <circle cx="200" cy="360" r="13" stroke="#666" stroke-width="4"/>
+        <circle cx="345" cy="330" r="13" stroke="#666" stroke-width="4"/>
+      </g>
+      <text x="242" y="20" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">CHEAP</text>
+      <text x="228" y="456" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">EXPENSIVE</text>
+      <text x="30" y="212" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">CLOSED</text>
+      <text x="340" y="256" fill="#888" style="font:600 12px Helvetica;letter-spacing:2px">WORKS WITH EVERYONE</text>
+      <text x="404" y="70" fill="#7CFF6B" style="font:700 15px Helvetica">LEGITREACH</text>
+      <text x="98" y="298" fill="#999" style="font:600 13px Helvetica">TESAT</text>
+      <text x="168" y="398" fill="#999" style="font:600 13px Helvetica">MYNARIC</text>
+      <text x="322" y="368" fill="#999" style="font:600 13px Helvetica">CACI</text>
+    </svg>
+    <div>
+      <h2 style="font-size:50px;max-width:420px">Rivals are heavy and expensive.</h2>
+      <p class="sub" style="font-size:20px">Our edge: <b>cheaper, smaller,<br>works with everyone.</b></p>
+    </div>
+  </div>
+  <div class="pageno">09</div>
+</section>
+
+<!-- 9 GO TO MARKET -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Go to market</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-c"/></svg></div>
+  <h2>Bench to orbit.</h2>
+  <p class="sub">Bench demo to field link in <b>12 months</b>.<br>Then sell to low Earth orbit operators.</p>
+  <svg style="margin-top:50px" width="1060" height="200" viewBox="0 0 1060 200" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <path d="M40 60 C 300 40, 700 80, 1010 50" stroke="#fff" stroke-width="4"/>
+      <circle cx="60" cy="58" r="14" stroke="#FFD84D" stroke-width="5"/>
+      <circle cx="380" cy="56" r="14" stroke="#5BE7FF" stroke-width="5"/>
+      <circle cx="700" cy="66" r="14" stroke="#FF5BD0" stroke-width="5"/>
+      <circle cx="1000" cy="52" r="14" stroke="#7CFF6B" stroke-width="5"/>
+    </g>
+    <text x="30" y="120" fill="#fff" style="font:700 22px Helvetica">2026</text>
+    <text x="30" y="150" fill="#888" style="font:400 16px Helvetica">Bench demo</text>
+    <text x="350" y="120" fill="#fff" style="font:700 22px Helvetica">2027</text>
+    <text x="350" y="150" fill="#888" style="font:400 16px Helvetica">Field link, 10 km</text>
+    <text x="670" y="120" fill="#fff" style="font:700 22px Helvetica">2028</text>
+    <text x="670" y="150" fill="#888" style="font:400 16px Helvetica">Space ready</text>
+    <text x="950" y="120" fill="#fff" style="font:700 22px Helvetica">2029</text>
+    <text x="950" y="150" fill="#888" style="font:400 16px Helvetica">In orbit</text>
+  </svg>
+  <div class="pageno">10</div>
+</section>
+
+<!-- 10 TEAM -->
+<section class="slide">
+  <div class="mark"><svg viewBox="0 0 1024 1024"><use href="#lrtri"/></svg><span>LegitReach</span></div>
+  <div class="stitle"><div class="w">Team</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-o"/></svg></div>
+  <h2>Small team, big reach.</h2>
+  <div style="display:flex;gap:90px;align-items:flex-start">
+  <div class="team">
+    <div class="tm">
+      <svg width="130" height="130" viewBox="0 0 130 130" fill="none">
+        <g filter="url(#cr)" stroke-linecap="round" fill="none">
+          <circle cx="65" cy="65" r="52" stroke="#FFD84D" stroke-width="5"/>
+          <circle cx="65" cy="52" r="16" stroke="#fff" stroke-width="4"/>
+          <path d="M35 102 C 42 78, 88 78, 95 102" stroke="#fff" stroke-width="4"/>
+        </g>
+      </svg>
+      <div class="nm">Manthan</div><div class="rl">Founder</div>
+      <a class="li" href="https://www.linkedin.com/in/manthanadmane/" target="_blank" rel="noopener" aria-label="Manthan on LinkedIn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="#888" stroke-width="2"/><text x="12" y="16.5" text-anchor="middle" fill="#ccc" style="font:700 11px Helvetica">in</text></svg></a>
+    </div>
+    <div class="tm">
+      <svg width="130" height="130" viewBox="0 0 130 130" fill="none">
+        <g filter="url(#cr)" stroke-linecap="round" fill="none">
+          <circle cx="65" cy="65" r="52" stroke="#5BE7FF" stroke-width="5"/>
+          <circle cx="65" cy="52" r="16" stroke="#fff" stroke-width="4"/>
+          <path d="M35 102 C 42 78, 88 78, 95 102" stroke="#fff" stroke-width="4"/>
+        </g>
+      </svg>
+      <div class="nm">Manas</div><div class="rl">Founding engineer</div>
+      <a class="li" href="https://www.linkedin.com/in/manaskalangan/" target="_blank" rel="noopener" aria-label="Manas on LinkedIn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="#888" stroke-width="2"/><text x="12" y="16.5" text-anchor="middle" fill="#ccc" style="font:700 11px Helvetica">in</text></svg></a>
+    </div>
+    <div class="tm">
+      <svg width="130" height="130" viewBox="0 0 130 130" fill="none">
+        <g filter="url(#cr)" stroke-linecap="round" fill="none">
+          <circle cx="65" cy="65" r="52" stroke="#FF5BD0" stroke-width="5"/>
+          <path d="M40 82 L 65 42 L 90 82 Z" stroke="#fff" stroke-width="4"/>
+        </g>
+      </svg>
+      <div class="nm">MIT-WPU</div><div class="rl">Alma mater · Research partner</div>
+      <a class="li" href="https://www.linkedin.com/company/mitwpu-scet/" target="_blank" rel="noopener" aria-label="MIT-WPU SCET on LinkedIn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="#888" stroke-width="2"/><text x="12" y="16.5" text-anchor="middle" fill="#ccc" style="font:700 11px Helvetica">in</text></svg></a>
+    </div>
+  </div>
+  <div style="margin-top:56px">
+    <svg width="330" height="210" viewBox="0 0 330 210" fill="none">
+      <g filter="url(#cr)" stroke-linecap="round" fill="none">
+        <path d="M40 25 L 40 185 M230 25 L 230 185" stroke="#fff" stroke-width="4"/>
+        <path d="M40 88 L 230 88 M40 158 L 230 158" stroke="#fff" stroke-width="4"/>
+        <rect x="52" y="64" width="116" height="22" rx="11" stroke="#FFD84D" stroke-width="3.5"/>
+        <circle cx="192" cy="72" r="13" stroke="#FFD84D" stroke-width="3.5"/>
+        <rect x="52" y="134" width="116" height="22" rx="11" stroke="#5BE7FF" stroke-width="3.5"/>
+        <circle cx="192" cy="142" r="13" stroke="#5BE7FF" stroke-width="3.5"/>
+        <path d="M252 50 L 252 185 M272 50 L 272 185 M252 80 l20 0 M252 115 l20 0 M252 150 l20 0" stroke="#888" stroke-width="3"/>
+        <path d="M292 22 l 30 0 l -5 20 a 10 10 0 0 1 -20 0 z" stroke="#FF9A3D" stroke-width="3.5"/>
+        <path d="M303 52 l 8 0 M299 60 l 16 0" stroke="#FF9A3D" stroke-width="3.5"/>
+      </g>
+      <text x="290" y="84" fill="#888" style="font:600 11px Helvetica;letter-spacing:1px">×N</text>
+    </svg>
+    <p style="font-size:16px;color:#888;line-height:1.7;margin-top:14px;max-width:330px">One bunk bed in college. A shelf of hackathon wins. <b style="color:#fff">MIT-WPU</b>, the common alma mater.</p>
+  </div>
+  </div>
+  <div class="pageno">11</div>
+</section>
+
+<!-- 11 THANK YOU -->
+<section class="slide" style="align-items:flex-start">
+  <div class="stitle"><div class="w">Thank you</div><svg width="185" height="16" viewBox="0 0 185 16"><use href="#uline-g"/></svg></div>
+  <svg class="abs" style="top:80px;right:130px" width="240" height="200" viewBox="0 0 240 200" fill="none">
+    <g filter="url(#cr)" stroke-linecap="round" fill="none">
+      <path d="M40 40 l0 22 M29 51 l22 0" stroke="#FFD84D" stroke-width="4"/>
+      <path d="M190 30 l0 14 M183 37 l14 0" stroke="#5BE7FF" stroke-width="3.5"/>
+      <path d="M130 120 l0 16 M122 128 l16 0" stroke="#FF5BD0" stroke-width="3.5"/>
+    </g>
+  </svg>
+  <svg width="110" height="110" viewBox="0 0 1024 1024" style="margin-bottom:40px"><use href="#lrtri"/></svg>
+  <h2>Raising our pre-seed.</h2>
+  <p class="sub">Bench demo to field link in 12 months.<br><b>contact: manthan@legitreach.com</b></p>
+  <div class="pageno">12</div>
+</section>
+
+</body>
+</html>

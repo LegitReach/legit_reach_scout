@@ -18,7 +18,7 @@ function SubscribeContent() {
 
     useEffect(() => {
         if (!success) return;
-        if (countdown <= 0) { router.push('/dashboard'); return; }
+        if (countdown <= 0) { router.push('/cpo/dashboard'); return; }
         const t = setTimeout(() => setCountdown(c => c - 1), 1000);
         return () => clearTimeout(t);
     }, [success, countdown, router]);
@@ -141,7 +141,7 @@ function SubscribeContent() {
                     </div>
                 </div>
 
-                <Link href="/" className={styles.homeLink}>
+                <Link href="/cpo" className={styles.homeLink}>
                     Return to home
                 </Link>
             </div>

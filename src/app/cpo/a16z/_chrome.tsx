@@ -20,7 +20,7 @@ export function TopBar({
     >
       <div className="liquid-glass rounded-xl px-4 py-3 flex items-center justify-between">
         <div className="flex items-center" style={{ gap: "1rem" }}>
-          <Link href="/" className="text-xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
+          <Link href="/cpo" className="text-xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
             LegitReach
           </Link>
           <span style={{ color: "rgba(255,255,255,0.25)" }}>/</span>
@@ -46,7 +46,7 @@ export function TopBar({
             </button>
           )}
           <Link
-            href="/"
+            href="/cpo"
             className="text-sm"
             style={{ color: "#d1d5db", transition: "color 200ms ease" }}
           >

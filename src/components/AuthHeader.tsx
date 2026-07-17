@@ -10,14 +10,15 @@ export default function AuthHeader() {
   // Hide on home page, dashboard, and terminal as they have custom navs
   if (
     pathname === '/' ||
-    pathname?.startsWith('/model') ||
-    pathname?.startsWith('/tetration') ||
-    pathname?.startsWith('/scout') ||
-    pathname?.startsWith('/a16z') ||
-    pathname?.startsWith('/invest') ||
-    pathname?.startsWith('/building') ||
-    pathname?.startsWith('/pricing') ||
-    pathname?.startsWith('/policy')
+    pathname === '/cpo' ||
+    pathname?.startsWith('/cpo/model') ||
+    pathname?.startsWith('/cpo/tetration') ||
+    pathname?.startsWith('/cpo/scout') ||
+    pathname?.startsWith('/cpo/a16z') ||
+    pathname?.startsWith('/cpo/invest') ||
+    pathname?.startsWith('/cpo/building') ||
+    pathname?.startsWith('/cpo/pricing') ||
+    pathname?.startsWith('/cpo/policy')
   ) {
     return null;
   }

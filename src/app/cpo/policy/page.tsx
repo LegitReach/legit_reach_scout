@@ -95,7 +95,7 @@ export default function PolicyPage() {
         flexDirection: "column",
       }}
     >
-      <Nav current="/policy" />
+      <Nav current="/cpo/policy" />
 
       <main style={{ flex: 1, paddingTop: "6rem" }}>
         <section
