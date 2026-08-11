@@ -21,12 +21,16 @@ export function LegitBotNav() {
   return (
     <header className={styles.header}>
       <nav className={styles.nav} aria-label="LegitBot navigation">
-        <Link className={styles.brand} href="/legitbot" aria-label="LegitBot home">
-          <TriangleMark className={styles.brandMark} />
-          <span className={styles.brandParent}>LEGITREACH</span>
+        <div className={styles.brand}>
+          <Link className={styles.brandHome} href="/" aria-label="LegitReach home">
+            <TriangleMark className={styles.brandMark} />
+            <span className={styles.brandParent}>LEGITREACH</span>
+          </Link>
           <span className={styles.brandDivider} aria-hidden="true" />
-          <span className={styles.brandProduct}>LEGITBOT</span>
-        </Link>
+          <Link className={styles.brandProduct} href="/legitbot" aria-label="LegitBot home">
+            LEGITBOT
+          </Link>
+        </div>
 
         <button
           className={styles.menuButton}

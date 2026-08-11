@@ -44,7 +44,7 @@ function Footer() {
       <div className={styles.footerBrand}>
         <TriangleMark className={styles.footerMark} />
         <div>
-          <p>LEGITREACH · LEGITBOT</p>
+          <p>LEGITBOT</p>
           <span>Space, connected.</span>
         </div>
       </div>
@@ -54,11 +54,11 @@ function Footer() {
         <Link href="/legitbot/legal">Legal</Link>
         <a href="mailto:privacy@legitreach.com">Privacy</a>
         <a href="https://x.com/get_LegitReach" target="_blank" rel="noreferrer">
-          @get_LegitReach
+          X
         </a>
       </div>
       <p className={styles.footerFinePrint}>
-        © {new Date().getFullYear()} LegitReach. Facts only, not investment advice.
+        © {new Date().getFullYear()} LegitBot. Facts only, not investment advice.
         Counsel must review final policies.
       </p>
     </footer>

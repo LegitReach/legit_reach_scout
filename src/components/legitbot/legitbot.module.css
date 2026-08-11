@@ -155,6 +155,15 @@
   color: #ffffff;
 }
 
+.brandHome {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.brandHome:hover .brandParent,
+.brandProduct:hover { color: #ffffff; }
+
 .brandMark {
   width: 1.5rem;
   height: 1.5rem;
@@ -252,6 +261,7 @@
   color: #ffffff;
   background: transparent;
   border-color: var(--lb-line-strong);
+  cursor: pointer;
 }
 
 .secondaryLink:hover,
@@ -814,6 +824,61 @@
 .footerLinks a { color: var(--lb-muted); font-size: .7rem; }
 .footerLinks a:hover { color: #fff; }
 .footerFinePrint { grid-column: 1 / -1; max-width: 48rem; margin: 0; color: rgba(255,255,255,.34); font-size: .65rem; line-height: 1.7; }
+
+.deckDialog {
+  width: min(96vw, 68.75rem);
+  height: 90dvh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  color: #fff;
+  border: 1px solid var(--lb-line-strong);
+  border-radius: 1.5rem;
+  background: #000;
+  box-shadow: 0 28px 90px rgba(0,0,0,.8);
+  overflow: hidden;
+}
+
+.deckDialog::backdrop {
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(14px);
+}
+
+.deckDialogHeader {
+  min-height: 3.75rem;
+  padding: .75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--lb-line);
+}
+
+.deckDialogHeader > span {
+  color: var(--lb-muted);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .3em;
+}
+
+.deckDialogActions { display: flex; align-items: center; gap: .6rem; }
+.deckDialogAction,
+.deckDialogClose {
+  min-height: 2.25rem;
+  color: #fff;
+  border: 1px solid var(--lb-line-strong);
+  background: transparent;
+  font: inherit;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  cursor: pointer;
+}
+.deckDialogAction { padding: .55rem .85rem; border-radius: 999px; }
+.deckDialogClose { width: 2.25rem; border-radius: 50%; font-size: 1rem; letter-spacing: 0; }
+.deckDialogAction:hover,
+.deckDialogClose:hover { color: #000; background: #fff; }
+.deckDialog iframe { width: 100%; height: calc(100% - 3.75rem); border: 0; background: #000; }
 
 @media (max-width: 980px) {
   .hero { grid-template-columns: 1fr; min-height: auto; }

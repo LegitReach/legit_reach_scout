@@ -10,10 +10,17 @@ describe("root landing preservation", () => {
     expect(landing).not.toContain('>PROTOTYPE<\\u002Fa>');
   });
 
-  it("keeps KNOW MORE wired to the pitch deck", () => {
-    expect(landing).toContain('sc-camel-on-click=\\"{{ openDeck }}\\"');
-    expect(landing).toContain('>KNOW MORE<\\u002Fa>');
+  it("removes KNOW MORE while keeping the pitch deck implementation", () => {
+    expect(landing).toContain(
+      "openDeck: (e) => { e.preventDefault(); this.setState({ deckOpen: true }); }",
+    );
+    expect(landing).not.toContain('>KNOW MORE<\\u002Fa>');
     expect(landing).toContain('data-screen-label=\\"Pitch Deck Modal\\"');
+  });
+
+  it("uses the current homepage line", () => {
+    expect(landing).toContain("Yellowpages for Deep-Space");
+    expect(landing).not.toContain("Deep space communication using photons");
   });
 
   it("retains the internal MiniReach prototype implementation", () => {

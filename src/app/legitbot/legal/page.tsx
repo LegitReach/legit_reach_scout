@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Eyebrow } from "@/components/legitbot/LegitBotFrame";
+import { PitchDeckDialog } from "@/components/legitbot/PitchDeckDialog";
 import styles from "@/components/legitbot/legitbot.module.css";
 
 export const metadata: Metadata = {
@@ -34,6 +35,15 @@ export default function LegalHubPage() {
               <h2>{title}</h2><p>{body}</p><Link href={href}>READ →</Link>
             </article>
           ))}
+        </div>
+      </section>
+      <section className={styles.section} aria-label="LegitReach pitch deck">
+        <div className={styles.ctaBand}>
+          <div>
+            <Eyebrow>LEGITREACH</Eyebrow>
+            <h2>Pitch deck.</h2>
+          </div>
+          <PitchDeckDialog />
         </div>
       </section>
     </div>

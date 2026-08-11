@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <mask id="diagonal-cut">
+      <rect width="1024" height="1024" fill="white" />
+      <line x1="-50" y1="420" x2="1074" y2="820" stroke="black" stroke-width="54" />
+    </mask>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#FFFFFF" />
+
+  <polygon points="512,183 132,841 892,841" fill="#000000" mask="url(#diagonal-cut)" />
+</svg>
