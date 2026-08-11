@@ -1,59 +1,97 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
-'use client'
+import { useUser } from "@clerk/nextjs";
+import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
+import { PostHogProvider } from "posthog-js/react";
+import { useEffect, useState } from "react";
+import {
+  canRunAnalytics,
+  getSanitizedPageviewUrl,
+  LEGITBOT_ANALYTICS_CONSENT_EVENT,
+} from "@/lib/analyticsConsent";
 
-import posthog from 'posthog-js'
-import { PostHogProvider } from 'posthog-js/react'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
-import { useUser } from '@clerk/nextjs'
+let initialized = false;
 
-if (typeof window !== 'undefined') {
-  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-    api_host: '/ingest',
-    ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
-    defaults: '2026-01-30',
-    person_profiles: 'identified_only',
-    capture_pageview: false, // Manual tracking for Next.js App Router
-    capture_exceptions: true,
-    debug: process.env.NODE_ENV === 'development',
-  })
-  ;(window as any).posthog = posthog
+function initializePostHog() {
+  if (initialized || !process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+    api_host: "/ingest",
+    ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    defaults: "2026-01-30",
+    person_profiles: "identified_only",
+    capture_pageview: false,
+    autocapture: false,
+    disable_session_recording: true,
+    capture_exceptions: false,
+    debug: process.env.NODE_ENV === "development",
+  });
+  initialized = true;
+  window.posthog = posthog;
+}
+
+function useAnalyticsPermission() {
+  const pathname = usePathname();
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const refresh = () => setAllowed(canRunAnalytics(pathname));
+    refresh();
+    window.addEventListener(LEGITBOT_ANALYTICS_CONSENT_EVENT, refresh);
+    return () => window.removeEventListener(LEGITBOT_ANALYTICS_CONSENT_EVENT, refresh);
+  }, [pathname]);
+
+  return allowed;
 }
 
 export function PostHogPageView() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const { isLoaded, isSignedIn, user } = useUser()
+  const pathname = usePathname();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const allowed = useAnalyticsPermission();
 
   useEffect(() => {
-    // Identify user in PostHog when they sign in with Clerk
+    if (!allowed) {
+      if (initialized) posthog.opt_out_capturing();
+      return;
+    }
+    initializePostHog();
+    if (!initialized) return;
+    posthog.opt_in_capturing();
+
     if (isLoaded && isSignedIn && user) {
-      posthog.identify(user.id, {
-        email: user.primaryEmailAddress?.emailAddress,
-        username: user.username,
-        name: user.fullName
-      })
+      posthog.identify(user.id);
     } else if (isLoaded && !isSignedIn) {
-      posthog.reset()
+      posthog.reset();
     }
-  }, [isLoaded, isSignedIn, user])
+  }, [allowed, isLoaded, isSignedIn, user]);
 
   useEffect(() => {
-    if (pathname) {
-      let url = window.origin + pathname
-      if (searchParams.toString()) {
-        url = url + `?${searchParams.toString()}`
-      }
-      posthog.capture('$pageview', {
-        $current_url: url
-      })
-    }
-  }, [pathname, searchParams])
+    if (!allowed || !pathname) return;
+    initializePostHog();
+    if (!initialized) return;
 
-  return null
+    const url = getSanitizedPageviewUrl(window.origin, pathname);
+    if (!url) return;
+    posthog.capture("$pageview", { $current_url: url });
+  }, [allowed, pathname]);
+
+  return null;
 }
 
 export function CSPostHogProvider({ children }: { children: React.ReactNode }) {
-  return <PostHogProvider client={posthog}>{children}</PostHogProvider>
+  const allowed = useAnalyticsPermission();
+
+  useEffect(() => {
+    if (allowed) initializePostHog();
+  }, [allowed]);
+
+  if (!allowed) return children;
+  return <PostHogProvider client={posthog}>{children}</PostHogProvider>;
+}
+
+declare global {
+  interface Window {
+    posthog?: typeof posthog;
+  }
 }

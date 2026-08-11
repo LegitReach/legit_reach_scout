@@ -10,6 +10,7 @@ export default function AuthHeader() {
   // Hide on home page, dashboard, and terminal as they have custom navs
   if (
     pathname === '/' ||
+    pathname?.startsWith('/legitbot') ||
     pathname === '/cpo' ||
     pathname?.startsWith('/cpo/model') ||
     pathname?.startsWith('/cpo/tetration') ||

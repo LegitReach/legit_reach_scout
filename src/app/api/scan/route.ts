@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { getAuthenticatedClient } from "@/lib/supabaseServer";
 
+interface ScanSlotInput {
+  community: unknown;
+}
+
 export async function GET(req: NextRequest) {
 
   console.error("[scan/GET] - started");
@@ -42,9 +46,13 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "No token" }, { status: 401 });
 
   const body = await req.json();
-  const { storeUrl, brandProfile, slots } = body;
+  const { storeUrl, brandProfile, slots } = body as {
+    storeUrl?: string;
+    brandProfile?: unknown;
+    slots?: ScanSlotInput[];
+  };
 
-  if (!storeUrl || !brandProfile || !slots) {
+  if (!storeUrl || !brandProfile || !Array.isArray(slots)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -57,7 +65,7 @@ export async function POST(req: NextRequest) {
         user_id:       userId,
         store_url:     storeUrl,
         brand_profile: brandProfile,
-        communities:   (slots as any[]).map(({ community }) => ({ community })),
+        communities:   slots.map(({ community }) => ({ community })),
         updated_at:    new Date().toISOString(),
       },
       { onConflict: "user_id" }
