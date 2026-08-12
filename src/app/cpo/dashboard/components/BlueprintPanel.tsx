@@ -20,6 +20,7 @@ export function BlueprintPanel({
   onStep1Complete: () => void;
   onStep2Complete: () => void;
 }) {
+  const [step2Clicked, setStep2Clicked] = useState(false);
   const { community, data } = slot;
   if (!data) return null;
   const { engagement, creation } = data;
@@ -27,7 +28,6 @@ export function BlueprintPanel({
   const sb = stanceBg(community.promotionStance);
   const step1Done = slot.currentStep === 2 || slot.currentStep === "complete";
   const step2Done = slot.currentStep === "complete";
-  const [step2Clicked, setStep2Clicked] = useState(false);
 
   const sub = community.subreddit.replace(/^r\//, "");
   const draft = creation.contentOutline.join("\n\n");
@@ -78,7 +78,7 @@ export function BlueprintPanel({
           {step2Locked ? (
             <div className={styles.step2LockWrap}>
               <div className={styles.step2LockedContent}>
-                <p className={styles.suggestedTitle}>"{creation.suggestedTitle}"</p>
+                <p className={styles.suggestedTitle}>&ldquo;{creation.suggestedTitle}&rdquo;</p>
                 {creation.contentOutline.length > 0 && (
                   <ul className={styles.outline}>
                     {creation.contentOutline.map((item, i) => <li key={i}>{item}</li>)}
@@ -97,7 +97,7 @@ export function BlueprintPanel({
             </div>
           ) : (
             <>
-              <p className={styles.suggestedTitle}>"{creation.suggestedTitle}"</p>
+              <p className={styles.suggestedTitle}>&ldquo;{creation.suggestedTitle}&rdquo;</p>
               {creation.contentOutline.length > 0 && (
                 <ul className={styles.outline}>
                   {creation.contentOutline.map((item, i) => <li key={i}>{item}</li>)}

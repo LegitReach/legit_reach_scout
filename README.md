@@ -1,114 +1,79 @@
-# LegitReach — Search Engine for Community Managers
+# LegitReach
 
-Everything a community manager needs to run a brand online — listen, research, draft, and post — in one platform, without a single dollar in paid media. AI agents draft a brand's authentic voice at superhuman pace; a human approves every post, so brands show up legitimately in ~5 minutes a day instead of going silent, outsourcing badly, or deploying bot armies.
+LegitReach is a multi-product company building human-approved AI systems. This repository powers the public site and two products:
 
-**Traction:** 3 paying brands · 67 customer-discovery calls · 2 signed LOIs (a Boston political/social strategist and an education institute). Live at [legitreach.com](https://legitreach.com).
+- **LegitBot** (`/legitbot`) — an X-native superconnector and intelligence platform for the global space industry.
+- **CPO** (`/cpo`) — the existing community and brand-operations product. Its routes and $79 scan-credit checkout remain independent from LegitBot.
 
-## What It Does
+Production: [legitreach.com](https://legitreach.com)
 
-LegitReach analyzes your store or brand URL and provisions a personalized command center for community management, featuring three dynamic intelligence panels:
+## LegitBot
 
-| Panel | Description | Status |
-|---|---|---|
-| **Data Sources** (Left) | Connect internal operational data — Shopify, Analytics, Email/SMS, Inventory, Ad Platforms, Payments | Coming Soon |
-| **Brand Intelligence** (Center) | Live stream of Google News, Google Trends, and public brand mentions from the past 24 hours | ✅ Active |
-| **AI Agents** (Right) | Active Reddit Agent scouting for highly relevant discussions and drafting replies. X/Twitter Agent to follow. | ✅ Reddit Active |
+LegitBot uses the automated X account [`@get_LegitReach`](https://x.com/get_LegitReach) as its sole conversational interface. It helps opted-in space professionals build reviewed profiles, find reciprocal introductions, monitor public space companies, and access provenance-controlled space data.
 
-## How It Works
+The website provides product information, pricing and checkout, legal notices, and a minimal authenticated developer portal. It does not provide a parallel chat interface. Until official X Account Activity and DM access passes production smoke tests, the product runs in human-concierge mode: the system drafts and records work, and a human sends messages on X.
 
-1. **Enter your store URL** on the landing page and click Magic Scan
-2. **Sign in** (required) — while you authenticate, LegitReach starts scanning Reddit and building your newsletter in the background
-3. **Interactive loading** — answer optional quick polls while your terminal initializes
-4. **Terminal loads** — your Bloomberg-style dashboard with live brand intelligence, Reddit opportunities, and data source connections
+### Product boundaries
 
-## Tech Stack
+- No LinkedIn, SMS, voice calling, phone number, or automated browser control of X.
+- A person must initiate a DM or explicitly request contact before automated DMs are allowed.
+- Profiles are open to applicants but become matchable only after human review.
+- Every beta match and every public post/reply requires operator approval.
+- Introductions require two independent opt-ins. Verified email is requested only after a member accepts a first match.
+- Company intelligence is factual and sourced, never personalized investment advice.
+- Source rights are enforced as `redistributable`, `derived_only`, `catalog_only`, or `blocked`; ambiguous sources default to catalog-only.
 
-- **Framework**: Next.js 16 (Turbopack)
-- **Auth**: Clerk
-- **AI**: Google Gemini (Flash) for store analysis, Reddit curation, and reply generation
-- **Realtime**: Upstash Redis + Realtime for live dashboard updates
-- **Styling**: CSS Modules + Tailwind CSS
-- **Analytics**: PostHog
-- **Database**: Supabase
-- **Payments**: Stripe
+## Stack
 
-## Getting Started
+- Next.js 16 / React 19 / TypeScript
+- Clerk authentication (including X/Twitter v2 when configured)
+- Supabase Postgres, RLS, and pgvector
+- Upstash Redis and QStash for durable asynchronous work
+- Stripe subscriptions and prepaid credits
+- Resend outbound/inbound email
+- Google Gemini via `@google/genai`
+- PostHog, Google Analytics, and Clarity, consent-gated on LegitBot routes
+
+## Local development
+
+Requirements: Node.js 20+, npm, and a Supabase project or local Supabase CLI.
 
 ```bash
-# Install dependencies
-npm install
-
-# Set environment variables
+npm ci
 cp .env.example .env.local
-# Add your keys for: GEMINI_API_KEY, Clerk, Supabase, Upstash, Stripe, PostHog
-
-# Run development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Useful checks:
 
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── terminal/          # Bloomberg-style EMS terminal (primary dashboard)
-│   │   ├── page.tsx       # 3-panel terminal layout
-│   │   ├── loading-screen.tsx  # Interactive loading with polls
-│   │   └── terminal.module.css
-│   ├── dashboard/         # Reddit Agent — full opportunities view
-│   │   ├── page.tsx       # Curated Reddit leads
-│   │   └── post/          # Individual post detail + reply drafting
-│   ├── api/
-│   │   ├── newsletter/    # Google News + Trends aggregation
-│   │   ├── dashboard/     # Reddit curation pipeline
-│   │   ├── onboarding/    # Magic Scan (store URL → config)
-│   │   └── ai/            # Gemini-powered analysis
-│   └── onboarding/        # Manual setup flow
-├── components/
-│   ├── Sidebar.tsx        # Navigation sidebar
-│   ├── PostCard.tsx       # Reddit post card
-│   └── RedditList.tsx     # Reddit post list
-├── context/
-│   └── AppContext.tsx      # Global state, caching, sync
-└── ai/
-    └── gemini.model.ts    # Gemini model configuration
+```bash
+npm run lint
+npm test
+npm run build
 ```
 
-## Key Routes
+See [`docs/legitbot-environment.md`](docs/legitbot-environment.md) for configuration and feature flags. Database changes are versioned in [`supabase/migrations`](supabase/migrations).
+
+## Routes
 
 | Route | Purpose |
 |---|---|
-| `/` | Landing page with Magic Scan |
-| `/terminal` | Bloomberg-style EMS terminal (main dashboard) |
-| `/dashboard` | Full Reddit opportunities list |
-| `/dashboard/post?id=` | Reddit post detail with AI reply drafting |
-| `/dashboard/settings` | Configuration & settings |
+| `/` | LegitReach umbrella landing page |
+| `/legitbot` | LegitBot product landing |
+| `/legitbot/pricing` | Membership and API-credit pricing |
+| `/legitbot/developers` | API documentation and authenticated usage portal |
+| `/legitbot/legal/*` | Privacy, terms, data licensing, and disclosures |
+| `/legitbot/admin` | Protected operator console |
+| `/legitbot/api/v1/*` | Bearer-key customer data API |
+| `/cpo/*` | Existing CPO application |
+| `/api/checkout` | Existing CPO $79 scan-credit checkout |
+| `/api/webhook` | Shared Stripe webhook dispatcher |
 
-## Reddit Agent
+## Delivery and safety
 
-The Reddit Agent is the first active agent in the EMS:
+External integrations are disabled unless their explicit feature flag and required credentials are present. Webhooks verify signatures, deduplicate events, acknowledge quickly, and queue durable work. API keys are stored as hashes; sensitive content is excluded from analytics and redacted from application logs.
 
-1. **Scans** target subreddits using AI-selected keywords from your store
-2. **Curates** posts using Gemini to score relevance and opportunity quality
-3. **Drafts** contextual replies that match community tone
-4. Shows **top 2 opportunities** on the terminal, with full list accessible via "Show All"
-
-## Roadmap
-
-- [x] Magic Scan (URL → automated configuration)
-- [x] Bloomberg-style EMS Terminal
-- [x] Reddit Agent (scan, curate, engage)
-- [x] Brand Intelligence Newsletter (Google News + Trends)
-- [x] Interactive onboarding with quick polls
-- [ ] X/Twitter Agent
-- [ ] Shopify integration
-- [ ] Analytics dashboard
-- [ ] Email/SMS platform connections
-- [ ] Ad platform integrations
-- [ ] Inventory management
-- [ ] Multi-brand support
+Before production enablement, LegitBot requires X developer access, Clerk X configuration, a verified Resend inbound domain, Stripe Price IDs, database migrations, real DM compatibility tests, and legal review covering global privacy, billing, data licensing, financial-information disclaimers, and export controls.
 
 ## License
 

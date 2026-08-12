@@ -6,4 +6,24 @@ import { Redis } from "@upstash/redis";
  * - Realtime SDK: To enable push notifications for long-lived AI curation tasks.
  */
 
-export const redis = Redis.fromEnv();
+let client: Redis | undefined;
+
+function getRedisClient(): Redis {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required");
+  }
+
+  client ??= new Redis({ url, token });
+  return client;
+}
+
+/** Keep route imports build-safe; credentials are required only on first use. */
+export const redis = new Proxy({} as Redis, {
+  get(_target, property) {
+    const redisClient = getRedisClient();
+    const value = Reflect.get(redisClient, property, redisClient);
+    return typeof value === "function" ? value.bind(redisClient) : value;
+  },
+});

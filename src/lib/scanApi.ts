@@ -16,7 +16,7 @@ export async function fetchLastScanFromDb(): Promise<SavedScan | null> {
       scanId:       body.data.id,
       storeUrl:     body.data.store_url,
       brandProfile: body.data.brand_profile,
-      slots:        (body.data.communities as any[]).map((s: any) => ({
+      slots:        (body.data.communities as Array<{ community: SavedScanSlot["community"] }>).map((s) => ({
         community:   s.community,
         data:        null,
         currentStep: 1 as const,

@@ -42,6 +42,8 @@ export function useScanRestore(): { savedScan: SavedScan | null; isRestoring: bo
     if (!isLoaded) return;
 
     if (!isSignedIn) {
+      // Clerk is the external source of truth for this loading state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsRestoring(false);
       return;
     }

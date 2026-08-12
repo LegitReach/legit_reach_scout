@@ -11,6 +11,8 @@ export function useFingerprint(): string | null {
   useEffect(() => {
     const cached = localStorage.getItem(STORAGE_KEY);
     if (cached) {
+      // Hydrate the external browser-stored identifier after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFingerprintId(cached);
       return;
     }

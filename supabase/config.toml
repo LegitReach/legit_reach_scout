@@ -1,3 +1,7 @@
+[api]
+schemas = ["public", "graphql_public", "legitbot"]
+extra_search_path = ["public", "extensions", "legitbot"]
+
 [auth.third_party.clerk]
 enabled = true
 domain = "ready-boa-71.clerk.accounts.dev"

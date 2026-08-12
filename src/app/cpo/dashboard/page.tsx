@@ -44,34 +44,6 @@ export default function DashboardPage() {
       .catch(() => {});
   }, [isSignedIn]);
 
-  useEffect(() => {
-    if (!savedScan) return;
-
-    // Always capture scanId when useScanRestore propagates it (may arrive in a second update)
-    if (savedScan.scanId) scanIdRef.current = savedScan.scanId;
-
-    // Only run the full restore once — prevents re-running curate when scanId is added
-    if (hasRestoredRef.current) return;
-    hasRestoredRef.current = true;
-
-    const restored = savedScan.slots.map(s => ({
-      community:   s.community,
-      data:        s.data as CurateData | null,
-      loading:     !s.data,
-      failed:      false,
-      currentStep: s.currentStep,
-    }));
-    persistedUrlRef.current = savedScan.storeUrl;
-    setUrl(savedScan.storeUrl);
-    setBrandProfile(savedScan.brandProfile);
-    setSlots(restored);
-    setPhase("ready");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    restored.forEach((slot, idx) => {
-      if (!slot.data) curateOne(savedScan.brandProfile, slot.community, idx);
-    });
-  }, [savedScan]); // curateOne intentionally excluded — fires only when savedScan changes
-
   const saveActivity = useCallback((nextSlots: CommunitySlot[]) => {
     if (!isSignedIn || !scanIdRef.current) return;
     const progress = nextSlots.map(s => ({
@@ -144,6 +116,33 @@ export default function DashboardPage() {
       });
     }
   }, [fingerprintId, router]);
+
+  useEffect(() => {
+    if (!savedScan) return;
+
+    // Always capture scanId when useScanRestore propagates it (may arrive in a second update)
+    if (savedScan.scanId) scanIdRef.current = savedScan.scanId;
+
+    // Only run the full restore once — prevents re-running curate when scanId is added
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
+    const restored = savedScan.slots.map(s => ({
+      community:   s.community,
+      data:        s.data as CurateData | null,
+      loading:     !s.data,
+      failed:      false,
+      currentStep: s.currentStep,
+    }));
+    persistedUrlRef.current = savedScan.storeUrl;
+    setUrl(savedScan.storeUrl);
+    setBrandProfile(savedScan.brandProfile);
+    setSlots(restored);
+    setPhase("ready");
+    restored.forEach((slot, idx) => {
+      if (!slot.data) curateOne(savedScan.brandProfile, slot.community, idx);
+    });
+  }, [savedScan, curateOne]);
 
   const completeStep1 = useCallback((idx: number) => {
     setSlots(prev => {
@@ -261,7 +260,7 @@ export default function DashboardPage() {
           <div className={styles.inputLogo}>LegitReach</div>
           <h1 className={styles.inputHeading}>Community Engagement Blueprint</h1>
           <p className={styles.inputSub}>
-            Enter your brand URL and we'll discover your best Reddit communities
+            Enter your brand URL and we&apos;ll discover your best Reddit communities
             and generate a 2-step engagement blueprint for each.
           </p>
           <div className={styles.inputRow}>
