@@ -9,7 +9,7 @@ describe("root landing preservation", () => {
       '<a href=\\"mailto:manthan@legitreach.com?subject=LegitBot%20waitlist&body=',
     );
     expect(landing).toContain("My%20WhatsApp%20number%3A%20%2B1%20555%20000%200000");
-    expect(landing).toContain('>LEGITBOT<\\u002Fa>');
+    expect(landing).toContain('>LEGITBOT WAITLIST<\\u002Fa>');
     expect(landing).not.toContain('<a href=\\"/legitbot\\"');
     expect(landing).not.toContain('>PROTOTYPE<\\u002Fa>');
   });
