@@ -4,9 +4,13 @@ import { join } from "node:path";
 describe("root landing preservation", () => {
   const landing = readFileSync(join(process.cwd(), "public", "landing.html"), "utf8");
 
-  it("links the primary CTA to LegitBot", () => {
-    expect(landing).toContain('<a href=\\"/legitbot\\"');
-    expect(landing).toContain('>LEGITBOT<\\u002Fa>');
+  it("points the primary CTA at a prefilled waitlist email", () => {
+    expect(landing).toContain(
+      '<a href=\\"mailto:manthan@legitreach.com?subject=LegitBot%20waitlist&body=',
+    );
+    expect(landing).toContain("My%20WhatsApp%20number%3A%20%2B1%20555%20000%200000");
+    expect(landing).toContain('>LEGITBOT WAITLIST<\\u002Fa>');
+    expect(landing).not.toContain('<a href=\\"/legitbot\\"');
     expect(landing).not.toContain('>PROTOTYPE<\\u002Fa>');
   });
 
@@ -19,7 +23,11 @@ describe("root landing preservation", () => {
   });
 
   it("uses the current homepage line", () => {
-    expect(landing).toContain("Yellowpages for Deep-Space");
+    expect(landing).toContain("AI for Boomers");
+    expect(landing).toContain(
+      "Message us three things, we get them done for you without you ever leaving WhatsApp",
+    );
+    expect(landing).not.toContain("Yellowpages for Deep-Space");
     expect(landing).not.toContain("Deep space communication using photons");
   });
 
